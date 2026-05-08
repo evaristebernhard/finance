@@ -1,0 +1,29 @@
+#let st = $s_t$
+#let at = $a_t$
+#let gt = $G_t$
+#let mt = $M_t$
+#let ct = $C_t$
+#let rtstate = $R_t$
+#let et = $E_t$
+#let ft = $F_t$
+
+#let gamma = $Gamma_t$
+#let gammaof(path, size) = [$Gamma_t(#path, #size)$]
+#let qt = $q_t$
+#let qof(action) = [$q_t(#action)$]
+#let rt = $r_t$
+#let rof(action) = [$r_t(#action)$]
+#let kappat = $kappa_t$
+#let kappaof(action) = [$kappa_t(#action)$]
+#let ut = $u_t$
+#let pt = $p_t$
+#let thetapool = $theta_t^("pool")$
+#let thetaroute = $theta_t^("route")$
+#let vt = $V_t$
+#let jt = $J_t$
+#let bt = $b_t$
+#let kt = $cal(K)_t$
+
+#let protocol_lang = [*协议语言*：合约字段、事件名、CLI、JSON 键、文件路径。]
+#let research_lang = [*研究语言*：#st、#at、#gt、#mt、#ct、#rtstate、#et、#ft 以及由它们诱导出的 #gamma、#qt、#rt、#kappat、#ut、#pt。]
+#let impl_lang = [*实现语言*：Rust 类型、CLI 参数、JSON 输出、fixture、文件路径。]

@@ -1,0 +1,12 @@
+line	key	status	block_dec	max_blocks	last_ok_ms	last_ok_logs	fail_blocks	error
+1	ToISL-...jU5d	usable_slow	73183650	10	1455	0	20	Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range. Based on your parameters, this block range should work: [0x45cb18f, 0x45cb198]. Upgrade to PAYG for expanded block range.
+2	VfXPhi...e9WW	usable_slow	73183682	10	1503	0	20	Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range. Based on your parameters, this block range should work: [0x45cb1af, 0x45cb1b8]. Upgrade to PAYG for expanded block range.
+3	8zIkSK...ze8R	usable_slow	73183701	10	1503	0	20	Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range. Based on your parameters, this block range should work: [0x45cb1c2, 0x45cb1cb]. Upgrade to PAYG for expanded block range.
+4	MXFViR...gm1w	usable_slow	73183728	1000	1504	1	2000	You can make eth_getLogs requests with up to a 1000 block range. Based on your parameters, this block range should work: [0x45caa21, 0x45cae08]
+5	bl9zbJ...-QRB	usable_slow	73183783	10	1446	0	20	Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range. Based on your parameters, this block range should work: [0x45cb214, 0x45cb21d]. Upgrade to PAYG for expanded block range.
+6	30Vrqd...SfYp	network_disabled		0	-	-	-	MONAD_MAINNET is not enabled for this app. Visit this page to enable the network: https://dashboard.alchemy.com/apps/n77tvji07j9q1mvk/networks
+7	g7Po4a...vkmM	usable_slow	73183836	1000	1865	1	2000	You can make eth_getLogs requests with up to a 1000 block range. Based on your parameters, this block range should work: [0x45caa8d, 0x45cae74]
+8	Uwb7T0...mJqk	usable_slow	73183896	10	1449	0	20	Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range. Based on your parameters, this block range should work: [0x45cb285, 0x45cb28e]. Upgrade to PAYG for expanded block range.
+9	FPgsxx...z04i	capacity_exceeded		0	-	-	-	Monthly capacity limit exceeded. Visit https://dashboard.alchemy.com/settings/billing to upgrade your scaling policy for continued service.
+10	glrcqI...YVqv	inactive		0	-	-	-	App is inactive. Please create a new app or contact support at https://dashboard.alchemy.com/support
+11	SLg9QL...LZc1	usable_slow	73183969	10	3503	0	20	Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range. Based on your parameters, this block range should work: [0x45cb2ce, 0x45cb2d7]. Upgrade to PAYG for expanded block range.
