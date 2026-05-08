@@ -1,0 +1,10 @@
+[Unit]
+Description=Run CHOG v1 Dex snapshot every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+Unit=chog-dex-snapshot.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,3 @@
+# Run one CHOG v1 incremental collection pass every 15 minutes.
+# Update /home/chao/finance_chain if the repository is deployed elsewhere.
+*/15 * * * * cd /home/chao/finance_chain && /home/chao/finance_chain/crate/target/debug/chog_collect --mode incremental --data-root data/chog/v1 >> /home/chao/finance_chain/data/chog/v1/chog_collect.log 2>&1

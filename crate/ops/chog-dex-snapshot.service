@@ -1,0 +1,9 @@
+[Unit]
+Description=CHOG v1 Dex snapshot collection pass
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/chao/finance_chain
+ExecStart=/home/chao/finance_chain/crate/target/debug/dex_snapshot --format parquet --data-root data/chog/v1

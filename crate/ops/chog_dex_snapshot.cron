@@ -1,0 +1,3 @@
+# Run the DexScreener CHOG snapshot every 15 minutes.
+# Update /home/chao/finance_chain if the repository is deployed elsewhere.
+*/15 * * * * cd /home/chao/finance_chain && /home/chao/finance_chain/crate/target/debug/dex_snapshot --format parquet --data-root data/chog/v1 >> /home/chao/finance_chain/data/chog/v1/dex_snapshot.log 2>&1

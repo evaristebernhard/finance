@@ -1,0 +1,9 @@
+[Unit]
+Description=CHOG v1 incremental collection pass
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/chao/finance_chain
+ExecStart=/home/chao/finance_chain/crate/target/debug/chog_collect --mode incremental --data-root data/chog/v1

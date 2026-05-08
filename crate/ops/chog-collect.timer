@@ -1,0 +1,10 @@
+[Unit]
+Description=Run CHOG v1 collection every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+Unit=chog-collect.service
+
+[Install]
+WantedBy=timers.target
