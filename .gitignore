@@ -1,0 +1,17 @@
+# Local secrets and machine-specific runtime config.
+.env.local
+.env.chog.local
+.env.*.local
+
+# Rust build outputs are large and reproducible.
+crate/target/
+
+# Local handoff/archive packages.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Local editor/OS noise.
+.DS_Store
+Thumbs.db
