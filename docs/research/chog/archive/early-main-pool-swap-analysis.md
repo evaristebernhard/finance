@@ -2,7 +2,7 @@
 
 本轮新增主池 Uniswap V3-style `Swap` logs。相比 ERC-20 `Transfer` logs，Swap logs 能直接给出方向和数量，因此是后续做因子的优先数据。
 
-计划主入口: [CHOG external 框架吸收计划](./chog_external_absorption_plan.md)。
+计划主入口: [CHOG external 框架吸收计划](../framework/external-absorption-plan.md)。
 
 ## 新增文件
 
@@ -167,7 +167,7 @@ MainPoolSellPressure_1h 越低，未来收益越好。
 
 ## 下一步
 
-按 [CHOG external 框架吸收计划](./chog_external_absorption_plan.md) 的 V1 顺序推进:
+按 [CHOG external 框架吸收计划](../framework/external-absorption-plan.md) 的 V1 顺序推进:
 
 1. 给 `v3_swap_sample` 做 checkpoint/resume。
 2. 定时化 DexScreener snapshot，形成 `liquidity_usd_t`。

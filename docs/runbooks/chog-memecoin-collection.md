@@ -4,7 +4,7 @@
 
 这份文档替代旧 runbook 里默认全量拉 `block_headers` 的做法。旧 collector 仍保留，但默认 backfill/incremental 路径改为围绕 CHOG 交易事件补最小必要数据。
 
-新 Codex 接手时先读 [Codex Handoff: Memecoin Strategy Collection](./codex_handoff_memecoin_strategy.md)，里面记录了已改文件、已验证项、树莓派上暂停的重型验证和下一步 smoke 计划。
+新 Codex 接手时先读 [Codex Handoff: Memecoin Strategy Collection](../handoff/memecoin-strategy.md)，里面记录了已改文件、已验证项、树莓派上暂停的重型验证和下一步 smoke 计划。
 
 ## 背景
 

@@ -2,11 +2,11 @@
 
 当前 CHOG 文档使用的核心数据已扩展为: 价格序列、DEX 池子快照、Monad RPC transfer logs、主池 v3 Swap logs、全池 swap logs、CHOG 事件块 headers、tx receipts/gas、memecoin 策略特征。
 
-计划主入口: [CHOG external 框架吸收计划](./chog_external_absorption_plan.md)。
+计划主入口: [CHOG external 框架吸收计划](../research/chog/framework/external-absorption-plan.md)。
 
-运行手册: [CHOG v1 30 天 Backfill Runbook](./chog_v1_backfill_runbook.md)。
+运行手册: [CHOG v1 30 天 Backfill Runbook](../runbooks/chog-v1-backfill.md)。
 
-当前默认采集路径: [CHOG Memecoin 策略优先采集路径](./chog_memecoin_collection_strategy.md)。
+当前默认采集路径: [CHOG Memecoin 策略优先采集路径](../runbooks/chog-memecoin-collection.md)。
 
 ## 文件
 
@@ -292,7 +292,7 @@ cargo run --manifest-path crate/Cargo.toml -- --hours 476 --output date/chog_pri
 
 ## 下一步
 
-下一步不再只按“继续补数据”描述，而按 [CHOG external 框架吸收计划](./chog_external_absorption_plan.md) 的 V1 顺序推进。当前所有 projection 类对象都必须保留 proxy/posterior summary 语义，尤其是 `q_t/r_t/kappa_t/u_t/p_t`。
+下一步不再只按“继续补数据”描述，而按 [CHOG external 框架吸收计划](../research/chog/framework/external-absorption-plan.md) 的 V1 顺序推进。当前所有 projection 类对象都必须保留 proxy/posterior summary 语义，尤其是 `q_t/r_t/kappa_t/u_t/p_t`。
 
 1. 用 `--append --resume` 持续运行 `transfer_sample` 和 `v3_swap_sample`，优先扩大 CHOG v1 observed log 窗口。
 2. 定时化 DexScreener snapshot，形成 `liquidity_usd_t`。

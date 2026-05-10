@@ -2,7 +2,7 @@
 
 本报告使用当前已有数据做初步因子筛选。结论只适合指导下一步采集和建模，不适合直接交易。
 
-计划主入口: [CHOG external 框架吸收计划](./chog_external_absorption_plan.md)。
+计划主入口: [CHOG external 框架吸收计划](../framework/external-absorption-plan.md)。
 
 ## 1. 数据
 
@@ -326,7 +326,7 @@ ExpectedReturn_24h =
 
 ## 8. 下一步
 
-下一步按 [CHOG external 框架吸收计划](./chog_external_absorption_plan.md) 的 V1 顺序推进。当前因子结论只作为 proxy 候选，不直接升级为策略真值。
+下一步按 [CHOG external 框架吸收计划](../framework/external-absorption-plan.md) 的 V1 顺序推进。当前因子结论只作为 proxy 候选，不直接升级为策略真值。
 
 1. 给 `v3_swap_sample` 做 checkpoint/resume。
 2. 定时化 DexScreener snapshot，形成 `liquidity_usd_t`。

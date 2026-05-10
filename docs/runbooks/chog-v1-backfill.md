@@ -2,37 +2,37 @@
 
 这份文档记录 2026-05-07 的一天窗口实测经验，并把后续 30 天历史数据的跑法固定下来。目标是慢慢补齐正式 Parquet 数据，不追求一次命令跑完 30 天。
 
-更新: memecoin 策略默认路径已从“全量逐块 `block_headers`”改为“事件块 `event_block_headers` + local-first receipts + memecoin features”。新路径见 [CHOG Memecoin 策略优先采集路径](./chog_memecoin_collection_strategy.md)。本 runbook 里的 full header 命令只作为全链逐块研究的逃生路径保留。
+更新: memecoin 策略默认路径已从“全量逐块 `block_headers`”改为“事件块 `event_block_headers` + local-first receipts + memecoin features”。新路径见 [CHOG Memecoin 策略优先采集路径](./chog-memecoin-collection.md)。本 runbook 里的 full header 命令只作为全链逐块研究的逃生路径保留。
 
 ## 当前状态
 
-最新 live 状态见 [Codex Handoff: Live CHOG Collection Status](./codex_handoff_live_collection_20260508.md)。
+最新 live 状态见 [Codex Handoff: Live CHOG Collection Status](../handoff/live-collection.md)。
 
-2026-05-08 继续采集后，memecoin 策略路径已经质量检查通过到约五天连续窗口:
+2026-05-09 继续采集后，memecoin 策略路径已经质量检查通过到约三十天连续窗口:
 
 ```text
-71907947..72992946
+66507947..72992946
 ```
 
 最新质量检查核心计数:
 
 ```text
-raw.main_pool_swap_logs: rows=1927
-raw.dex_pool_swap_logs: rows=3486
-raw.erc20_transfer_logs: rows=8301
-raw.tx_receipts: rows=3167
-raw.event_block_headers: rows=3699
-derived.memecoin_event_features: rows=3486
-derived.memecoin_hourly_features: rows=404
-quality check passed: files=3550 rows=246897
+raw.main_pool_swap_logs: rows=11207
+raw.dex_pool_swap_logs: rows=18795
+raw.erc20_transfer_logs: rows=47049
+raw.tx_receipts: rows=15687
+raw.event_block_headers: rows=22001
+derived.memecoin_event_features: rows=18795
+derived.memecoin_hourly_features: rows=2226
+quality check passed: files=15719 rows=359208
 ```
 
 下一段历史窗口:
 
 ```text
-FROM=71691947
-TO=71907946
-DAY_TAG=day20260501
+FROM=66291947
+TO=66507946
+DAY_TAG=day20260406
 ```
 
 Receipts 当前建议用 `--receipt-only --rpc-batch-size 50`，因为当前 memecoin features 只需要 receipt outcome/gas 字段，实测比完整 `eth_getTransactionByHash` 路径更快。
@@ -46,26 +46,29 @@ data/chog/v1
 已验证连续窗口:
 
 ```text
-72771947..72992946
+66507947..72992946
 ```
 
-其中 `72771947..72987946` 是约一天窗口，`72987947..72992946` 是此前 5,000-block 正式 slice。2026-05-08 本地质量检查结果:
+其中 `72771947..72987946` 是较早完成的约一天窗口，`72987947..72992946` 是此前 5,000-block 正式 slice。2026-05-09 本地质量检查结果:
 
 ```text
-raw.main_pool_swap_logs: files=261 rows=606 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
-raw.dex_pool_swap_logs: files=510 rows=1022 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
-raw.erc20_transfer_logs: files=369 rows=2460 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+raw.main_pool_swap_logs: files=3855 rows=11207 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+raw.dex_pool_swap_logs: files=5028 rows=18795 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+raw.erc20_transfer_logs: files=4529 rows=47049 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
 raw.dex_pairs_snapshots: files=3 rows=33 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
-raw.tx_receipts: files=45 rows=1081 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+raw.tx_receipts: files=685 rows=15687 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
 raw.block_headers: files=222 rows=221000 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+raw.event_block_headers: files=60 rows=22001 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
 raw.prices_hourly: files=2 rows=24 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
-raw.collection_runs: files=50 rows=50 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+raw.collection_runs: files=1269 rows=1269 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
 derived.dex_pool_swap_hourly: files=2 rows=100 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
 derived.dex_swap_factors: files=2 rows=1022 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
-quality check passed: files=1466 rows=227398
+derived.memecoin_event_features: files=31 rows=18795 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+derived.memecoin_hourly_features: files=31 rows=2226 duplicate_keys=0 request_status_errors=0 utc_errors=0 dt_errors=0
+quality check passed: files=15719 rows=359208
 ```
 
-当前 base checkpoint 已推进到 `72992946`。Shard checkpoint 保留在 `data/chog/v1/_checkpoints/*day20260506*.json`，用于审计和重跑具体 shard。
+当前 memecoin 路径最早已推进到 `day20260407`，下一段从 `day20260406` 继续。Shard checkpoint 保留在 `data/chog/v1/_checkpoints/*day20260407*.json` 等文件中，用于审计和重跑具体 shard。
 
 ## RPC 经验
 
@@ -120,9 +123,9 @@ cargo build --manifest-path crate/Cargo.toml --bins
 当前下一段历史窗口从这里开始:
 
 ```bash
-FROM=72555947
-TO=72771946
-DAY_TAG=day20260505
+FROM=66291947
+TO=66507946
+DAY_TAG=day20260406
 SHARD_SIZE=18000
 LOG_DIR="/tmp/chog-v1-${DAY_TAG}"
 mkdir -p "$LOG_DIR"
