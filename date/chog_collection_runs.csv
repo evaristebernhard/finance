@@ -1,0 +1,1 @@
+collector,chain,address,topic0,from_block,to_block,output,checkpoint,rows_written,chunks_completed,status,started_at_utc,finished_at_utc

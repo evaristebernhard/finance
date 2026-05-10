@@ -1,0 +1,80 @@
+{
+  "data_root": "data/mon_usdc/v1",
+  "run_tag": "20260509",
+  "executable_path": "C:/Users/jiang/Desktop/finance_chain_full_handoff_20260508_r2/target/release/mon_usdc_factor_analysis.exe",
+  "outputs": {
+    "pool_summary": "date/mon_usdc_v1_pool_summary_20260509.csv",
+    "hourly_market": "date/mon_usdc_v1_hourly_market_features_20260509.csv",
+    "hourly_factor_tests": "date/mon_usdc_v1_hourly_factor_tests_20260509.csv",
+    "event_factor_tests": "date/mon_usdc_v1_event_factor_tests_20260509.csv",
+    "summary_json": "date/mon_usdc_v1_factor_analysis_summary_20260509.json",
+    "report": "docs/mon_usdc_v1_factor_analysis_20260509.md"
+  },
+  "derived_cache": {
+    "schema_version": 1,
+    "status": "hit",
+    "manifest": "data/mon_usdc/v1/derived/_manifests/mon_usdc_v1_research_manifest.json",
+    "raw_fingerprint_hash": "520497f286b28426",
+    "raw_file_count": 120109,
+    "raw_total_bytes": 1757982276,
+    "event_features_parts": [
+      "derived/mon_usdc_event_features/dt=all/mon_usdc_event_features_v1_520497f286b28426_1778341786722667_23592.parquet"
+    ],
+    "hourly_market_features_parts": [
+      "derived/mon_usdc_hourly_market_features/dt=all/mon_usdc_hourly_market_features_v1_520497f286b28426_1778341786722667_23592.parquet"
+    ],
+    "minute_price_reference_parts": [
+      "derived/mon_usdc_minute_price_reference/dt=all/mon_usdc_minute_price_reference_v1_520497f286b28426_1778341786722667_23592.parquet"
+    ]
+  },
+  "coverage": {
+    "raw_swap_rows": 1513009,
+    "dedup_swap_rows": 1513009,
+    "clean_swap_rows": 1513003,
+    "excluded_swaps": 6,
+    "removed_swaps": 0,
+    "duplicate_swaps": 0,
+    "raw_header_rows": 845553,
+    "dedup_header_rows": 845553,
+    "duplicate_headers": 0,
+    "raw_receipt_rows": 1207874,
+    "dedup_receipt_rows": 1207874,
+    "duplicate_receipts": 0,
+    "unique_swap_blocks": 845553,
+    "unique_swap_txs": 1207874,
+    "missing_event_headers": 0,
+    "missing_receipts": 0,
+    "receipt_request_status_errors": 0,
+    "receipt_failure_rows": 0,
+    "clean_start": "2026-03-09T01:46:35Z",
+    "clean_end": "2026-05-09T02:22:34Z",
+    "clean_block_min": 60190486,
+    "clean_block_max": 73366454,
+    "span_days": 61.024988425925926
+  },
+  "price_coverage": {
+    "minute_rows": 87877,
+    "minute_observed": 80240,
+    "minute_forward_fill": 7637,
+    "hourly_rows": 1466,
+    "hourly_observed": 1466,
+    "hourly_forward_fill": 0
+  },
+  "output_rows": {
+    "pool_summary": 4,
+    "hourly_market": 1466,
+    "hourly_factor_tests": 35,
+    "event_factor_tests": 45
+  },
+  "exclusions": [
+    {
+      "reason": "base_abs_nonpositive",
+      "rows": 4
+    },
+    {
+      "reason": "quote_abs_nonpositive",
+      "rows": 2
+    }
+  ],
+  "quality_passed": true
+}
