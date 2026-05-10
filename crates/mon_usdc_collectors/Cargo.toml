@@ -1,0 +1,15 @@
+[package]
+name = "mon_usdc_collectors"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+arrow = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+finance_chain_core = { path = "../finance_chain_core" }
+parquet = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

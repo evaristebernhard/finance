@@ -1,0 +1,8 @@
+duckdb
+factor-analyzer
+lightgbm
+polars
+scikit-learn
+seaborn
+statsmodels
+xgboost
