@@ -5,6 +5,11 @@
 
 # Rust build outputs are large and reproducible.
 crate/target/
+target/
+
+# Local collection outputs are large and should stay outside git.
+data/
+logs/
 
 # Local handoff/archive packages.
 *.zip
@@ -15,3 +20,7 @@ crate/target/
 # Local editor/OS noise.
 .DS_Store
 Thumbs.db
+
+# Python analysis cache.
+__pycache__/
+*.pyc
