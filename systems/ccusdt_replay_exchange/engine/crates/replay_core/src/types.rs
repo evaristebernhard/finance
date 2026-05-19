@@ -23,6 +23,8 @@ impl Default for ExchangeConfig {
 pub struct MarketFrame {
     pub seq: u64,
     pub ts: String,
+    pub exchange_ts_us: u64,
+    pub local_ts_us: u64,
     pub bid: f64,
     pub ask: f64,
     pub mid: f64,
@@ -30,17 +32,57 @@ pub struct MarketFrame {
 
 impl MarketFrame {
     pub fn new(seq: u64, ts: impl Into<String>, bid: f64, ask: f64) -> anyhow::Result<Self> {
+        Self::new_with_timestamps(seq, ts, seq, seq, bid, ask)
+    }
+
+    pub fn new_with_timestamps(
+        seq: u64,
+        ts: impl Into<String>,
+        exchange_ts_us: u64,
+        local_ts_us: u64,
+        bid: f64,
+        ask: f64,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(bid.is_finite() && ask.is_finite(), "bid/ask must be finite");
         anyhow::ensure!(bid > 0.0 && ask > 0.0, "bid/ask must be positive");
         anyhow::ensure!(bid <= ask, "bid must be <= ask");
         Ok(Self {
             seq,
             ts: ts.into(),
+            exchange_ts_us,
+            local_ts_us,
             bid,
             ask,
             mid: (bid + ask) * 0.5,
         })
     }
+
+    pub fn spread_bps(&self) -> f64 {
+        (self.ask - self.bid) / self.mid * 10_000.0
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TradeEvent {
+    pub seq: u64,
+    pub trade_id: String,
+    pub exchange_ts_us: u64,
+    pub local_ts_us: u64,
+    pub side: Side,
+    pub price: f64,
+    pub qty: f64,
+    pub notional_quote: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct L2LevelUpdate {
+    pub seq: u64,
+    pub exchange_ts_us: u64,
+    pub local_ts_us: u64,
+    pub is_snapshot: bool,
+    pub side: Side,
+    pub price: f64,
+    pub qty: f64,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]

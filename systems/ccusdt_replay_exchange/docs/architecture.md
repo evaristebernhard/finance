@@ -27,6 +27,11 @@ catalog scan
 canonical quote/trade/L2 materialization
 quote-frame replay
 deterministic toy runner with fixed frame latency
+exchange-style stdin/stdout Python strategy bridge
+timestamp latency_us queue
+taker IOC top-of-book fills
+optional L2 batch stream and depth-sweep smoke
+accelerated_async pressure mode
 append-only run event log
 market/limit paper exchange
 REST API for state/orders/fills
@@ -35,12 +40,9 @@ REST API for state/orders/fills
 Not implemented yet:
 
 ```text
-latency queue
-partial fills
-real L2 queue-position model
-strategy process supervisor
+L2 depth as the default live fill model
+partial fills for top-of-book mode
 monitor UI
-Python strategy bridge
 ```
 
 ## Data Policy

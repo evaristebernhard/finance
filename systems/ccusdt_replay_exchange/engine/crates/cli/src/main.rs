@@ -4,11 +4,15 @@ use std::path::PathBuf;
 use anyhow::Context;
 use ccusdt_exchange_sim::PaperExchange;
 use ccusdt_replay_core::{
-    ExchangeConfig, ReplaySource, build_canonical_dataset, canonical_quote_path, load_replay,
-    scan_catalog, validate_canonical, write_catalog,
+    ExchangeConfig, ReplaySource, build_canonical_dataset, canonical_quote_path,
+    load_canonical_l2_updates, load_canonical_trades, load_replay, scan_catalog,
+    validate_canonical, write_catalog,
 };
-use ccusdt_replay_runner::{RunnerOptions, ToyStrategyConfig, default_run_id, run_toy_strategy};
-use clap::{Parser, Subcommand};
+use ccusdt_replay_runner::{
+    BridgeFailurePolicy, PythonStreamOptions, RunnerOptions, StreamClockMode, ToyStrategyConfig,
+    default_run_id, run_python_stream_strategy, run_toy_strategy,
+};
+use clap::{Parser, Subcommand, ValueEnum};
 
 mod api;
 
@@ -113,6 +117,7 @@ enum CanonicalCommand {
 #[derive(Debug, Subcommand)]
 enum RunCommand {
     Toy(RunToyArgs),
+    Python(RunPythonArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -161,6 +166,105 @@ struct RunToyArgs {
 
     #[arg(long, default_value_t = 3.0)]
     max_leverage: f64,
+}
+
+#[derive(Debug, Parser)]
+struct RunPythonArgs {
+    #[arg(long, default_value = "CCUSDT")]
+    symbol: String,
+
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+
+    #[arg(long)]
+    canonical_date: String,
+
+    #[arg(long, default_value = "systems/ccusdt_replay_exchange/runs")]
+    run_root: PathBuf,
+
+    #[arg(long)]
+    run_id: Option<String>,
+
+    #[arg(long, default_value_t = 1_000)]
+    max_frames: usize,
+
+    #[arg(long, default_value_t = 0)]
+    latency_us: u64,
+
+    #[arg(long, value_enum, default_value_t = ClockModeArg::DeterministicStep)]
+    clock_mode: ClockModeArg,
+
+    #[arg(long, default_value_t = 1.0)]
+    wall_latency_speedup: f64,
+
+    #[arg(long, default_value = "python")]
+    python: PathBuf,
+
+    #[arg(
+        long,
+        default_value = "systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/strategy.py"
+    )]
+    strategy_script: PathBuf,
+
+    #[arg(long = "strategy-arg")]
+    strategy_args: Vec<String>,
+
+    #[arg(long, default_value_t = 1_000)]
+    bridge_timeout_ms: u64,
+
+    #[arg(long, value_enum, default_value_t = FailurePolicyArg::FailFast)]
+    failure_policy: FailurePolicyArg,
+
+    #[arg(long, default_value_t = false)]
+    include_l2: bool,
+
+    #[arg(long)]
+    l2_max_rows: Option<usize>,
+
+    #[arg(long, default_value_t = 200)]
+    l2_batch_size: usize,
+
+    #[arg(long)]
+    l2_depth_smoke_qty: Option<f64>,
+
+    #[arg(long, default_value_t = 10_000.0)]
+    starting_cash: f64,
+
+    #[arg(long, default_value_t = 0.0)]
+    fee_bps: f64,
+
+    #[arg(long, default_value_t = 3.0)]
+    max_leverage: f64,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum FailurePolicyArg {
+    FailFast,
+    HoldAndLog,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum ClockModeArg {
+    DeterministicStep,
+    AcceleratedAsync,
+}
+
+impl From<ClockModeArg> for StreamClockMode {
+    fn from(value: ClockModeArg) -> Self {
+        match value {
+            ClockModeArg::DeterministicStep => Self::DeterministicStep,
+            ClockModeArg::AcceleratedAsync => Self::AcceleratedAsync,
+        }
+    }
+}
+
+impl From<FailurePolicyArg> for BridgeFailurePolicy {
+    fn from(value: FailurePolicyArg) -> Self {
+        match value {
+            FailurePolicyArg::FailFast => Self::FailFast,
+            FailurePolicyArg::HoldAndLog => Self::HoldAndLog,
+        }
+    }
 }
 
 #[tokio::main]
@@ -218,6 +322,11 @@ async fn main() -> anyhow::Result<()> {
         Command::Run { command } => match command {
             RunCommand::Toy(args) => {
                 let summary = run_toy(args)?;
+                println!("{}", serde_json::to_string_pretty(&summary)?);
+                Ok(())
+            }
+            RunCommand::Python(args) => {
+                let summary = run_python(args)?;
                 println!("{}", serde_json::to_string_pretty(&summary)?);
                 Ok(())
             }
@@ -279,6 +388,58 @@ fn run_toy(args: RunToyArgs) -> anyhow::Result<ccusdt_replay_runner::RunSummary>
                 qty: args.qty,
                 hold_frames: args.hold_frames,
             },
+        },
+    )
+}
+
+fn run_python(args: RunPythonArgs) -> anyhow::Result<ccusdt_replay_runner::PythonStreamSummary> {
+    let quote_path = canonical_quote_path(&args.repo_root, &args.symbol, &args.canonical_date);
+    let frames = load_replay(ReplaySource::Csv(quote_path))
+        .with_context(|| format!("load canonical quote frames for {}", args.canonical_date))?;
+    let trades = load_canonical_trades(&args.repo_root, &args.symbol, &args.canonical_date)
+        .with_context(|| format!("load canonical trades for {}", args.canonical_date))?;
+    let l2_updates = if args.include_l2 {
+        load_canonical_l2_updates(
+            &args.repo_root,
+            &args.symbol,
+            &args.canonical_date,
+            args.l2_max_rows,
+        )
+        .with_context(|| format!("load canonical L2 updates for {}", args.canonical_date))?
+    } else {
+        Vec::new()
+    };
+    run_python_stream_strategy(
+        frames,
+        trades,
+        l2_updates,
+        PythonStreamOptions {
+            run_id: args
+                .run_id
+                .unwrap_or_else(|| default_run_id("python_stream_runner")),
+            run_root: args.run_root,
+            source_label: format!(
+                "canonical_exchange_stream_v1:{}:{}",
+                args.symbol, args.canonical_date
+            ),
+            exchange_config: ExchangeConfig {
+                symbol: args.symbol,
+                starting_cash: args.starting_cash,
+                fee_bps: args.fee_bps,
+                max_leverage: args.max_leverage,
+            },
+            max_frames: args.max_frames,
+            latency_us: args.latency_us,
+            clock_mode: args.clock_mode.into(),
+            wall_latency_speedup: args.wall_latency_speedup,
+            bridge_timeout_ms: args.bridge_timeout_ms,
+            failure_policy: args.failure_policy.into(),
+            python: args.python,
+            strategy_script: args.strategy_script,
+            strategy_args: args.strategy_args,
+            include_l2: args.include_l2,
+            l2_batch_size: args.l2_batch_size,
+            l2_depth_smoke_qty: args.l2_depth_smoke_qty,
         },
     )
 }

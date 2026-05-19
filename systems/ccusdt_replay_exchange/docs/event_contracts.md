@@ -52,10 +52,57 @@ Each row uses this envelope:
 event_id,run_id,event_type,replay_seq,replay_ts,wall_ts_ms,source,payload
 ```
 
-The first runner emits `run_start`, `market_frame`, `portfolio_state`,
+The toy runner emits `run_start`, `market_frame`, `portfolio_state`,
 `strategy_decision`, `order_intent`, `order_scheduled`, `order_submitted`,
 `order_accepted` or `order_rejected`, `fill_created`, `clock_advanced`, and
 `run_end`.
+
+The exchange-style Python runner uses this strategy message envelope over
+stdin/stdout NDJSON:
+
+```json
+{
+  "type": "market_quote",
+  "channel": "public",
+  "run_id": "...",
+  "replay_seq": 123,
+  "observed_seq": 123,
+  "cursor": 123,
+  "exchange_ts_us": 1779062476207000,
+  "local_ts_us": 1779062476433743,
+  "payload": {}
+}
+```
+
+Runtime inputs allowed for Python:
+
+```text
+session_start
+market_quote
+market_trade
+market_l2_update
+account_snapshot
+order_ack
+order_reject
+fill
+session_end
+```
+
+Runtime outputs allowed from Python:
+
+```text
+heartbeat
+hold
+submit_order
+cancel_order
+```
+
+`submit_order` is taker-first in stream v1: `kind=market`, `tif=ioc`, `qty>0`.
+The runner schedules it by `latency_us` and only then submits to the exchange.
+Private order/fill events include observed quote, arrival quote, fill price,
+arrival spread, base latency, effective latency, optional wall-latency virtual
+staleness, and latency slippage. Future labels, scored entries, PnL, MFE, and
+MAE must not be runtime inputs.
 
 The important separation is:
 

@@ -1,6 +1,6 @@
 # CCUSDT Replay Exchange
 
-Status: catalog + canonical + runner MVP, 2026-05-19.
+Status: catalog + canonical + taker-first stream runner MVP, 2026-05-19.
 
 This is a standalone local replay + paper exchange system. It is intentionally
 separate from root-level research scripts, the older replay workbench backend,
@@ -51,6 +51,41 @@ Generated outputs live under repo-level `data/catalog` and `data/canonical`.
 Those directories are local generated data and remain git-ignored.
 
 ## Runner
+
+Run the exchange-style Python stream runner from canonical quote/trade frames:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run python --canonical-date 2026-05-18 --max-frames 250 --latency-us 50000
+```
+
+This path is the realistic bot harness. Rust owns virtual time, latency,
+portfolio, risk, fills, and the event log. Python receives stdin NDJSON
+`session_start`, `market_quote`, `market_trade`, optional `market_l2_update`,
+`account_snapshot`, `order_ack`, `order_reject`, and `fill` messages. Python may
+only return `heartbeat`, `hold`, `submit_order`, or `cancel_order`.
+
+The default fill model is `top_of_book_taker_ioc_v1`: market buy fills at the
+arrival ask, market sell fills at the arrival bid, with `fee_bps=0` unless
+configured otherwise. Timestamp latency is measured in microseconds:
+
+```text
+arrival frame = first quote with local_ts_us >= observed_local_ts_us + latency_us
+```
+
+Each order/fill event records observed quote, arrival quote, fill price, arrival
+spread, latency, and latency slippage. Optional L2 smoke can be enabled without
+changing the default top-of-book fill model:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run python --canonical-date 2026-05-18 --max-frames 20 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --l2-depth-smoke-qty 10
+```
+
+For pressure testing only, `--clock-mode accelerated-async` maps Python wall
+response time into additional virtual staleness:
+
+```text
+effective_latency_us = latency_us + bridge_wall_latency_us * wall_latency_speedup
+```
 
 Run a deterministic toy strategy from canonical quote frames:
 

@@ -39,6 +39,8 @@ fn load_csv_replay(path: &Path) -> Result<Vec<MarketFrame>> {
     .context(
         "csv needs one timestamp column: ts/timestamp/exchange_ts_us/local_ts_us/local_timestamp",
     )?;
+    let exchange_ts_idx = first_header(&headers, &["exchange_ts_us", "timestamp", "ts"]);
+    let local_ts_idx = first_header(&headers, &["local_ts_us", "local_timestamp", "local_ts"]);
     let bid_idx = first_header(
         &headers,
         &[
@@ -68,9 +70,22 @@ fn load_csv_replay(path: &Path) -> Result<Vec<MarketFrame>> {
     for (row_idx, row) in reader.records().enumerate() {
         let row = row.with_context(|| format!("bad csv row {}", row_idx + 2))?;
         let ts = row.get(ts_idx).unwrap_or("").to_string();
+        let exchange_ts_us = exchange_ts_idx
+            .and_then(|idx| parse_u64(row.get(idx)).ok())
+            .unwrap_or(row_idx as u64);
+        let local_ts_us = local_ts_idx
+            .and_then(|idx| parse_u64(row.get(idx)).ok())
+            .unwrap_or(exchange_ts_us);
         let bid = parse_f64(row.get(bid_idx), "bid", row_idx + 2)?;
         let ask = parse_f64(row.get(ask_idx), "ask", row_idx + 2)?;
-        frames.push(MarketFrame::new(row_idx as u64, ts, bid, ask)?);
+        frames.push(MarketFrame::new_with_timestamps(
+            row_idx as u64,
+            ts,
+            exchange_ts_us,
+            local_ts_us,
+            bid,
+            ask,
+        )?);
     }
     anyhow::ensure!(!frames.is_empty(), "replay csv had no frames");
     Ok(frames)
@@ -103,6 +118,16 @@ fn parse_f64(value: Option<&str>, name: &str, row: usize) -> Result<f64> {
         .with_context(|| format!("failed to parse {name} at csv row {row}"))
 }
 
+fn parse_u64(value: Option<&str>) -> Result<u64> {
+    let raw = value.context("missing integer value")?.trim();
+    if let Ok(value) = raw.parse::<u64>() {
+        return Ok(value);
+    }
+    let as_float = raw.parse::<f64>()?;
+    anyhow::ensure!(as_float >= 0.0 && as_float.is_finite(), "bad integer value");
+    Ok(as_float as u64)
+}
+
 fn synthetic_replay(frames: usize) -> Result<Vec<MarketFrame>> {
     anyhow::ensure!(frames > 0, "synthetic replay needs at least one frame");
     let mut out = Vec::with_capacity(frames);
@@ -113,9 +138,11 @@ fn synthetic_replay(frames: usize) -> Result<Vec<MarketFrame>> {
         let mid = 1.0 + trend + wave;
         let spread = mid * 0.0002;
         let ts = format!("synthetic:{seq:06}");
-        out.push(MarketFrame::new(
+        out.push(MarketFrame::new_with_timestamps(
             seq as u64,
             ts,
+            seq as u64,
+            seq as u64,
             mid - spread * 0.5,
             mid + spread * 0.5,
         )?);
@@ -148,6 +175,8 @@ mod tests {
         let frames = load_replay(ReplaySource::Csv(path)).unwrap();
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].ts, "10");
+        assert_eq!(frames[0].exchange_ts_us, 10);
+        assert_eq!(frames[0].local_ts_us, 11);
         assert_eq!(frames[0].bid, 1.0);
         assert_eq!(frames[0].ask, 1.01);
     }

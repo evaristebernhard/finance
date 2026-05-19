@@ -9,6 +9,7 @@ use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::date_range;
+use crate::types::{L2LevelUpdate, Side, TradeEvent};
 
 const RAW_ROOT: &str = "data/ccusdt/v1/external";
 const CANONICAL_ROOT: &str = "data/canonical/cex/bullish";
@@ -91,6 +92,70 @@ pub fn validate_canonical(
 
 pub fn canonical_quote_path(repo_root: &Path, symbol: &str, date: &str) -> PathBuf {
     canonical_path(repo_root, symbol, "quote_frame_v1", date)
+}
+
+pub fn canonical_trade_path(repo_root: &Path, symbol: &str, date: &str) -> PathBuf {
+    canonical_path(repo_root, symbol, "trade_event_v1", date)
+}
+
+pub fn canonical_l2_path(repo_root: &Path, symbol: &str, date: &str) -> PathBuf {
+    canonical_path(repo_root, symbol, "l2_level_update_v1", date)
+}
+
+pub fn load_canonical_trades(
+    repo_root: &Path,
+    symbol: &str,
+    date: &str,
+) -> Result<Vec<TradeEvent>> {
+    let path = canonical_trade_path(repo_root, symbol, date);
+    let mut reader = csv_reader(&path)?;
+    let headers = reader.headers()?.clone();
+    let idx = CanonicalTradeIdx::new(&headers)?;
+    let mut out = Vec::new();
+    for row in reader.records() {
+        let row = row?;
+        let side = parse_side(field(&row, idx.side))?;
+        out.push(TradeEvent {
+            seq: parse_u64(&row, idx.seq, "seq")?,
+            trade_id: field(&row, idx.trade_id).to_string(),
+            exchange_ts_us: parse_u64(&row, idx.exchange_ts, "exchange_ts_us")?,
+            local_ts_us: parse_u64(&row, idx.local_ts, "local_ts_us")?,
+            side,
+            price: parse_f64(&row, idx.price, "price")?,
+            qty: parse_f64(&row, idx.qty, "qty")?,
+            notional_quote: parse_f64(&row, idx.notional_quote, "notional_quote")?,
+        });
+    }
+    Ok(out)
+}
+
+pub fn load_canonical_l2_updates(
+    repo_root: &Path,
+    symbol: &str,
+    date: &str,
+    max_rows: Option<usize>,
+) -> Result<Vec<L2LevelUpdate>> {
+    let path = canonical_l2_path(repo_root, symbol, date);
+    let mut reader = csv_reader(&path)?;
+    let headers = reader.headers()?.clone();
+    let idx = CanonicalL2Idx::new(&headers)?;
+    let mut out = Vec::new();
+    for row in reader.records() {
+        if max_rows.is_some_and(|max| out.len() >= max) {
+            break;
+        }
+        let row = row?;
+        out.push(L2LevelUpdate {
+            seq: parse_u64(&row, idx.seq, "seq")?,
+            exchange_ts_us: parse_u64(&row, idx.exchange_ts, "exchange_ts_us")?,
+            local_ts_us: parse_u64(&row, idx.local_ts, "local_ts_us")?,
+            is_snapshot: parse_bool(field(&row, idx.is_snapshot)),
+            side: parse_side(field(&row, idx.side))?,
+            price: parse_f64(&row, idx.price, "price")?,
+            qty: parse_f64(&row, idx.qty, "qty")?,
+        });
+    }
+    Ok(out)
 }
 
 fn build_quote_frame(repo_root: &Path, symbol: &str, date: &str) -> Result<CanonicalDateResult> {
@@ -338,12 +403,39 @@ fn parse_f64(row: &csv::StringRecord, idx: usize, name: &str) -> Result<f64> {
         .with_context(|| format!("parse {name}"))
 }
 
+fn parse_u64(row: &csv::StringRecord, idx: usize, name: &str) -> Result<u64> {
+    let raw = row.get(idx).context("missing field")?.trim();
+    if let Ok(value) = raw.parse::<u64>() {
+        return Ok(value);
+    }
+    let as_float = raw
+        .parse::<f64>()
+        .with_context(|| format!("parse {name}"))?;
+    anyhow::ensure!(as_float >= 0.0 && as_float.is_finite(), "bad {name}");
+    Ok(as_float as u64)
+}
+
 fn normalize_side(side: &str) -> Result<&'static str> {
     match side.trim().to_ascii_lowercase().as_str() {
         "buy" | "bid" => Ok("buy"),
         "sell" | "ask" => Ok("sell"),
         other => anyhow::bail!("unsupported side: {other}"),
     }
+}
+
+fn parse_side(side: &str) -> Result<Side> {
+    match normalize_side(side)? {
+        "buy" => Ok(Side::Buy),
+        "sell" => Ok(Side::Sell),
+        _ => unreachable!("normalize_side only returns buy/sell"),
+    }
+}
+
+fn parse_bool(raw: &str) -> bool {
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "true" | "1" | "yes"
+    )
 }
 
 fn header_idx(headers: &csv::StringRecord, name: &str) -> Result<usize> {
@@ -411,6 +503,56 @@ struct L2Idx {
     side: usize,
     price: usize,
     qty: usize,
+}
+
+struct CanonicalTradeIdx {
+    seq: usize,
+    trade_id: usize,
+    exchange_ts: usize,
+    local_ts: usize,
+    side: usize,
+    price: usize,
+    qty: usize,
+    notional_quote: usize,
+}
+
+impl CanonicalTradeIdx {
+    fn new(headers: &csv::StringRecord) -> Result<Self> {
+        Ok(Self {
+            seq: header_idx(headers, "seq")?,
+            trade_id: header_idx(headers, "trade_id")?,
+            exchange_ts: header_idx(headers, "exchange_ts_us")?,
+            local_ts: header_idx(headers, "local_ts_us")?,
+            side: header_idx(headers, "side")?,
+            price: header_idx(headers, "price")?,
+            qty: header_idx(headers, "qty")?,
+            notional_quote: header_idx(headers, "notional_quote")?,
+        })
+    }
+}
+
+struct CanonicalL2Idx {
+    seq: usize,
+    exchange_ts: usize,
+    local_ts: usize,
+    is_snapshot: usize,
+    side: usize,
+    price: usize,
+    qty: usize,
+}
+
+impl CanonicalL2Idx {
+    fn new(headers: &csv::StringRecord) -> Result<Self> {
+        Ok(Self {
+            seq: header_idx(headers, "seq")?,
+            exchange_ts: header_idx(headers, "exchange_ts_us")?,
+            local_ts: header_idx(headers, "local_ts_us")?,
+            is_snapshot: header_idx(headers, "is_snapshot")?,
+            side: header_idx(headers, "side")?,
+            price: header_idx(headers, "price")?,
+            qty: header_idx(headers, "qty")?,
+        })
+    }
 }
 
 impl L2Idx {
