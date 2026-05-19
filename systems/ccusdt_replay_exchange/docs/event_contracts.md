@@ -38,3 +38,27 @@ strategy runtime by default.
 
 `portfolio_state_v1` records account, position, equity, and leverage snapshots.
 
+## Run Event Log
+
+Runner output is append-only NDJSON:
+
+```text
+runs/<run_id>/events.ndjson
+```
+
+Each row uses this envelope:
+
+```text
+event_id,run_id,event_type,replay_seq,replay_ts,wall_ts_ms,source,payload
+```
+
+The first runner emits `run_start`, `market_frame`, `portfolio_state`,
+`strategy_decision`, `order_intent`, `order_scheduled`, `order_submitted`,
+`order_accepted` or `order_rejected`, `fill_created`, `clock_advanced`, and
+`run_end`.
+
+The important separation is:
+
+```text
+strategy intent != exchange order != fill
+```

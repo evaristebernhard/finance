@@ -7,6 +7,7 @@ use ccusdt_replay_core::{
     ExchangeConfig, ReplaySource, build_canonical_dataset, canonical_quote_path, load_replay,
     scan_catalog, validate_canonical, write_catalog,
 };
+use ccusdt_replay_runner::{RunnerOptions, ToyStrategyConfig, default_run_id, run_toy_strategy};
 use clap::{Parser, Subcommand};
 
 mod api;
@@ -28,6 +29,10 @@ enum Command {
     Canonical {
         #[command(subcommand)]
         command: CanonicalCommand,
+    },
+    Run {
+        #[command(subcommand)]
+        command: RunCommand,
     },
 }
 
@@ -105,6 +110,59 @@ enum CanonicalCommand {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum RunCommand {
+    Toy(RunToyArgs),
+}
+
+#[derive(Debug, Parser)]
+struct RunToyArgs {
+    #[arg(long, default_value = "CCUSDT")]
+    symbol: String,
+
+    #[arg(long)]
+    csv: Option<PathBuf>,
+
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+
+    #[arg(long)]
+    canonical_date: Option<String>,
+
+    #[arg(long, default_value_t = 1_000)]
+    synthetic_frames: usize,
+
+    #[arg(long, default_value = "systems/ccusdt_replay_exchange/runs")]
+    run_root: PathBuf,
+
+    #[arg(long)]
+    run_id: Option<String>,
+
+    #[arg(long, default_value_t = 1_000)]
+    max_frames: usize,
+
+    #[arg(long, default_value_t = 1)]
+    latency_frames: u64,
+
+    #[arg(long, default_value_t = 10.0)]
+    qty: f64,
+
+    #[arg(long, default_value_t = 20)]
+    hold_frames: u64,
+
+    #[arg(long, default_value_t = false)]
+    log_holds: bool,
+
+    #[arg(long, default_value_t = 10_000.0)]
+    starting_cash: f64,
+
+    #[arg(long, default_value_t = 0.0)]
+    fee_bps: f64,
+
+    #[arg(long, default_value_t = 3.0)]
+    max_leverage: f64,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -157,6 +215,13 @@ async fn main() -> anyhow::Result<()> {
                 Ok(())
             }
         },
+        Command::Run { command } => match command {
+            RunCommand::Toy(args) => {
+                let summary = run_toy(args)?;
+                println!("{}", serde_json::to_string_pretty(&summary)?);
+                Ok(())
+            }
+        },
     }
 }
 
@@ -184,4 +249,66 @@ async fn serve(args: ServeArgs) -> anyhow::Result<()> {
     };
     let exchange = PaperExchange::new(config, frames)?;
     api::serve(exchange, args.addr).await
+}
+
+fn run_toy(args: RunToyArgs) -> anyhow::Result<ccusdt_replay_runner::RunSummary> {
+    let (source, source_label) = replay_source(
+        args.csv.clone(),
+        Some(args.repo_root.clone()),
+        args.canonical_date.clone(),
+        &args.symbol,
+        args.synthetic_frames,
+    );
+    let frames = load_replay(source).context("failed to load replay source")?;
+    run_toy_strategy(
+        frames,
+        RunnerOptions {
+            run_id: args.run_id.unwrap_or_else(|| default_run_id("toy_runner")),
+            run_root: args.run_root,
+            source_label,
+            exchange_config: ExchangeConfig {
+                symbol: args.symbol,
+                starting_cash: args.starting_cash,
+                fee_bps: args.fee_bps,
+                max_leverage: args.max_leverage,
+            },
+            max_frames: args.max_frames,
+            latency_frames: args.latency_frames,
+            log_holds: args.log_holds,
+            strategy: ToyStrategyConfig {
+                qty: args.qty,
+                hold_frames: args.hold_frames,
+            },
+        },
+    )
+}
+
+fn replay_source(
+    csv: Option<PathBuf>,
+    repo_root: Option<PathBuf>,
+    canonical_date: Option<String>,
+    symbol: &str,
+    synthetic_frames: usize,
+) -> (ReplaySource, String) {
+    match csv {
+        Some(path) => {
+            let label = format!("csv:{}", path.to_string_lossy().replace('\\', "/"));
+            (ReplaySource::Csv(path), label)
+        }
+        None if canonical_date.is_some() => {
+            let repo_root = repo_root.unwrap_or_else(|| PathBuf::from("."));
+            let date = canonical_date.expect("checked canonical date");
+            let path = canonical_quote_path(&repo_root, symbol, &date);
+            (
+                ReplaySource::Csv(path),
+                format!("canonical_quote_frame_v1:{symbol}:{date}"),
+            )
+        }
+        None => (
+            ReplaySource::Synthetic {
+                frames: synthetic_frames,
+            },
+            format!("synthetic:{synthetic_frames}"),
+        ),
+    }
 }

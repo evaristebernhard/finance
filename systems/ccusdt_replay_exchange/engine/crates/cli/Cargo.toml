@@ -8,6 +8,7 @@ anyhow = { workspace = true }
 axum = { workspace = true }
 ccusdt_exchange_sim = { path = "../exchange_sim" }
 ccusdt_replay_core = { path = "../replay_core" }
+ccusdt_replay_runner = { path = "../runner" }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -15,4 +16,3 @@ tokio = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-

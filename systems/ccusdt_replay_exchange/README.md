@@ -1,6 +1,6 @@
 # CCUSDT Replay Exchange
 
-Status: catalog + canonical MVP, 2026-05-19.
+Status: catalog + canonical + runner MVP, 2026-05-19.
 
 This is a standalone local replay + paper exchange system. It is intentionally
 separate from root-level research scripts, the older replay workbench backend,
@@ -49,6 +49,24 @@ cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p cc
 
 Generated outputs live under repo-level `data/catalog` and `data/canonical`.
 Those directories are local generated data and remain git-ignored.
+
+## Runner
+
+Run a deterministic toy strategy from canonical quote frames:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1 --qty 10 --hold-frames 20
+```
+
+The runner owns the replay clock. Strategy decisions create order intents, the
+runner schedules them through a fixed frame latency, and the exchange only sees
+orders when they arrive. Each run writes:
+
+```text
+systems/ccusdt_replay_exchange/runs/<run_id>/manifest.json
+systems/ccusdt_replay_exchange/runs/<run_id>/events.ndjson
+systems/ccusdt_replay_exchange/runs/<run_id>/summary.json
+```
 
 ## Serve
 

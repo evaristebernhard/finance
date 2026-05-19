@@ -2,6 +2,7 @@
 members = [
     "crates/replay_core",
     "crates/exchange_sim",
+    "crates/runner",
     "crates/cli",
 ]
 resolver = "3"
@@ -18,4 +19,3 @@ tokio = { version = "1.45", features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-

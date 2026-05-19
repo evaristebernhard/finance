@@ -26,6 +26,8 @@ Implemented now:
 catalog scan
 canonical quote/trade/L2 materialization
 quote-frame replay
+deterministic toy runner with fixed frame latency
+append-only run event log
 market/limit paper exchange
 REST API for state/orders/fills
 ```
@@ -38,7 +40,7 @@ partial fills
 real L2 queue-position model
 strategy process supervisor
 monitor UI
-append-only run event log
+Python strategy bridge
 ```
 
 ## Data Policy
@@ -50,4 +52,3 @@ Generated catalog/canonical files are ignored local artifacts under repo-level
 The exchange reads canonical market truth. Research labels and TFI artifacts may
 be cataloged as sidecars, but strategy runtime must not see post-trade labels by
 default.
-

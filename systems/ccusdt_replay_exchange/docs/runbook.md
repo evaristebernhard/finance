@@ -26,3 +26,20 @@ Serve from canonical quotes:
 cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --canonical-date 2026-05-18 --addr 127.0.0.1:8797
 ```
 
+Run the deterministic toy runner:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1 --qty 10 --hold-frames 20
+```
+
+Run outputs:
+
+```text
+systems/ccusdt_replay_exchange/runs/<run_id>/manifest.json
+systems/ccusdt_replay_exchange/runs/<run_id>/events.ndjson
+systems/ccusdt_replay_exchange/runs/<run_id>/summary.json
+```
+
+The runner is the rigorous replay path: it owns the clock, schedules order
+intents through the latency queue, submits arrived orders to the exchange, and
+writes append-only events.

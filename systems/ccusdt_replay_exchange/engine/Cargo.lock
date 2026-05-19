@@ -159,6 +159,7 @@ dependencies = [
  "axum",
  "ccusdt_exchange_sim",
  "ccusdt_replay_core",
+ "ccusdt_replay_runner",
  "clap",
  "serde",
  "serde_json",
@@ -175,6 +176,17 @@ dependencies = [
  "anyhow",
  "csv",
  "flate2",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ccusdt_replay_runner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ccusdt_exchange_sim",
+ "ccusdt_replay_core",
  "serde",
  "serde_json",
 ]
