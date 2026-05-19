@@ -11,7 +11,7 @@ from typing import Iterable
 
 
 DEFAULT_DATA_ROOT = Path("data/mon_usdc/v1")
-DEFAULT_RUN_TAG = "20260509"
+DEFAULT_RUN_TAG = "20260510_86d"
 DEFAULT_DATE_DIR = Path("date")
 DEFAULT_DOCS_DIR = Path("docs")
 
@@ -49,7 +49,7 @@ def output_paths(run_tag: str, date_dir: Path, docs_dir: Path) -> dict[str, Path
         "hourly_factor_tests": date_dir / f"mon_usdc_v1_hourly_factor_tests_{run_tag}.csv",
         "event_factor_tests": date_dir / f"mon_usdc_v1_event_factor_tests_{run_tag}.csv",
         "summary_json": date_dir / f"mon_usdc_v1_factor_analysis_summary_{run_tag}.json",
-        "report": docs_dir / f"mon_usdc_v1_factor_analysis_{run_tag}.md",
+        "report": docs_dir / "markets" / "mon-usdc" / "v1-factor-analysis.md",
     }
 
 
@@ -64,9 +64,12 @@ def rust_binary(root: Path) -> Path:
 
 def ensure_release_binary(root: Path) -> Path:
     binary = rust_binary(root)
-    if binary.exists():
+    if binary.exists() and not release_binary_is_stale(root, binary):
         return binary
-    print("release mon_usdc_factor_analysis binary not found; building it")
+    if binary.exists():
+        print("release mon_usdc_factor_analysis binary is stale; rebuilding it")
+    else:
+        print("release mon_usdc_factor_analysis binary not found; building it")
     subprocess.run(
         [
             "cargo",
@@ -87,6 +90,20 @@ def ensure_release_binary(root: Path) -> Path:
     if not binary.exists():
         raise FileNotFoundError(f"release binary was not produced at {binary}")
     return binary
+
+
+def release_binary_is_stale(root: Path, binary: Path) -> bool:
+    binary_mtime = binary.stat().st_mtime
+    source_roots = [
+        root / "crates" / "mon_usdc_research",
+        root / "crates" / "mon_usdc_collectors",
+        root / "crates" / "finance_chain_core",
+    ]
+    candidates = [root / "Cargo.toml", root / "Cargo.lock"]
+    for source_root in source_roots:
+        candidates.append(source_root / "Cargo.toml")
+        candidates.extend(source_root.rglob("*.rs"))
+    return any(path.exists() and path.stat().st_mtime > binary_mtime for path in candidates)
 
 
 def run_rust(args: argparse.Namespace) -> Path:
@@ -308,12 +325,12 @@ def render_report(
 
     return f"""# MON/USDC V1 因子分析
 
-状态: 2026-05-09。重计算逻辑已经迁移到 Rust release binary；Python 入口只负责自动构建/调用 release Rust、读取小型 summary/CSV，并渲染这份 Markdown。本报告只做 gross forward return 单因子研究，不输出交易规则，不做 ML。
+状态: 2026-05-10。重计算逻辑已经迁移到 Rust release binary；Python 入口只负责自动构建/调用 release Rust、读取小型 summary/CSV，并渲染这份 Markdown。本报告扩到本地约 86-87 天三件套 raw 覆盖，只做 gross forward return 单因子研究，不输出交易规则，不做 ML。
 
 复现命令:
 
 ```bash
-python scripts/mon_usdc_v1_factor_analysis.py --data-root {data_root} --run-tag {run_tag}
+python scripts/mon_usdc_v1_factor_analysis.py --data-root {data_root} --run-tag {run_tag} --force-derived
 ```
 
 执行路径:
@@ -353,7 +370,7 @@ Derived cache: `{cache.get('status', 'NA')}`，schema=`{cache.get('schema_versio
 
 ## 3. 小时级链路
 
-小时级 panel 用 clean swap 聚合 VWAP、成交强度、方向流、活跃块、池数量、receipt success rate 和 gas。forward target 使用小时 VWAP forward fill 后的 `fwd_1h/3h/6h/12h/24h`，尾部样本自然减少；`fwd_24h` 最大可检验样本数为 `{hourly_tail_n:,}`。
+小时级 panel 用 clean swap 聚合 VWAP、成交强度、方向流、rolling net flow、池/Dex quote share、HHI、活跃块、receipt success rate、priority fee、gas/base fee ratio 和 realized volatility。forward target 使用下一小时 VWAP 作为入场参考，避免同小时 flow 与当前小时 VWAP 共享信息；`fwd_24h` 最大可检验样本数为 `{hourly_tail_n:,}`。
 
 绝对 Spearman 排名前列的小时级单因子测试:
 
@@ -361,7 +378,7 @@ Derived cache: `{cache.get('status', 'NA')}`，schema=`{cache.get('schema_versio
 
 ## 4. 事件级链路
 
-事件级 target 使用 1-minute VWAP 序列作为参考价，并测试 `fwd_5m/15m/1h/3h/6h`。因子只来自当前事件字段: 方向、成交规模、gas、同块事件密度。`fwd_6h` 最大可检验事件样本数为 `{event_tail_n:,}`。
+事件级 target 使用 1-minute VWAP 序列作为参考价，并从事件后的下一分钟 VWAP 开始计 forward return，避免事件所在分钟 VWAP 吃到当前事件本身；因子只来自当前事件字段: 方向、成交规模、signed quote flow、gas、priority fee、gas/base fee ratio 和同块事件密度。`fwd_6h` 最大可检验事件样本数为 `{event_tail_n:,}`。
 
 绝对 Spearman 排名前列的事件级单因子测试:
 
@@ -371,7 +388,7 @@ Derived cache: `{cache.get('status', 'NA')}`，schema=`{cache.get('schema_versio
 
 1. 数据链路已经能从 raw swaps、event headers、receipts 直接生成池子汇总、小时级市场 panel 和事件级 forward-return tests。
 2. 本轮只做 gross forward return 的单因子切分，尚未接入真实池费、tick liquidity、滑点和执行延迟，因此结果只用于候选现象筛选。
-3. 小时级结果更偏 regime/流量解释，事件级结果更适合后续拆解方向、成交规模、gas 和同块拥挤的微观结构现象。
+3. 小时级结果更偏 regime/流量/池结构解释，事件级结果更适合后续拆解方向、成交规模、gas 和同块拥挤的微观结构现象。
 4. 下一步如果继续研究，应先做事件现象拆解和成本模型，而不是直接把这些行解释成可执行交易规则。
 
 ## 6. 产物行数

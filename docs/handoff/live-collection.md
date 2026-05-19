@@ -1,6 +1,8 @@
 # Codex Handoff: Live CHOG Collection Status
 
-Status: 2026-05-10, after reaching about thirty CHOG historical day windows and completing the latest MON/USDC 26-day range quality check on the Windows handoff copy.
+Note: this is a data-collection handoff for the older CHOG/MON path. For current BONK frontend/backend docs, start with [Engineering Docs](../engineering/README.md). For factor-analysis navigation, start with [Research Docs](../research/README.md).
+
+Status: 2026-05-10, after reaching about thirty CHOG historical day windows, completing the latest MON/USDC 26-day range quality check, and optimizing the MON/USDC tx body collector on the Windows handoff copy.
 
 Read this file first in a fresh Codex session, then read:
 
@@ -47,6 +49,11 @@ mon_usdc_swap_collect
 mon_usdc_event_header_sample
 mon_usdc_receipt_sample
 mon_usdc_quality_check
+mon_usdc_tx_body_sample
+mon_usdc_receipt_log_bundle
+mon_usdc_pool_state_sample
+mon_usdc_trace_sample
+mon_usdc_enriched_rebuild
 ```
 
 Latest range-scoped Rust V1 coverage:
@@ -78,6 +85,7 @@ date/mon_usdc_pool_candidates_20260509.csv
 date/mon_usdc_v1_swaps_sample_20260509.csv
 docs/markets/mon-usdc/v1-data-plan.md
 docs/markets/mon-usdc/v1-factor-analysis.md
+docs/markets/mon-usdc/v1-enrichment-report.md
 ```
 
 Current fixed top4 pool set:
@@ -101,6 +109,72 @@ TraderJoe/LFJ v2.2 uses Liquidity Book Swap topic
 and packed bytes32 amount fields. Decode X from the low 128 bits and Y from the high
 128 bits; pool base delta > 0 remains sell_base, < 0 remains buy_base.
 ```
+
+## MON/USDC Enrichment / Tx Body Collector Status
+
+The next executable-strategy path is the 87-day MON/USDC enrichment pass:
+
+```text
+raw/pool_swap_logs
+  -> raw/tx_bodies
+  -> raw/tx_receipt_logs + raw/tx_receipt_log_summaries
+  -> derived labels/features
+  -> sampled pool state and traces
+```
+
+The first optimization was applied to `mon_usdc_tx_body_sample`:
+
+```text
+--workers N added; CLI default remains 1
+scripts/run_mon_usdc_enrichment.ps1 defaults tx bodies to 4 workers
+orchestrator tx body defaults: --batch-size 50 --rpc-batch-size 50
+queue cache: data/mon_usdc/v1/_work/mon_usdc_tx_body_queue_v1_<from>_<to>.tsv
+each worker owns its own reqwest blocking client and RPC URL rotation state
+each completed chunk writes immediately to raw/tx_bodies with unchanged schema
+checkpoint now includes workers, queued, written, failed, rows_per_sec, completed_chunks
+reruns still dedupe against existing raw/tx_bodies, not only checkpoint state
+```
+
+Validation from this engineering pass:
+
+```text
+cargo fmt --all --manifest-path Cargo.toml: passed
+cargo test -p mon_usdc_collectors -p mon_usdc_research: passed
+cargo build --release -p mon_usdc_collectors -p mon_usdc_research: passed
+canonical raw/tx_bodies existing files: 331
+canonical existing tx body hashes observed in dry-run: 26,000
+copied-root RPC smoke 73365455..73366454: 81 tx bodies, 2 parquet parts, 0 failed rows, about 32 rows/sec
+copied-root rerun dry-run: queued hashes after dedupe = 0
+```
+
+Canonical tx body collection has now resumed with bounded batches:
+
+```text
+full-window dry-run 54574468..73366454:
+  source swap txs in cache: 1,701,634
+  existing tx body hashes before canonical continuation: 26,000
+  queued hashes after dedupe: 1,675,634
+  queue cache: data/mon_usdc/v1/_work/mon_usdc_tx_body_queue_v1_54574468_73366454.tsv
+
+canonical --max-txs 1000: rows written=1,000, failed=0, rows/sec=107.75, parts=20
+canonical --max-txs 10000: rows written=10,000, failed=0, rows/sec=41.87, parts=200
+canonical --max-txs 20000: rows written=20,000, failed=0, rows/sec=71.63, parts=401
+canonical --max-txs 50000: rows written=50,000, failed=0, rows/sec=79.98, parts=1001
+canonical --max-txs 100000: rows written=100,000, failed=0, rows/sec=218.92, parts=2005
+canonical --max-txs 250000: rows written=250,000, failed=0, rows/sec=190.83, parts=5015
+canonical --max-txs 500000: rows written=500,000, failed=0, rows/sec=155.01, parts=10031
+canonical --max-txs 744634: rows written=744,634, failed=0, rows/sec=126.36, parts=14926
+
+latest dry-run after drain:
+  source swap txs in cache: 1,701,634
+  existing tx body hashes: 1,701,634
+  queued hashes after dedupe: 0
+  raw/tx_bodies parquet files: 33,930
+```
+
+Tx bodies now have full queue coverage for `54574468..73366454`. The next
+enrichment continuation should move to `mon_usdc_receipt_log_bundle`; rerun tx
+body dry-run only if new swap logs are added or the data root changes.
 
 ## Latest Factor Research Status
 

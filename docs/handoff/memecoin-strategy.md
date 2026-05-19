@@ -1,5 +1,7 @@
 # Codex Handoff: Memecoin Strategy Collection
 
+Note: this is a CHOG/MON data-collection and strategy-research handoff. For current BONK frontend/backend docs, start with [Engineering Docs](../engineering/README.md). For factor-analysis navigation, start with [Research Docs](../research/README.md).
+
 状态: 2026-05-10。给新开的 Codex 先读最新 live handoff: [Codex Handoff: Live CHOG Collection Status](./live-collection.md)，再读这份和 [CHOG Memecoin 策略优先采集路径](../runbooks/chog-memecoin-collection.md)。
 
 最新进展补充:
@@ -109,6 +111,29 @@ crates/finance_chain_core
 crates/mon_usdc_collectors
 data/mon_usdc/v1
 ```
+
+2026-05-10 补充: MON/USDC enrichment 路径已开始工程化，第一步是优化
+`mon_usdc_tx_body_sample`，先不要继续大规模裸跑旧单线程采集。
+当前 tx body collector 支持:
+
+```text
+--workers N
+data/mon_usdc/v1/_work/mon_usdc_tx_body_queue_v1_<from>_<to>.tsv
+scripts/run_mon_usdc_enrichment.ps1 默认 --workers 4 --batch-size 50 --rpc-batch-size 50
+```
+
+已验证:
+
+```text
+cargo fmt --all --manifest-path Cargo.toml
+cargo test -p mon_usdc_collectors -p mon_usdc_research
+cargo build --release -p mon_usdc_collectors -p mon_usdc_research
+copied-root RPC smoke 73365455..73366454: 81 rows, 2 parts, 0 failed rows
+```
+
+Canonical `raw/tx_bodies` 这轮没有继续大规模写入；已有 331 个 parquet
+文件保留。恢复前先跑 full-window dry-run，再做 `--max-txs 1000` 和
+10k/20k smoke。
 
 最新 range-scoped live coverage:
 
