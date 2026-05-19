@@ -25,6 +25,19 @@ Current implementation:
   skeleton. It reads only exchange-style stdin NDJSON and must not read
   `date/` labels or import root scripts.
 
+Current next-stage design:
+
+- Start with `docs/next-stage-three-process-design.md` before implementing the
+  next runner/bot/monitor split.
+- Target architecture is three independent roles: Runner Server owns truth and
+  time, Strategy Bot owns online feature state and sparse intents, Monitor is
+  read-only.
+- Compact event logs should record causal order/fill/risk/portfolio chains, not
+  every per-event hold/heartbeat/echo.
+- Full-day L2 must use streaming merge iterators, not full-day `Vec` loading.
+- Online feature state belongs in the bot; Runner should not expose research
+  labels as runtime inputs.
+
 Useful commands:
 
 ```powershell

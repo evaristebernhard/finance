@@ -1,5 +1,11 @@
 # Runbook
 
+Read the next-stage design before changing runner/bot/monitor architecture:
+
+```text
+systems/ccusdt_replay_exchange/docs/next-stage-three-process-design.md
+```
+
 Scan catalog:
 
 ```powershell

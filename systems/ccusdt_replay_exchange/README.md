@@ -25,6 +25,24 @@ runs/       local run outputs
 tests/      fixtures and integration assets
 ```
 
+## Next Stage Design
+
+The next stage is defined in
+`docs/next-stage-three-process-design.md`.
+
+First-principles target:
+
+```text
+Runner Server = local exchange: truth, clock, streams, order ingress, fills
+Strategy Bot  = independent client: online feature state and sparse intents
+Monitor       = read-only screen: state/events/summary, never hot path
+```
+
+The current stdin/stdout Python runner remains useful for deterministic smoke
+tests. The next implementation step is to split that model into independent
+processes, compact the event log, stream canonical quote/trade/L2 through a
+bounded-memory merge iterator, and move online features into the bot.
+
 ## Catalog And Canonical
 
 Scan local source coverage:

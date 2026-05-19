@@ -8,6 +8,10 @@ The system boundary is:
 old raw/research files -> catalog -> canonical events -> replay clock -> exchange sim -> runs
 ```
 
+The next-stage target is documented in
+`next-stage-three-process-design.md`: Runner Server as local exchange, Strategy
+Bot as independent online-feature client, and Monitor as read-only observer.
+
 ## Seven Layers
 
 1. `catalog`: inventories local source data, dates, schema ids, and missing dates.
