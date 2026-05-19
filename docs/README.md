@@ -5,6 +5,7 @@ Human-readable docs entry point. In a fresh Codex session, read [AGENTS.md](../A
 ## Frontend / Backend
 
 - [Engineering docs](engineering/README.md): generic market replay backend, frontend, endpoints, local AI proxy, and data inputs.
+- [CCUSDT local paper exchange MVP](systems/ccusdt-replay-exchange-mvp.md): standalone replay-clock paper exchange under `systems/ccusdt_replay_exchange/`.
 - [CCUSDT replay workbench](markets/ccusdt/v1-replay-workbench.md): default product/runbook doc for the local replay UI and Rust API.
 - [BONK replay workbench](markets/bonk/v1-replay-workbench.md): older BONK market wiring kept as a selectable replay surface.
 

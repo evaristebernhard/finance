@@ -49,6 +49,13 @@ For factor research, start with:
 docs/research/README.md
 ```
 
+For the standalone local CCUSDT paper exchange MVP, start with:
+
+```text
+docs/systems/ccusdt-replay-exchange-mvp.md
+systems/ccusdt_replay_exchange/README.md
+```
+
 Treat older CHOG and MON/USDC handoffs as collection/research references unless
 the user explicitly asks to continue those data paths.
 
