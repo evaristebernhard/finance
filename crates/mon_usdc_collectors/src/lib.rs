@@ -24,6 +24,8 @@ use finance_chain_core::storage::{
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use serde_json::Value;
 
+pub mod enrichment;
+
 pub const CHAIN: &str = "monad";
 pub const DEFAULT_DATA_ROOT: &str = "data/mon_usdc/v1";
 pub const DEFAULT_RPC_URL: &str = "https://rpc.monad.xyz";

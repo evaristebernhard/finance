@@ -16,18 +16,42 @@ use arrow::record_batch::RecordBatch;
 use chrono::{DateTime, SecondsFormat, Utc};
 use finance_chain_core::storage::{
     DERIVED_DIR, RAW_DIR, bool_array, custom_part_path, ensure_parent_dir, f64_array,
-    opt_u64_array, parquet_files_under, string_array, u64_array, utc_now_string,
-    write_parquet_part, write_schema_metadata,
+    opt_u64_array, parquet_files_under, schema_path, string_array, u64_array, utc_now_string,
+    write_parquet_part,
 };
 use mon_usdc_collectors::{EVENT_HEADERS_DATASET, POOL_SWAP_LOGS_DATASET, TX_RECEIPTS_DATASET};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use serde::{Deserialize, Serialize};
 
+mod cex_dynamics;
+mod enrichment;
+mod event_factor_search;
+mod orderbook;
+mod path_regime;
+pub use cex_dynamics::{
+    CexDynamicsConfig, CexDynamicsSummary, DEFAULT_CEX_DYNAMICS_RUN_TAG, run_cex_dynamics_report,
+};
+pub use enrichment::{
+    DEFAULT_ENRICHMENT_RUN_TAG, EnrichmentConfig, EnrichmentSummary, run_enrichment_rebuild,
+};
+pub use event_factor_search::{
+    DEFAULT_FACTOR_SEARCH_RUN_TAG, DEFAULT_FACTOR_SOURCE_RUN_TAG, EventFactorSearchConfig,
+    EventFactorSearchSummary, run_event_factor_search,
+};
+pub use orderbook::{
+    DEFAULT_ORDERBOOK_RUN_TAG, OrderbookConfig, OrderbookReportSummary, run_orderbook_report,
+};
+pub use path_regime::{
+    DEFAULT_PATH_REGIME_FEATURE_RUN_TAG, DEFAULT_PATH_REGIME_RUN_TAG,
+    DEFAULT_PATH_REGIME_SOURCE_RUN_TAG, PathRegimeConfig, PathRegimeSummary,
+    run_path_regime_report,
+};
+
 pub const DEFAULT_DATA_ROOT: &str = "data/mon_usdc/v1";
-pub const DEFAULT_RUN_TAG: &str = "20260509";
+pub const DEFAULT_RUN_TAG: &str = "20260510_86d";
 pub const DEFAULT_PROGRESS_INTERVAL: usize = 1000;
 
-const DERIVED_SCHEMA_VERSION: u32 = 1;
+const DERIVED_SCHEMA_VERSION: u32 = 3;
 const EVENT_FEATURES_DATASET: &str = "mon_usdc_event_features";
 const HOURLY_MARKET_FEATURES_DATASET: &str = "mon_usdc_hourly_market_features";
 const MINUTE_PRICE_REFERENCE_DATASET: &str = "mon_usdc_minute_price_reference";
@@ -42,25 +66,46 @@ const EVENT_HORIZONS: [(&str, i64); 5] = [
     ("3h", 3 * 60 * 60),
     ("6h", 6 * 60 * 60),
 ];
-const HOURLY_FACTORS: [&str; 9] = [
+const HOURLY_FACTORS: [&str; 26] = [
     "events",
     "quote_volume",
     "log_quote_volume",
+    "signed_quote_flow",
     "net_flow_ratio",
+    "net_flow_ratio_6h",
+    "net_flow_ratio_24h",
     "buy_event_ratio",
+    "buy_sell_event_ratio",
     "active_blocks",
+    "events_per_active_block",
     "pools",
+    "top_pool_quote_share",
+    "top_dex_quote_share",
+    "pool_quote_hhi",
+    "dex_quote_hhi",
     "effective_gas_gwei_mean",
+    "priority_fee_gwei_mean",
+    "gas_to_base_fee_ratio_mean",
     "receipt_success_rate",
+    "return_1h",
+    "momentum_6h",
+    "momentum_24h",
+    "abs_return_1h",
+    "realized_vol_6h",
+    "realized_vol_24h",
 ];
-const EVENT_FACTORS: [&str; 9] = [
+const EVENT_FACTORS: [&str; 13] = [
     "is_buy_base",
+    "is_sell_base",
     "quote_abs",
     "log_quote_abs",
+    "signed_quote_flow",
     "base_abs",
     "log_base_abs",
     "gas_used",
     "effective_gas_gwei",
+    "priority_fee_gwei",
+    "gas_to_base_fee_ratio",
     "same_block_event_count",
     "header_event_log_count",
 ];
@@ -267,11 +312,14 @@ struct EventRecord {
     buy_base: f64,
     sell_base: f64,
     net_buy_base: f64,
+    signed_quote_flow: f64,
     receipt_request_status: String,
     receipt_status: Option<u64>,
     receipt_gas_used: Option<u64>,
     effective_gas_price: Option<u64>,
     base_fee_per_gas: Option<u64>,
+    priority_fee_gwei: Option<f64>,
+    gas_to_base_fee_ratio: Option<f64>,
     header_event_log_count: Option<u64>,
     same_block_event_count: u64,
 }
@@ -330,22 +378,38 @@ struct HourlyMarketRow {
     buy_base: f64,
     sell_base: f64,
     net_buy_base: f64,
+    signed_quote_flow: f64,
     base_volume: f64,
     quote_volume: f64,
     gas_used_mean: Option<f64>,
     effective_gas_gwei_mean: Option<f64>,
+    priority_fee_gwei_mean: Option<f64>,
     base_fee_gwei_mean: Option<f64>,
+    gas_to_base_fee_ratio_mean: Option<f64>,
     receipt_success_rate: Option<f64>,
     same_block_event_count_mean: Option<f64>,
     same_block_event_count_max: Option<f64>,
+    events_per_active_block: Option<f64>,
+    top_pool_quote_share: Option<f64>,
+    top_dex_quote_share: Option<f64>,
+    pool_quote_hhi: Option<f64>,
+    dex_quote_hhi: Option<f64>,
     vwap_quote_per_base_observed: Option<f64>,
     price_quote_per_base: Option<f64>,
     price_fill_method: String,
     buy_event_ratio: f64,
+    buy_sell_event_ratio: f64,
     net_flow_ratio: f64,
+    net_flow_ratio_6h: Option<f64>,
+    net_flow_ratio_24h: Option<f64>,
     log_quote_volume: f64,
     log_events: f64,
     return_1h: Option<f64>,
+    momentum_6h: Option<f64>,
+    momentum_24h: Option<f64>,
+    abs_return_1h: Option<f64>,
+    realized_vol_6h: Option<f64>,
+    realized_vol_24h: Option<f64>,
     fwd_1h: Option<f64>,
     fwd_3h: Option<f64>,
     fwd_6h: Option<f64>,
@@ -433,11 +497,16 @@ struct HourAgg {
     buy_base: f64,
     sell_base: f64,
     net_buy_base: f64,
+    signed_quote_flow: f64,
     base_volume: f64,
     quote_volume: f64,
+    pool_quote_volume: BTreeMap<String, f64>,
+    dex_quote_volume: BTreeMap<String, f64>,
     gas_used: MeanStat,
     effective_gas_gwei: MeanStat,
+    priority_fee_gwei: MeanStat,
     base_fee_gwei: MeanStat,
+    gas_to_base_fee_ratio: MeanStat,
     receipt_success: MeanStat,
     same_block_event_count: MeanStat,
     same_block_event_count_max: u64,
@@ -619,7 +688,9 @@ fn build_output_paths(config: &AnalysisConfig) -> OutputPaths {
         report: path_string(
             &config
                 .docs_dir
-                .join(format!("mon_usdc_v1_factor_analysis_{}.md", config.run_tag)),
+                .join("markets")
+                .join("mon-usdc")
+                .join("v1-factor-analysis.md"),
         ),
     }
 }
@@ -702,6 +773,12 @@ fn build_derived_from_raw(
         |row| row.transaction_hash.clone(),
         |row| &row.fetched_at_utc,
     );
+    let (swaps, header_window_filtered_swaps) = filter_swaps_to_header_window(swaps, &headers)?;
+    if header_window_filtered_swaps > 0 {
+        eprintln!(
+            "[mon_usdc_factor_analysis] filtered {header_window_filtered_swaps} swap rows outside event_header block window"
+        );
+    }
 
     let headers_by_block = headers
         .iter()
@@ -964,7 +1041,7 @@ fn write_derived_cache(
     );
 
     let event_schema = event_features_schema();
-    write_schema_metadata(
+    write_research_schema_metadata(
         data_root,
         EVENT_FEATURES_DATASET,
         event_schema.as_ref(),
@@ -981,7 +1058,7 @@ fn write_derived_cache(
     write_parquet_part(&event_path, event_schema, event_batch)?;
 
     let hourly_schema = hourly_market_schema();
-    write_schema_metadata(
+    write_research_schema_metadata(
         data_root,
         HOURLY_MARKET_FEATURES_DATASET,
         hourly_schema.as_ref(),
@@ -998,7 +1075,7 @@ fn write_derived_cache(
     write_parquet_part(&hourly_path, hourly_schema, hourly_batch)?;
 
     let minute_schema = minute_price_reference_schema();
-    write_schema_metadata(
+    write_research_schema_metadata(
         data_root,
         MINUTE_PRICE_REFERENCE_DATASET,
         minute_schema.as_ref(),
@@ -1044,6 +1121,48 @@ fn write_derived_cache(
     Ok(manifest)
 }
 
+fn write_research_schema_metadata(
+    data_root: &Path,
+    dataset: &str,
+    schema: &Schema,
+    partition_columns: &[&str],
+) -> Result<()> {
+    let path = schema_path(data_root, dataset);
+    ensure_parent_dir(&path)?;
+    let fields = schema
+        .fields()
+        .iter()
+        .map(|field| {
+            serde_json::json!({
+                "name": field.name(),
+                "data_type": research_data_type_name(field.data_type()),
+                "nullable": field.is_nullable(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let value = serde_json::json!({
+        "version": 1,
+        "dataset": dataset,
+        "format": "parquet",
+        "partition_columns": partition_columns,
+        "fields": fields,
+    });
+    let file =
+        File::create(&path).with_context(|| format!("failed to create {}", path.display()))?;
+    serde_json::to_writer_pretty(file, &value)
+        .with_context(|| format!("failed to write {}", path.display()))
+}
+
+fn research_data_type_name(data_type: &DataType) -> String {
+    match data_type {
+        DataType::Utf8 => "utf8".to_string(),
+        DataType::UInt64 => "uint64".to_string(),
+        DataType::Float64 => "float64".to_string(),
+        DataType::Boolean => "boolean".to_string(),
+        other => format!("{other:?}"),
+    }
+}
+
 fn event_features_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("block_number", DataType::UInt64, false),
@@ -1069,11 +1188,14 @@ fn event_features_schema() -> SchemaRef {
         Field::new("buy_base", DataType::Float64, false),
         Field::new("sell_base", DataType::Float64, false),
         Field::new("net_buy_base", DataType::Float64, false),
+        Field::new("signed_quote_flow", DataType::Float64, false),
         Field::new("receipt_request_status", DataType::Utf8, false),
         Field::new("receipt_status", DataType::UInt64, true),
         Field::new("receipt_gas_used", DataType::UInt64, true),
         Field::new("effective_gas_price", DataType::UInt64, true),
         Field::new("base_fee_per_gas", DataType::UInt64, true),
+        Field::new("priority_fee_gwei", DataType::Float64, true),
+        Field::new("gas_to_base_fee_ratio", DataType::Float64, true),
         Field::new("header_event_log_count", DataType::UInt64, true),
         Field::new("same_block_event_count", DataType::UInt64, false),
     ]))
@@ -1092,22 +1214,38 @@ fn hourly_market_schema() -> SchemaRef {
         Field::new("buy_base", DataType::Float64, false),
         Field::new("sell_base", DataType::Float64, false),
         Field::new("net_buy_base", DataType::Float64, false),
+        Field::new("signed_quote_flow", DataType::Float64, false),
         Field::new("base_volume", DataType::Float64, false),
         Field::new("quote_volume", DataType::Float64, false),
         Field::new("gas_used_mean", DataType::Float64, true),
         Field::new("effective_gas_gwei_mean", DataType::Float64, true),
+        Field::new("priority_fee_gwei_mean", DataType::Float64, true),
         Field::new("base_fee_gwei_mean", DataType::Float64, true),
+        Field::new("gas_to_base_fee_ratio_mean", DataType::Float64, true),
         Field::new("receipt_success_rate", DataType::Float64, true),
         Field::new("same_block_event_count_mean", DataType::Float64, true),
         Field::new("same_block_event_count_max", DataType::Float64, true),
+        Field::new("events_per_active_block", DataType::Float64, true),
+        Field::new("top_pool_quote_share", DataType::Float64, true),
+        Field::new("top_dex_quote_share", DataType::Float64, true),
+        Field::new("pool_quote_hhi", DataType::Float64, true),
+        Field::new("dex_quote_hhi", DataType::Float64, true),
         Field::new("vwap_quote_per_base_observed", DataType::Float64, true),
         Field::new("price_quote_per_base", DataType::Float64, true),
         Field::new("price_fill_method", DataType::Utf8, false),
         Field::new("buy_event_ratio", DataType::Float64, false),
+        Field::new("buy_sell_event_ratio", DataType::Float64, false),
         Field::new("net_flow_ratio", DataType::Float64, false),
+        Field::new("net_flow_ratio_6h", DataType::Float64, true),
+        Field::new("net_flow_ratio_24h", DataType::Float64, true),
         Field::new("log_quote_volume", DataType::Float64, false),
         Field::new("log_events", DataType::Float64, false),
         Field::new("return_1h", DataType::Float64, true),
+        Field::new("momentum_6h", DataType::Float64, true),
+        Field::new("momentum_24h", DataType::Float64, true),
+        Field::new("abs_return_1h", DataType::Float64, true),
+        Field::new("realized_vol_6h", DataType::Float64, true),
+        Field::new("realized_vol_24h", DataType::Float64, true),
         Field::new("fwd_1h", DataType::Float64, true),
         Field::new("fwd_3h", DataType::Float64, true),
         Field::new("fwd_6h", DataType::Float64, true),
@@ -1221,6 +1359,12 @@ fn event_features_batch(schema: SchemaRef, rows: &[EventRecord]) -> Result<Recor
             f64_array(&rows.iter().map(|row| row.buy_base).collect::<Vec<_>>()),
             f64_array(&rows.iter().map(|row| row.sell_base).collect::<Vec<_>>()),
             f64_array(&rows.iter().map(|row| row.net_buy_base).collect::<Vec<_>>()),
+            f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.signed_quote_flow)
+                    .collect::<Vec<_>>(),
+            ),
             string_array(
                 &rows
                     .iter()
@@ -1249,6 +1393,18 @@ fn event_features_batch(schema: SchemaRef, rows: &[EventRecord]) -> Result<Recor
                 &rows
                     .iter()
                     .map(|row| row.base_fee_per_gas)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.priority_fee_gwei)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.gas_to_base_fee_ratio)
                     .collect::<Vec<_>>(),
             ),
             opt_u64_array(
@@ -1288,6 +1444,12 @@ fn hourly_market_batch(schema: SchemaRef, rows: &[HourlyMarketRow]) -> Result<Re
             f64_array(&rows.iter().map(|row| row.buy_base).collect::<Vec<_>>()),
             f64_array(&rows.iter().map(|row| row.sell_base).collect::<Vec<_>>()),
             f64_array(&rows.iter().map(|row| row.net_buy_base).collect::<Vec<_>>()),
+            f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.signed_quote_flow)
+                    .collect::<Vec<_>>(),
+            ),
             f64_array(&rows.iter().map(|row| row.base_volume).collect::<Vec<_>>()),
             f64_array(&rows.iter().map(|row| row.quote_volume).collect::<Vec<_>>()),
             opt_f64_array(&rows.iter().map(|row| row.gas_used_mean).collect::<Vec<_>>()),
@@ -1300,7 +1462,19 @@ fn hourly_market_batch(schema: SchemaRef, rows: &[HourlyMarketRow]) -> Result<Re
             opt_f64_array(
                 &rows
                     .iter()
+                    .map(|row| row.priority_fee_gwei_mean)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
                     .map(|row| row.base_fee_gwei_mean)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.gas_to_base_fee_ratio_mean)
                     .collect::<Vec<_>>(),
             ),
             opt_f64_array(
@@ -1321,6 +1495,31 @@ fn hourly_market_batch(schema: SchemaRef, rows: &[HourlyMarketRow]) -> Result<Re
                     .map(|row| row.same_block_event_count_max)
                     .collect::<Vec<_>>(),
             ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.events_per_active_block)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.top_pool_quote_share)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.top_dex_quote_share)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.pool_quote_hhi)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(&rows.iter().map(|row| row.dex_quote_hhi).collect::<Vec<_>>()),
             opt_f64_array(
                 &rows
                     .iter()
@@ -1348,7 +1547,25 @@ fn hourly_market_batch(schema: SchemaRef, rows: &[HourlyMarketRow]) -> Result<Re
             f64_array(
                 &rows
                     .iter()
+                    .map(|row| row.buy_sell_event_ratio)
+                    .collect::<Vec<_>>(),
+            ),
+            f64_array(
+                &rows
+                    .iter()
                     .map(|row| row.net_flow_ratio)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.net_flow_ratio_6h)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.net_flow_ratio_24h)
                     .collect::<Vec<_>>(),
             ),
             f64_array(
@@ -1359,6 +1576,21 @@ fn hourly_market_batch(schema: SchemaRef, rows: &[HourlyMarketRow]) -> Result<Re
             ),
             f64_array(&rows.iter().map(|row| row.log_events).collect::<Vec<_>>()),
             opt_f64_array(&rows.iter().map(|row| row.return_1h).collect::<Vec<_>>()),
+            opt_f64_array(&rows.iter().map(|row| row.momentum_6h).collect::<Vec<_>>()),
+            opt_f64_array(&rows.iter().map(|row| row.momentum_24h).collect::<Vec<_>>()),
+            opt_f64_array(&rows.iter().map(|row| row.abs_return_1h).collect::<Vec<_>>()),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.realized_vol_6h)
+                    .collect::<Vec<_>>(),
+            ),
+            opt_f64_array(
+                &rows
+                    .iter()
+                    .map(|row| row.realized_vol_24h)
+                    .collect::<Vec<_>>(),
+            ),
             opt_f64_array(&rows.iter().map(|row| row.fwd_1h).collect::<Vec<_>>()),
             opt_f64_array(&rows.iter().map(|row| row.fwd_3h).collect::<Vec<_>>()),
             opt_f64_array(&rows.iter().map(|row| row.fwd_6h).collect::<Vec<_>>()),
@@ -1428,11 +1660,14 @@ fn read_event_feature_parts(data_root: &Path, parts: &[String]) -> Result<Vec<Ev
         let buy_base = f64_column(batch, "buy_base")?;
         let sell_base = f64_column(batch, "sell_base")?;
         let net_buy_base = f64_column(batch, "net_buy_base")?;
+        let signed_quote_flow = f64_column(batch, "signed_quote_flow")?;
         let receipt_request_status = string_column(batch, "receipt_request_status")?;
         let receipt_status = u64_column(batch, "receipt_status")?;
         let receipt_gas_used = u64_column(batch, "receipt_gas_used")?;
         let effective_gas_price = u64_column(batch, "effective_gas_price")?;
         let base_fee_per_gas = u64_column(batch, "base_fee_per_gas")?;
+        let priority_fee_gwei = f64_column(batch, "priority_fee_gwei")?;
+        let gas_to_base_fee_ratio = f64_column(batch, "gas_to_base_fee_ratio")?;
         let header_event_log_count = u64_column(batch, "header_event_log_count")?;
         let same_block_event_count = u64_column(batch, "same_block_event_count")?;
         for index in 0..batch.num_rows() {
@@ -1460,11 +1695,14 @@ fn read_event_feature_parts(data_root: &Path, parts: &[String]) -> Result<Vec<Ev
                 buy_base: f64_value(buy_base, index),
                 sell_base: f64_value(sell_base, index),
                 net_buy_base: f64_value(net_buy_base, index),
+                signed_quote_flow: f64_value(signed_quote_flow, index),
                 receipt_request_status: string_value(receipt_request_status, index),
                 receipt_status: u64_option(receipt_status, index),
                 receipt_gas_used: u64_option(receipt_gas_used, index),
                 effective_gas_price: u64_option(effective_gas_price, index),
                 base_fee_per_gas: u64_option(base_fee_per_gas, index),
+                priority_fee_gwei: f64_option(priority_fee_gwei, index),
+                gas_to_base_fee_ratio: f64_option(gas_to_base_fee_ratio, index),
                 header_event_log_count: u64_option(header_event_log_count, index),
                 same_block_event_count: u64_value(same_block_event_count, index),
             });
@@ -1498,22 +1736,38 @@ fn read_hourly_market_parts(data_root: &Path, parts: &[String]) -> Result<Vec<Ho
         let buy_base = f64_column(batch, "buy_base")?;
         let sell_base = f64_column(batch, "sell_base")?;
         let net_buy_base = f64_column(batch, "net_buy_base")?;
+        let signed_quote_flow = f64_column(batch, "signed_quote_flow")?;
         let base_volume = f64_column(batch, "base_volume")?;
         let quote_volume = f64_column(batch, "quote_volume")?;
         let gas_used_mean = f64_column(batch, "gas_used_mean")?;
         let effective_gas_gwei_mean = f64_column(batch, "effective_gas_gwei_mean")?;
+        let priority_fee_gwei_mean = f64_column(batch, "priority_fee_gwei_mean")?;
         let base_fee_gwei_mean = f64_column(batch, "base_fee_gwei_mean")?;
+        let gas_to_base_fee_ratio_mean = f64_column(batch, "gas_to_base_fee_ratio_mean")?;
         let receipt_success_rate = f64_column(batch, "receipt_success_rate")?;
         let same_block_event_count_mean = f64_column(batch, "same_block_event_count_mean")?;
         let same_block_event_count_max = f64_column(batch, "same_block_event_count_max")?;
+        let events_per_active_block = f64_column(batch, "events_per_active_block")?;
+        let top_pool_quote_share = f64_column(batch, "top_pool_quote_share")?;
+        let top_dex_quote_share = f64_column(batch, "top_dex_quote_share")?;
+        let pool_quote_hhi = f64_column(batch, "pool_quote_hhi")?;
+        let dex_quote_hhi = f64_column(batch, "dex_quote_hhi")?;
         let vwap_quote_per_base_observed = f64_column(batch, "vwap_quote_per_base_observed")?;
         let price_quote_per_base = f64_column(batch, "price_quote_per_base")?;
         let price_fill_method = string_column(batch, "price_fill_method")?;
         let buy_event_ratio = f64_column(batch, "buy_event_ratio")?;
+        let buy_sell_event_ratio = f64_column(batch, "buy_sell_event_ratio")?;
         let net_flow_ratio = f64_column(batch, "net_flow_ratio")?;
+        let net_flow_ratio_6h = f64_column(batch, "net_flow_ratio_6h")?;
+        let net_flow_ratio_24h = f64_column(batch, "net_flow_ratio_24h")?;
         let log_quote_volume = f64_column(batch, "log_quote_volume")?;
         let log_events = f64_column(batch, "log_events")?;
         let return_1h = f64_column(batch, "return_1h")?;
+        let momentum_6h = f64_column(batch, "momentum_6h")?;
+        let momentum_24h = f64_column(batch, "momentum_24h")?;
+        let abs_return_1h = f64_column(batch, "abs_return_1h")?;
+        let realized_vol_6h = f64_column(batch, "realized_vol_6h")?;
+        let realized_vol_24h = f64_column(batch, "realized_vol_24h")?;
         let fwd_1h = f64_column(batch, "fwd_1h")?;
         let fwd_3h = f64_column(batch, "fwd_3h")?;
         let fwd_6h = f64_column(batch, "fwd_6h")?;
@@ -1532,22 +1786,38 @@ fn read_hourly_market_parts(data_root: &Path, parts: &[String]) -> Result<Vec<Ho
                 buy_base: f64_value(buy_base, index),
                 sell_base: f64_value(sell_base, index),
                 net_buy_base: f64_value(net_buy_base, index),
+                signed_quote_flow: f64_value(signed_quote_flow, index),
                 base_volume: f64_value(base_volume, index),
                 quote_volume: f64_value(quote_volume, index),
                 gas_used_mean: f64_option(gas_used_mean, index),
                 effective_gas_gwei_mean: f64_option(effective_gas_gwei_mean, index),
+                priority_fee_gwei_mean: f64_option(priority_fee_gwei_mean, index),
                 base_fee_gwei_mean: f64_option(base_fee_gwei_mean, index),
+                gas_to_base_fee_ratio_mean: f64_option(gas_to_base_fee_ratio_mean, index),
                 receipt_success_rate: f64_option(receipt_success_rate, index),
                 same_block_event_count_mean: f64_option(same_block_event_count_mean, index),
                 same_block_event_count_max: f64_option(same_block_event_count_max, index),
+                events_per_active_block: f64_option(events_per_active_block, index),
+                top_pool_quote_share: f64_option(top_pool_quote_share, index),
+                top_dex_quote_share: f64_option(top_dex_quote_share, index),
+                pool_quote_hhi: f64_option(pool_quote_hhi, index),
+                dex_quote_hhi: f64_option(dex_quote_hhi, index),
                 vwap_quote_per_base_observed: f64_option(vwap_quote_per_base_observed, index),
                 price_quote_per_base: f64_option(price_quote_per_base, index),
                 price_fill_method: string_value(price_fill_method, index),
                 buy_event_ratio: f64_value(buy_event_ratio, index),
+                buy_sell_event_ratio: f64_value(buy_sell_event_ratio, index),
                 net_flow_ratio: f64_value(net_flow_ratio, index),
+                net_flow_ratio_6h: f64_option(net_flow_ratio_6h, index),
+                net_flow_ratio_24h: f64_option(net_flow_ratio_24h, index),
                 log_quote_volume: f64_value(log_quote_volume, index),
                 log_events: f64_value(log_events, index),
                 return_1h: f64_option(return_1h, index),
+                momentum_6h: f64_option(momentum_6h, index),
+                momentum_24h: f64_option(momentum_24h, index),
+                abs_return_1h: f64_option(abs_return_1h, index),
+                realized_vol_6h: f64_option(realized_vol_6h, index),
+                realized_vol_24h: f64_option(realized_vol_24h, index),
                 fwd_1h: f64_option(fwd_1h, index),
                 fwd_3h: f64_option(fwd_3h, index),
                 fwd_6h: f64_option(fwd_6h, index),
@@ -1842,6 +2112,29 @@ where
     (by_key.into_values().collect(), raw_len - dedup_len)
 }
 
+fn filter_swaps_to_header_window(
+    swaps: Vec<RawSwap>,
+    headers: &[RawHeader],
+) -> Result<(Vec<RawSwap>, u64)> {
+    let min_header_block = headers
+        .iter()
+        .map(|row| row.block_number)
+        .min()
+        .ok_or_else(|| anyhow!("no event headers available to define analysis block window"))?;
+    let max_header_block = headers
+        .iter()
+        .map(|row| row.block_number)
+        .max()
+        .ok_or_else(|| anyhow!("no event headers available to define analysis block window"))?;
+    let raw_len = swaps.len() as u64;
+    let filtered = swaps
+        .into_iter()
+        .filter(|row| row.block_number >= min_header_block && row.block_number <= max_header_block)
+        .collect::<Vec<_>>();
+    let filtered_len = filtered.len() as u64;
+    Ok((filtered, raw_len - filtered_len))
+}
+
 fn build_event_panel(
     swaps: &[RawSwap],
     headers_by_block: &HashMap<u64, RawHeader>,
@@ -1878,6 +2171,7 @@ fn build_event_panel(
         let is_buy_base = swap.direction == "buy_base";
         let is_sell_base = swap.direction == "sell_base";
         let base_abs = swap.base_abs.unwrap_or(0.0);
+        let quote_abs = swap.quote_abs.unwrap_or(0.0);
         let buy_base = if is_buy_base { base_abs } else { 0.0 };
         let sell_base = if is_sell_base { base_abs } else { 0.0 };
         let net_buy_base = if is_buy_base {
@@ -1886,6 +2180,27 @@ fn build_event_panel(
             -base_abs
         } else {
             0.0
+        };
+        let signed_quote_flow = if is_buy_base {
+            quote_abs
+        } else if is_sell_base {
+            -quote_abs
+        } else {
+            0.0
+        };
+        let effective_gas_price = receipt.and_then(|row| row.effective_gas_price);
+        let base_fee_per_gas = header.and_then(|row| row.base_fee_per_gas);
+        let priority_fee_gwei = match (effective_gas_price, base_fee_per_gas) {
+            (Some(effective), Some(base_fee)) if effective >= base_fee => {
+                finite((effective - base_fee) as f64 / 1e9)
+            }
+            _ => None,
+        };
+        let gas_to_base_fee_ratio = match (effective_gas_price, base_fee_per_gas) {
+            (Some(effective), Some(base_fee)) if base_fee > 0 => {
+                finite(effective as f64 / base_fee as f64)
+            }
+            _ => None,
         };
         let block_count = block_counts.get(&swap.block_number);
         rows.push(EventRecord {
@@ -1922,13 +2237,16 @@ fn build_event_panel(
             buy_base,
             sell_base,
             net_buy_base,
+            signed_quote_flow,
             receipt_request_status: receipt
                 .map(|row| row.request_status.clone())
                 .unwrap_or_else(|| "missing".to_string()),
             receipt_status: receipt.and_then(|row| row.receipt_status),
             receipt_gas_used: receipt.and_then(|row| row.gas_used),
-            effective_gas_price: receipt.and_then(|row| row.effective_gas_price),
-            base_fee_per_gas: header.and_then(|row| row.base_fee_per_gas),
+            effective_gas_price,
+            base_fee_per_gas,
+            priority_fee_gwei,
+            gas_to_base_fee_ratio,
             header_event_log_count: header.map(|row| row.event_log_count),
             same_block_event_count: block_count.map(|row| row.events).unwrap_or(1),
         });
@@ -2211,17 +2529,28 @@ fn build_hourly_market(clean_events: &[EventRecord]) -> Result<Vec<HourlyMarketR
         entry.buy_base += event.buy_base;
         entry.sell_base += event.sell_base;
         entry.net_buy_base += event.net_buy_base;
+        entry.signed_quote_flow += event.signed_quote_flow;
         entry.base_volume += base_abs;
         entry.quote_volume += quote_abs;
+        *entry
+            .pool_quote_volume
+            .entry(event.pool_address.clone())
+            .or_default() += quote_abs;
+        *entry
+            .dex_quote_volume
+            .entry(event.dex_id.clone())
+            .or_default() += quote_abs;
         entry
             .gas_used
             .add(event.receipt_gas_used.map(|value| value as f64));
         entry
             .effective_gas_gwei
             .add(event.effective_gas_price.map(|value| value as f64 / 1e9));
+        entry.priority_fee_gwei.add(event.priority_fee_gwei);
         entry
             .base_fee_gwei
             .add(event.base_fee_per_gas.map(|value| value as f64 / 1e9));
+        entry.gas_to_base_fee_ratio.add(event.gas_to_base_fee_ratio);
         entry
             .receipt_success
             .add(event.receipt_status.map(|value| value as f64));
@@ -2246,7 +2575,13 @@ fn build_hourly_market(clean_events: &[EventRecord]) -> Result<Vec<HourlyMarketR
         let price = last_price;
         let events = agg.events;
         let buy_event_ratio = safe_div(agg.buy_events as f64, events as f64).unwrap_or(0.0);
+        let buy_sell_event_ratio =
+            safe_div(agg.buy_events as f64, agg.sell_events as f64).unwrap_or(0.0);
         let net_flow_ratio = safe_div(agg.net_buy_base, agg.base_volume).unwrap_or(0.0);
+        let (top_pool_quote_share, pool_quote_hhi) =
+            concentration_stats(&agg.pool_quote_volume, agg.quote_volume);
+        let (top_dex_quote_share, dex_quote_hhi) =
+            concentration_stats(&agg.dex_quote_volume, agg.quote_volume);
         observed_prices.push(price);
         rows.push(HourlyMarketRow {
             hour_utc: format_hour(hour)?,
@@ -2260,11 +2595,14 @@ fn build_hourly_market(clean_events: &[EventRecord]) -> Result<Vec<HourlyMarketR
             buy_base: agg.buy_base,
             sell_base: agg.sell_base,
             net_buy_base: agg.net_buy_base,
+            signed_quote_flow: agg.signed_quote_flow,
             base_volume: agg.base_volume,
             quote_volume: agg.quote_volume,
             gas_used_mean: agg.gas_used.mean(),
             effective_gas_gwei_mean: agg.effective_gas_gwei.mean(),
+            priority_fee_gwei_mean: agg.priority_fee_gwei.mean(),
             base_fee_gwei_mean: agg.base_fee_gwei.mean(),
+            gas_to_base_fee_ratio_mean: agg.gas_to_base_fee_ratio.mean(),
             receipt_success_rate: agg.receipt_success.mean(),
             same_block_event_count_mean: agg.same_block_event_count.mean(),
             same_block_event_count_max: if agg.same_block_event_count_max == 0 {
@@ -2272,6 +2610,11 @@ fn build_hourly_market(clean_events: &[EventRecord]) -> Result<Vec<HourlyMarketR
             } else {
                 Some(agg.same_block_event_count_max as f64)
             },
+            events_per_active_block: safe_div(events as f64, agg.active_blocks.len() as f64),
+            top_pool_quote_share,
+            top_dex_quote_share,
+            pool_quote_hhi,
+            dex_quote_hhi,
             vwap_quote_per_base_observed: observed_price,
             price_quote_per_base: price,
             price_fill_method: if observed_price.is_some() {
@@ -2280,10 +2623,18 @@ fn build_hourly_market(clean_events: &[EventRecord]) -> Result<Vec<HourlyMarketR
                 "forward_fill".to_string()
             },
             buy_event_ratio,
+            buy_sell_event_ratio,
             net_flow_ratio,
+            net_flow_ratio_6h: None,
+            net_flow_ratio_24h: None,
             log_quote_volume: agg.quote_volume.max(0.0).ln_1p(),
             log_events: (events as f64).ln_1p(),
             return_1h: None,
+            momentum_6h: None,
+            momentum_24h: None,
+            abs_return_1h: None,
+            realized_vol_6h: None,
+            realized_vol_24h: None,
             fwd_1h: None,
             fwd_3h: None,
             fwd_6h: None,
@@ -2299,13 +2650,83 @@ fn build_hourly_market(clean_events: &[EventRecord]) -> Result<Vec<HourlyMarketR
         } else {
             forward_return(observed_prices[index - 1], observed_prices[index])
         };
-        rows[index].fwd_1h = future_from_prices(&observed_prices, index, 1);
-        rows[index].fwd_3h = future_from_prices(&observed_prices, index, 3);
-        rows[index].fwd_6h = future_from_prices(&observed_prices, index, 6);
-        rows[index].fwd_12h = future_from_prices(&observed_prices, index, 12);
-        rows[index].fwd_24h = future_from_prices(&observed_prices, index, 24);
+        rows[index].momentum_6h = trailing_return(&observed_prices, index, 6);
+        rows[index].momentum_24h = trailing_return(&observed_prices, index, 24);
+        rows[index].abs_return_1h = rows[index].return_1h.map(f64::abs);
+        rows[index].realized_vol_6h = trailing_realized_vol(&rows, index, 6);
+        rows[index].realized_vol_24h = trailing_realized_vol(&rows, index, 24);
+        rows[index].net_flow_ratio_6h = trailing_net_flow_ratio(&rows, index, 6);
+        rows[index].net_flow_ratio_24h = trailing_net_flow_ratio(&rows, index, 24);
+        rows[index].fwd_1h = future_return_after_entry_gap(&observed_prices, index, 1, 1);
+        rows[index].fwd_3h = future_return_after_entry_gap(&observed_prices, index, 1, 3);
+        rows[index].fwd_6h = future_return_after_entry_gap(&observed_prices, index, 1, 6);
+        rows[index].fwd_12h = future_return_after_entry_gap(&observed_prices, index, 1, 12);
+        rows[index].fwd_24h = future_return_after_entry_gap(&observed_prices, index, 1, 24);
     }
     Ok(rows)
+}
+
+fn concentration_stats(
+    quote_volume_by_key: &BTreeMap<String, f64>,
+    total_quote_volume: f64,
+) -> (Option<f64>, Option<f64>) {
+    if !total_quote_volume.is_finite() || total_quote_volume <= 0.0 {
+        return (None, None);
+    }
+    let mut top_share = 0.0;
+    let mut hhi = 0.0;
+    for volume in quote_volume_by_key.values().copied() {
+        if !volume.is_finite() || volume <= 0.0 {
+            continue;
+        }
+        let share = volume / total_quote_volume;
+        top_share = f64::max(top_share, share);
+        hhi += share * share;
+    }
+    (finite(top_share), finite(hhi))
+}
+
+fn trailing_return(prices: &[Option<f64>], index: usize, window: usize) -> Option<f64> {
+    if index < window {
+        return None;
+    }
+    forward_return(prices[index - window], prices[index])
+}
+
+fn trailing_realized_vol(rows: &[HourlyMarketRow], index: usize, window: usize) -> Option<f64> {
+    if index + 1 < window {
+        return None;
+    }
+    let start = index + 1 - window;
+    let mut sum_sq = 0.0;
+    let mut count = 0usize;
+    for row in &rows[start..=index] {
+        if let Some(value) = row.return_1h.filter(|value| value.is_finite()) {
+            sum_sq += value * value;
+            count += 1;
+        }
+    }
+    if count < 2 {
+        None
+    } else {
+        finite(sum_sq.sqrt())
+    }
+}
+
+fn trailing_net_flow_ratio(rows: &[HourlyMarketRow], index: usize, window: usize) -> Option<f64> {
+    if index + 1 < window {
+        return None;
+    }
+    let start = index + 1 - window;
+    let net_buy_base = rows[start..=index]
+        .iter()
+        .map(|row| row.net_buy_base)
+        .sum::<f64>();
+    let base_volume = rows[start..=index]
+        .iter()
+        .map(|row| row.base_volume)
+        .sum::<f64>();
+    safe_div(net_buy_base, base_volume)
 }
 
 fn build_minute_price_rows(clean_events: &[EventRecord]) -> Result<Vec<MinutePriceRow>> {
@@ -2454,8 +2875,9 @@ fn build_event_factor_tests(
         let values = clean_events
             .iter()
             .map(|event| {
-                let current = minute_prices.price_at(floor_to_minute(event.timestamp));
-                let future = minute_prices.price_at(floor_to_minute(event.timestamp + seconds));
+                let entry_minute = floor_to_minute(event.timestamp) + 60;
+                let current = minute_prices.price_at(entry_minute);
+                let future = minute_prices.price_at(entry_minute + seconds);
                 forward_return(current, future)
             })
             .collect::<Vec<_>>();
@@ -2470,7 +2892,7 @@ fn build_event_factor_tests(
             .collect::<Vec<_>>();
         for target in &targets {
             let target_values = target_cache.get(target).expect("target cached");
-            let test = if factor == "is_buy_base" {
+            let test = if matches!(factor, "is_buy_base" | "is_sell_base") {
                 binary_factor_test(factor, target, &factor_values, target_values, 500)
             } else {
                 continuous_factor_test(factor, target, &factor_values, target_values, 500)
@@ -2677,12 +3099,29 @@ fn hourly_factor_value(row: &HourlyMarketRow, factor: &str) -> Option<f64> {
         "events" => Some(row.events as f64),
         "quote_volume" => Some(row.quote_volume),
         "log_quote_volume" => Some(row.log_quote_volume),
+        "signed_quote_flow" => Some(row.signed_quote_flow),
         "net_flow_ratio" => Some(row.net_flow_ratio),
+        "net_flow_ratio_6h" => row.net_flow_ratio_6h,
+        "net_flow_ratio_24h" => row.net_flow_ratio_24h,
         "buy_event_ratio" => Some(row.buy_event_ratio),
+        "buy_sell_event_ratio" => Some(row.buy_sell_event_ratio),
         "active_blocks" => Some(row.active_blocks as f64),
+        "events_per_active_block" => row.events_per_active_block,
         "pools" => Some(row.pools as f64),
+        "top_pool_quote_share" => row.top_pool_quote_share,
+        "top_dex_quote_share" => row.top_dex_quote_share,
+        "pool_quote_hhi" => row.pool_quote_hhi,
+        "dex_quote_hhi" => row.dex_quote_hhi,
         "effective_gas_gwei_mean" => row.effective_gas_gwei_mean,
+        "priority_fee_gwei_mean" => row.priority_fee_gwei_mean,
+        "gas_to_base_fee_ratio_mean" => row.gas_to_base_fee_ratio_mean,
         "receipt_success_rate" => row.receipt_success_rate,
+        "return_1h" => row.return_1h,
+        "momentum_6h" => row.momentum_6h,
+        "momentum_24h" => row.momentum_24h,
+        "abs_return_1h" => row.abs_return_1h,
+        "realized_vol_6h" => row.realized_vol_6h,
+        "realized_vol_24h" => row.realized_vol_24h,
         _ => None,
     }
 }
@@ -2701,12 +3140,16 @@ fn hourly_target_value(row: &HourlyMarketRow, target: &str) -> Option<f64> {
 fn event_factor_value(event: &EventRecord, factor: &str) -> Option<f64> {
     match factor {
         "is_buy_base" => Some(if event.is_buy_base { 1.0 } else { 0.0 }),
+        "is_sell_base" => Some(if event.is_sell_base { 1.0 } else { 0.0 }),
         "quote_abs" => event.quote_abs,
         "log_quote_abs" => event.quote_abs.map(|value| value.max(0.0).ln_1p()),
+        "signed_quote_flow" => Some(event.signed_quote_flow),
         "base_abs" => event.base_abs,
         "log_base_abs" => event.base_abs.map(|value| value.max(0.0).ln_1p()),
         "gas_used" => event.receipt_gas_used.map(|value| value as f64),
         "effective_gas_gwei" => event.effective_gas_price.map(|value| value as f64 / 1e9),
+        "priority_fee_gwei" => event.priority_fee_gwei,
+        "gas_to_base_fee_ratio" => event.gas_to_base_fee_ratio,
         "same_block_event_count" => Some(event.same_block_event_count as f64),
         "header_event_log_count" => event.header_event_log_count.map(|value| value as f64),
         _ => None,
@@ -2733,9 +3176,16 @@ fn forward_return(current: Option<f64>, future: Option<f64>) -> Option<f64> {
     }
 }
 
-fn future_from_prices(prices: &[Option<f64>], index: usize, horizon: usize) -> Option<f64> {
-    let current = prices.get(index).copied().flatten();
-    let future = prices.get(index + horizon).copied().flatten();
+fn future_return_after_entry_gap(
+    prices: &[Option<f64>],
+    index: usize,
+    entry_gap: usize,
+    horizon: usize,
+) -> Option<f64> {
+    let entry_index = index + entry_gap;
+    let exit_index = entry_index + horizon;
+    let current = prices.get(entry_index).copied().flatten();
+    let future = prices.get(exit_index).copied().flatten();
     forward_return(current, future)
 }
 

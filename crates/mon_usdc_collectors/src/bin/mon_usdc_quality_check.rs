@@ -7,6 +7,11 @@ use arrow::array::{Array, StringArray, UInt64Array};
 use chrono::DateTime;
 use clap::Parser;
 use finance_chain_core::storage::{COLLECTION_RUNS_DATASET, RAW_DIR, parquet_files_under};
+use mon_usdc_collectors::enrichment::{
+    DEBUG_TRACE_CALLS_DATASET, DEBUG_TRACE_SUMMARIES_DATASET, POOL_LIQUIDITY_WINDOWS_DATASET,
+    POOL_STATE_SAMPLES_DATASET, TX_BODIES_DATASET, TX_RECEIPT_LOG_SUMMARIES_DATASET,
+    TX_RECEIPT_LOGS_DATASET,
+};
 use mon_usdc_collectors::{
     EVENT_HEADERS_DATASET, POOL_SNAPSHOTS_DATASET, POOL_SWAP_LOGS_DATASET, TX_RECEIPTS_DATASET,
     default_data_root_path, discover_swap_event_blocks, existing_event_header_blocks,
@@ -19,6 +24,13 @@ const RAW_DATASETS: &[&str] = &[
     POOL_SWAP_LOGS_DATASET,
     EVENT_HEADERS_DATASET,
     TX_RECEIPTS_DATASET,
+    TX_BODIES_DATASET,
+    TX_RECEIPT_LOGS_DATASET,
+    TX_RECEIPT_LOG_SUMMARIES_DATASET,
+    POOL_STATE_SAMPLES_DATASET,
+    POOL_LIQUIDITY_WINDOWS_DATASET,
+    DEBUG_TRACE_SUMMARIES_DATASET,
+    DEBUG_TRACE_CALLS_DATASET,
     COLLECTION_RUNS_DATASET,
 ];
 
@@ -266,6 +278,16 @@ fn check_dataset(root: &Path, dataset: &str, range: BlockRange) -> Result<Qualit
                     stats.request_status_errors +=
                         count_receipt_error_statuses(&batch, &row_filter)?;
                 }
+                TX_BODIES_DATASET | TX_RECEIPT_LOG_SUMMARIES_DATASET => {
+                    stats.duplicate_keys +=
+                        count_duplicate_tx_hashes(&batch, &mut tx_hashes, &row_filter)?;
+                    stats.request_status_errors +=
+                        count_request_status_errors(&batch, &row_filter)?;
+                }
+                DEBUG_TRACE_SUMMARIES_DATASET => {
+                    stats.duplicate_keys +=
+                        count_duplicate_tx_hashes(&batch, &mut tx_hashes, &row_filter)?;
+                }
                 _ => {}
             }
         }
@@ -485,6 +507,27 @@ fn count_receipt_error_statuses(
         }
         let value = request_status.value(index);
         if value.contains("error") || value == "missing_receipt" {
+            errors += 1;
+        }
+    }
+    Ok(errors)
+}
+
+fn count_request_status_errors(
+    batch: &arrow::record_batch::RecordBatch,
+    row_filter: &RowFilter,
+) -> Result<u64> {
+    if batch.schema().index_of("request_status").is_err() {
+        return Ok(0);
+    }
+    let request_status = string_column(batch, "request_status")?;
+    let mut errors = 0;
+    for index in 0..batch.num_rows() {
+        if !row_filter.includes(index) || request_status.is_null(index) {
+            continue;
+        }
+        let value = request_status.value(index);
+        if value.contains("error") || value.starts_with("missing") {
             errors += 1;
         }
     }

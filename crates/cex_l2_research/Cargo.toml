@@ -1,5 +1,5 @@
 [package]
-name = "mon_usdc_collectors"
+name = "cex_l2_research"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,9 +8,12 @@ anyhow = { workspace = true }
 arrow = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
+csv = { workspace = true }
 finance_chain_core = { path = "../finance_chain_core" }
+flate2 = { workspace = true }
+fs2 = { workspace = true }
 parquet = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+zip = { workspace = true }
