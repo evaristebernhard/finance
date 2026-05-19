@@ -1,40 +1,45 @@
 # Finance Chain Docs
 
-This is the human-readable docs entry point. In a fresh Codex session, start with `AGENTS.md`, then read the live handoff here.
+Human-readable docs entry point. In a fresh Codex session, read [AGENTS.md](../AGENTS.md) first, then use this page to choose the right lane.
 
-## Active Handoff
+## Frontend / Backend
 
-- [Live collection status](handoff/live-collection.md)
-- [Memecoin strategy handoff](handoff/memecoin-strategy.md)
+- [Engineering docs](engineering/README.md): generic market replay backend, frontend, endpoints, local AI proxy, and data inputs.
+- [CCUSDT replay workbench](markets/ccusdt/v1-replay-workbench.md): default product/runbook doc for the local replay UI and Rust API.
+- [BONK replay workbench](markets/bonk/v1-replay-workbench.md): older BONK market wiring kept as a selectable replay surface.
 
-## Runbooks
+## Factor Analysis
 
-- [CHOG memecoin collection](runbooks/chog-memecoin-collection.md)
-- [CHOG v1 backfill](runbooks/chog-v1-backfill.md)
+- [Research docs](research/README.md): factor-analysis index split across BONK, MON/USDC, and CHOG.
+- [BONK research index](markets/bonk/README.md): current BONK docs grouped by engineering, factor analysis, and historical research.
+- [MON/USDC research index](markets/mon-usdc/README.md): prior Monad DEX/on-chain factor and enrichment line.
 
-## MON-USDC
+## Historical Research
 
-- [V1 data plan](markets/mon-usdc/v1-data-plan.md)
-- [V1 factor analysis](markets/mon-usdc/v1-factor-analysis.md)
+- [BONK legacy V1/V6/V7/V8/V9 docs](markets/bonk/archive/2026-05-13-to-14-legacy-cex-v1-v9/README.md)
+- [BONK archived V3/V4/V5 research waves](markets/bonk/archive/2026-05-13-research-waves/README.md)
+- [CHOG early research archive](research/README.md#historical-research)
+- [Workspace archive index](../archive/README.md)
 
-## CHOG Research
+## Data Collection Runbooks
 
-- [2026-05-09 cost-aware event factors](research/chog/2026-05-09-cost-aware-event-factors.md)
-- [2026-05-09 event factor phenomena](research/chog/2026-05-09-event-factor-phenomena.md)
-- [2026-05-08 factor decomposition v2](research/chog/2026-05-08-factor-decomposition-v2.md)
-- [2026-05-08 memecoin first analysis](research/chog/2026-05-08-memecoin-first-analysis.md)
-- [2026-05-08 ML factor analysis](research/chog/2026-05-08-ml-factor-analysis.md)
-- [2026-05-08 supervised factor research](research/chog/2026-05-08-supervised-factor-research.md)
-- [External absorption framework](research/chog/framework/external-absorption-plan.md)
+- [Live collection status](handoff/live-collection.md): older CHOG/MON handoff and collector status.
+- [Memecoin strategy handoff](handoff/memecoin-strategy.md): CHOG strategy-first path and implementation notes.
+- [CHOG memecoin collection](runbooks/chog-memecoin-collection.md): event-driven `logs -> event_block_headers -> tx_receipts -> memecoin features -> quality check`.
+- [CHOG v1 backfill](runbooks/chog-v1-backfill.md): day-window operating runbook and full-header escape path.
+
+## Market Indexes
+
+- [Market research index](markets/README.md)
+- [CCUSDT](markets/ccusdt/README.md)
+- [BONK](markets/bonk/README.md)
+- [MON/USDC](markets/mon-usdc/README.md)
+- [BTC/ETH options sample](markets/btc/v1-options-regime-report.md)
 
 ## Reference
 
+- [Workspace cleanup map](handoff/workspace-cleanup-20260519.md): current dirty-worktree domain map and suggested checkpoint buckets.
 - [CHOG data inventory](reference/chog-data-inventory.md)
 - [Monad RPC probe](reference/monad-rpc-probe.md)
-
-## Archive
-
-- [Early extended data analysis](research/chog/archive/early-extended-data-analysis.md)
-- [Early main pool swap analysis](research/chog/archive/early-main-pool-swap-analysis.md)
-- [Early onchain math analysis](research/chog/archive/early-onchain-math-analysis.md)
-- [Early preliminary factor analysis](research/chog/archive/early-preliminary-factor-analysis.md)
+- [date output policy](../date/README.md)
+- [Generated-output cleanup manifest](../archive/archive_manifest_2026-05-15_cleanup.csv)
