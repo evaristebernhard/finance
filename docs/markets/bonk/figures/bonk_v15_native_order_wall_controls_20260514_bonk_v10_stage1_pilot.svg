@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="500" viewBox="0 0 1100 500">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="30" y="36" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">Native Order Walls: Base vs Controls</text>
+<rect x="80" y="70" width="900" height="280" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="80" y1="350" x2="980" y2="350" stroke="#64748B"/>
+<line x1="80" y1="70" x2="80" y2="350" stroke="#64748B"/>
+<line x1="80" y1="210.0" x2="980" y2="210.0" stroke="#334155"/>
+<rect x="84.0" y="210.0" width="19.8" height="0.0" fill="#2563EB" rx="3"/>
+<rect x="109.2" y="210.0" width="19.8" height="0.0" fill="#D97706" rx="3"/>
+<text x="102.0" y="442" transform="rotate(-45 102.0 442)" font-size="9" fill="#334155">ask:random_time_same_symbol</text>
+<rect x="174.0" y="189.5" width="19.8" height="20.5" fill="#2563EB" rx="3"/>
+<rect x="199.2" y="84.0" width="19.8" height="126.0" fill="#D97706" rx="3"/>
+<text x="192.0" y="442" transform="rotate(-45 192.0 442)" font-size="9" fill="#334155">bid:random_time_same_symbol</text>
+<rect x="264.0" y="210.0" width="19.8" height="0.0" fill="#2563EB" rx="3"/>
+<rect x="289.2" y="210.0" width="19.8" height="20.5" fill="#D97706" rx="3"/>
+<text x="282.0" y="442" transform="rotate(-45 282.0 442)" font-size="9" fill="#334155">ask:side_flip</text>
+<rect x="354.0" y="189.5" width="19.8" height="20.5" fill="#2563EB" rx="3"/>
+<rect x="379.2" y="210.0" width="19.8" height="0.0" fill="#D97706" rx="3"/>
+<text x="372.0" y="442" transform="rotate(-45 372.0 442)" font-size="9" fill="#334155">bid:side_flip</text>
+<rect x="444.0" y="210.0" width="19.8" height="0.0" fill="#2563EB" rx="3"/>
+<rect x="469.2" y="210.0" width="19.8" height="0.0" fill="#D97706" rx="3"/>
+<text x="462.0" y="442" transform="rotate(-45 462.0 442)" font-size="9" fill="#334155">ask:timestamp_shift_minus_60s</text>
+<rect x="534.0" y="189.5" width="19.8" height="20.5" fill="#2563EB" rx="3"/>
+<rect x="559.2" y="178.7" width="19.8" height="31.3" fill="#D97706" rx="3"/>
+<text x="552.0" y="442" transform="rotate(-45 552.0 442)" font-size="9" fill="#334155">bid:timestamp_shift_minus_60s</text>
+<rect x="624.0" y="210.0" width="19.8" height="0.0" fill="#2563EB" rx="3"/>
+<rect x="649.2" y="210.0" width="19.8" height="0.0" fill="#D97706" rx="3"/>
+<text x="642.0" y="442" transform="rotate(-45 642.0 442)" font-size="9" fill="#334155">ask:timestamp_shift_plus_60s</text>
+<rect x="714.0" y="189.5" width="19.8" height="20.5" fill="#2563EB" rx="3"/>
+<rect x="739.2" y="210.0" width="19.8" height="0.0" fill="#D97706" rx="3"/>
+<text x="732.0" y="442" transform="rotate(-45 732.0 442)" font-size="9" fill="#334155">bid:timestamp_shift_plus_60s</text>
+<rect x="804.0" y="210.0" width="19.8" height="0.0" fill="#2563EB" rx="3"/>
+<rect x="829.2" y="210.0" width="19.8" height="0.0" fill="#D97706" rx="3"/>
+<text x="822.0" y="442" transform="rotate(-45 822.0 442)" font-size="9" fill="#334155">ask:wrong_symbol_same_time</text>
+<rect x="894.0" y="189.5" width="19.8" height="20.5" fill="#2563EB" rx="3"/>
+<rect x="919.2" y="193.4" width="19.8" height="16.6" fill="#D97706" rx="3"/>
+<text x="912.0" y="442" transform="rotate(-45 912.0 442)" font-size="9" fill="#334155">bid:wrong_symbol_same_time</text>
+<rect x="920" y="24" width="12" height="12" fill="#2563EB" rx="2"/>
+<text x="938" y="35" font-size="12" fill="#334155">base</text>
+<rect x="920" y="44" width="12" height="12" fill="#D97706" rx="2"/>
+<text x="938" y="55" font-size="12" fill="#334155">control</text>
+</svg>

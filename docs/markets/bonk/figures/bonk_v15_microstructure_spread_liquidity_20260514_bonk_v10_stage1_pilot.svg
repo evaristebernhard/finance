@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="520" viewBox="0 0 1120 520">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="30" y="36" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">BONK Microstructure: Spread and Liquidity by Symbol-Day</text>
+<rect x="80" y="72" width="940" height="310" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="80" y1="382" x2="1020" y2="382" stroke="#64748B"/>
+<line x1="80" y1="72" x2="80" y2="382" stroke="#64748B"/>
+<rect x="84.0" y="76.5" width="21.5" height="305.5" fill="#D97706" rx="3"/>
+<rect x="108.2" y="171.8" width="21.5" height="210.2" fill="#2563EB" rx="3"/>
+<text x="107.5" y="454.0" transform="rotate(-45 107.5 454.0)" font-size="10" fill="#334155">05-06 USDC</text>
+<rect x="151.1" y="76.6" width="21.5" height="305.4" fill="#D97706" rx="3"/>
+<rect x="175.3" y="121.0" width="21.5" height="261.0" fill="#2563EB" rx="3"/>
+<text x="174.6" y="454.0" transform="rotate(-45 174.6 454.0)" font-size="10" fill="#334155">05-06 USDT</text>
+<rect x="218.3" y="72.0" width="21.5" height="310.0" fill="#D97706" rx="3"/>
+<rect x="242.5" y="103.8" width="21.5" height="278.2" fill="#2563EB" rx="3"/>
+<text x="241.8" y="454.0" transform="rotate(-45 241.8 454.0)" font-size="10" fill="#334155">05-07 USDC</text>
+<rect x="285.4" y="72.7" width="21.5" height="309.3" fill="#D97706" rx="3"/>
+<rect x="309.6" y="85.7" width="21.5" height="296.3" fill="#2563EB" rx="3"/>
+<text x="308.9" y="454.0" transform="rotate(-45 308.9 454.0)" font-size="10" fill="#334155">05-07 USDT</text>
+<rect x="352.6" y="76.4" width="21.5" height="305.6" fill="#D97706" rx="3"/>
+<rect x="376.7" y="142.3" width="21.5" height="239.7" fill="#2563EB" rx="3"/>
+<text x="376.1" y="454.0" transform="rotate(-45 376.1 454.0)" font-size="10" fill="#334155">05-08 USDC</text>
+<rect x="419.7" y="76.4" width="21.5" height="305.6" fill="#D97706" rx="3"/>
+<rect x="443.9" y="143.5" width="21.5" height="238.5" fill="#2563EB" rx="3"/>
+<text x="443.2" y="454.0" transform="rotate(-45 443.2 454.0)" font-size="10" fill="#334155">05-08 USDT</text>
+<rect x="486.9" y="92.6" width="21.5" height="289.4" fill="#D97706" rx="3"/>
+<rect x="511.0" y="344.2" width="21.5" height="37.8" fill="#2563EB" rx="3"/>
+<text x="510.4" y="454.0" transform="rotate(-45 510.4 454.0)" font-size="10" fill="#334155">05-09 USDC</text>
+<rect x="554.0" y="92.6" width="21.5" height="289.4" fill="#D97706" rx="3"/>
+<rect x="578.2" y="342.3" width="21.5" height="39.7" fill="#2563EB" rx="3"/>
+<text x="577.5" y="454.0" transform="rotate(-45 577.5 454.0)" font-size="10" fill="#334155">05-09 USDT</text>
+<rect x="621.1" y="89.4" width="21.5" height="292.6" fill="#D97706" rx="3"/>
+<rect x="645.3" y="72.0" width="21.5" height="310.0" fill="#2563EB" rx="3"/>
+<text x="644.6" y="454.0" transform="rotate(-45 644.6 454.0)" font-size="10" fill="#334155">05-10 USDC</text>
+<rect x="688.3" y="89.3" width="21.5" height="292.7" fill="#D97706" rx="3"/>
+<rect x="712.5" y="116.5" width="21.5" height="265.5" fill="#2563EB" rx="3"/>
+<text x="711.8" y="454.0" transform="rotate(-45 711.8 454.0)" font-size="10" fill="#334155">05-10 USDT</text>
+<rect x="755.4" y="104.2" width="21.5" height="277.8" fill="#D97706" rx="3"/>
+<rect x="779.6" y="256.3" width="21.5" height="125.7" fill="#2563EB" rx="3"/>
+<text x="778.9" y="454.0" transform="rotate(-45 778.9 454.0)" font-size="10" fill="#334155">05-11 USDC</text>
+<rect x="822.6" y="104.2" width="21.5" height="277.8" fill="#D97706" rx="3"/>
+<rect x="846.7" y="288.3" width="21.5" height="93.7" fill="#2563EB" rx="3"/>
+<text x="846.1" y="454.0" transform="rotate(-45 846.1 454.0)" font-size="10" fill="#334155">05-11 USDT</text>
+<rect x="889.7" y="97.0" width="21.5" height="285.0" fill="#D97706" rx="3"/>
+<rect x="913.9" y="185.0" width="21.5" height="197.0" fill="#2563EB" rx="3"/>
+<text x="913.2" y="454.0" transform="rotate(-45 913.2 454.0)" font-size="10" fill="#334155">05-12 USDC</text>
+<rect x="956.9" y="97.1" width="21.5" height="284.9" fill="#D97706" rx="3"/>
+<rect x="981.0" y="230.5" width="21.5" height="151.5" fill="#2563EB" rx="3"/>
+<text x="980.4" y="454.0" transform="rotate(-45 980.4 454.0)" font-size="10" fill="#334155">05-12 USDT</text>
+<rect x="800" y="24" width="12" height="12" fill="#D97706" rx="2"/>
+<text x="818" y="35" font-size="12" fill="#334155">median spread</text>
+<rect x="800" y="44" width="12" height="12" fill="#2563EB" rx="2"/>
+<text x="818" y="55" font-size="12" fill="#334155">median depth25</text>
+</svg>

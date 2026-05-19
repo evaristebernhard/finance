@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="32" y="34" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">V15 Path Mix by Variant</text>
+<rect x="90.0" y="70.0" width="820.0" height="260.0" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="90.0" y1="330.0" x2="910.0" y2="330.0" stroke="#64748B"/>
+<line x1="90.0" y1="70.0" x2="90.0" y2="330.0" stroke="#64748B"/>
+<text x="860.0" y="60.0" font-size="12" fill="#475569">rate</text>
+<rect x="106.0" y="224.3" width="65.4" height="105.7" fill="#287C5E" rx="3"/>
+<rect x="185.8" y="330.0" width="65.4" height="0.0" fill="#B84A4A" rx="3"/>
+<rect x="265.6" y="175.7" width="65.4" height="154.3" fill="#9AA4B2" rx="3"/>
+<text x="177.1" y="402.0" transform="rotate(-35 177.1 402.0)" font-size="10" fill="#334155">fib_extension_continuation</text>
+<rect x="379.3" y="251.5" width="65.4" height="78.5" fill="#287C5E" rx="3"/>
+<rect x="459.1" y="330.0" width="65.4" height="0.0" fill="#B84A4A" rx="3"/>
+<rect x="538.9" y="148.5" width="65.4" height="181.5" fill="#9AA4B2" rx="3"/>
+<text x="450.4" y="402.0" transform="rotate(-35 450.4 402.0)" font-size="10" fill="#334155">fib_retracement_reaction</text>
+<rect x="652.7" y="245.4" width="65.4" height="84.6" fill="#287C5E" rx="3"/>
+<rect x="732.4" y="330.0" width="65.4" height="0.0" fill="#B84A4A" rx="3"/>
+<rect x="812.2" y="154.6" width="65.4" height="175.4" fill="#9AA4B2" rx="3"/>
+<text x="723.7" y="402.0" transform="rotate(-35 723.7 402.0)" font-size="10" fill="#334155">orderbook_absorption_rejecti...</text>
+<rect x="650.0" y="24.0" width="12" height="12" fill="#287C5E" rx="2"/><text x="668.0" y="35.0" font-size="12" fill="#334155">fav</text>
+<rect x="650.0" y="44.0" width="12" height="12" fill="#B84A4A" rx="2"/><text x="668.0" y="55.0" font-size="12" fill="#334155">adv</text>
+<rect x="650.0" y="64.0" width="12" height="12" fill="#9AA4B2" rx="2"/><text x="668.0" y="75.0" font-size="12" fill="#334155">timeout</text>
+</svg>

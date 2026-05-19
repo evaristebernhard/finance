@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="480" viewBox="0 0 980 480">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="30" y="36" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">Technical Patterns: Mean Side Return</text>
+<rect x="90" y="70" width="760" height="290" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="90" y1="360" x2="850" y2="360" stroke="#64748B"/>
+<line x1="90" y1="70" x2="90" y2="360" stroke="#64748B"/>
+<line x1="90" y1="215.0" x2="850" y2="215.0" stroke="#334155"/>
+<rect x="143.2" y="159.2" width="79.8" height="55.8" fill="#287C5E" rx="4"/>
+<text x="175.5" y="452" transform="rotate(-38 175.5 452)" font-size="10" fill="#334155">fib_extension_zone</text>
+<rect x="333.2" y="204.2" width="79.8" height="10.8" fill="#287C5E" rx="4"/>
+<text x="365.5" y="452" transform="rotate(-38 365.5 452)" font-size="10" fill="#334155">fib_retracement_zone</text>
+<rect x="523.2" y="118.8" width="79.8" height="96.2" fill="#287C5E" rx="4"/>
+<text x="555.5" y="452" transform="rotate(-38 555.5 452)" font-size="10" fill="#334155">market_structure_break</text>
+<rect x="713.2" y="215.0" width="79.8" height="130.5" fill="#B84A4A" rx="4"/>
+<text x="745.5" y="452" transform="rotate(-38 745.5 452)" font-size="10" fill="#334155">vwap_deviation_reaction</text>
+</svg>

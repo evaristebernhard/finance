@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="480" viewBox="0 0 980 480">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="30" y="36" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">Technical Patterns: First-Passage Mix</text>
+<rect x="90" y="70" width="760" height="290" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="90" y1="360" x2="850" y2="360" stroke="#64748B"/>
+<line x1="90" y1="70" x2="90" y2="360" stroke="#64748B"/>
+<rect x="102.0" y="224.7" width="32.3" height="135.3" fill="#287C5E" rx="3"/>
+<rect x="141.9" y="360.0" width="32.3" height="0.0" fill="#B84A4A" rx="3"/>
+<rect x="181.8" y="205.3" width="32.3" height="154.7" fill="#94A3B8" rx="3"/>
+<text x="162.2" y="452" transform="rotate(-38 162.2 452)" font-size="10" fill="#334155">fib_extension_zone</text>
+<rect x="292.0" y="308.8" width="32.3" height="51.2" fill="#287C5E" rx="3"/>
+<rect x="331.9" y="360.0" width="32.3" height="0.0" fill="#B84A4A" rx="3"/>
+<rect x="371.8" y="121.2" width="32.3" height="238.8" fill="#94A3B8" rx="3"/>
+<text x="352.2" y="452" transform="rotate(-38 352.2 452)" font-size="10" fill="#334155">fib_retracement_zone</text>
+<rect x="482.0" y="128.0" width="32.3" height="232.0" fill="#287C5E" rx="3"/>
+<rect x="521.9" y="360.0" width="32.3" height="0.0" fill="#B84A4A" rx="3"/>
+<rect x="561.8" y="302.0" width="32.3" height="58.0" fill="#94A3B8" rx="3"/>
+<text x="542.2" y="452" transform="rotate(-38 542.2 452)" font-size="10" fill="#334155">market_structure_break</text>
+<rect x="672.0" y="360.0" width="32.3" height="0.0" fill="#287C5E" rx="3"/>
+<rect x="711.9" y="229.1" width="32.3" height="130.9" fill="#B84A4A" rx="3"/>
+<rect x="751.8" y="200.9" width="32.3" height="159.1" fill="#94A3B8" rx="3"/>
+<text x="732.2" y="452" transform="rotate(-38 732.2 452)" font-size="10" fill="#334155">vwap_deviation_reaction</text>
+<rect x="820" y="24" width="12" height="12" fill="#287C5E" rx="2"/>
+<text x="838" y="35" font-size="12" fill="#334155">fav</text>
+<rect x="820" y="44" width="12" height="12" fill="#B84A4A" rx="2"/>
+<text x="838" y="55" font-size="12" fill="#334155">adv</text>
+<rect x="820" y="64" width="12" height="12" fill="#94A3B8" rx="2"/>
+<text x="838" y="75" font-size="12" fill="#334155">timeout</text>
+</svg>

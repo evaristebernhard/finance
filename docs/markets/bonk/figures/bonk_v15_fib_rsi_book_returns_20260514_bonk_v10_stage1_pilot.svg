@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="32" y="34" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">V15 Base Mean Side Return by Variant</text>
+<rect x="90.0" y="70.0" width="820.0" height="250.0" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="90.0" y1="320.0" x2="910.0" y2="320.0" stroke="#64748B"/>
+<line x1="90.0" y1="70.0" x2="90.0" y2="320.0" stroke="#64748B"/>
+<text x="860.0" y="60.0" font-size="12" fill="#475569">bps</text>
+<line x1="90.0" y1="195.0" x2="910.0" y2="195.0" stroke="#1F2937" stroke-width="1"/>
+<rect x="158.3" y="90.0" width="123.0" height="105.0" fill="#287C5E" rx="4"/>
+<text x="219.8" y="84.0" text-anchor="middle" font-size="11" fill="#111827">7.04</text>
+<text x="219.8" y="398.0" transform="rotate(-35 219.8 398.0)" font-size="10" fill="#334155">fib_extension_continuation</text>
+<rect x="431.7" y="119.6" width="123.0" height="75.4" fill="#287C5E" rx="4"/>
+<text x="493.2" y="113.6" text-anchor="middle" font-size="11" fill="#111827">5.06</text>
+<text x="493.2" y="398.0" transform="rotate(-35 493.2 398.0)" font-size="10" fill="#334155">fib_retracement_reaction</text>
+<rect x="705.0" y="107.6" width="123.0" height="87.4" fill="#287C5E" rx="4"/>
+<text x="766.5" y="101.6" text-anchor="middle" font-size="11" fill="#111827">5.86</text>
+<text x="766.5" y="398.0" transform="rotate(-35 766.5 398.0)" font-size="10" fill="#334155">orderbook_absorption_rejecti...</text>
+</svg>

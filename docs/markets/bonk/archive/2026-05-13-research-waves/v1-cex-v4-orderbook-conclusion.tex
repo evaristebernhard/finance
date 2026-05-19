@@ -1,0 +1,192 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+
+\title{BONK Bullish L2 Orderbook Research: Current Conclusion}
+\author{Finance Chain Research Workspace}
+\date{2026-05-13}
+
+\begin{document}
+\maketitle
+
+\section{Scope}
+
+The current canonical run tag is
+\[
+  \texttt{20260513\_bullish\_l2\_basket\_price\_v1}.
+\]
+The data window is 2026-04-29 through 2026-05-12. The main BONK venues are
+\[
+  \texttt{BONK1MUSDC}, \qquad \texttt{BONK1MUSDT}.
+\]
+The analysis uses Bullish L2 state, path labels, cross-venue state, and Binance spot price context. It does not use options data, does not use incremental L2 reconstruction, and does not claim a trading rule or alpha.
+
+\section{Main Finding}
+
+The strongest current object is not a global predictive model. It is a conditional orderbook state:
+\[
+  \texttt{BONK1MUSDT, H4: depth\_high + rv\_low}
+\]
+and the cleaner extension
+\[
+  \texttt{BONK1MUSDT, H4: depth\_high + rv\_low + cv\_spread}.
+\]
+
+Interpretation:
+\[
+  \text{deep book} + \text{quiet BONK volatility} + \text{cross-venue state}
+  \Rightarrow
+  \text{better 4h path quality}.
+\]
+``Better path quality'' mainly means stronger residual-positive behavior and lower-first suppression. It does not mean that each selected minute is an immediate buy signal.
+
+\section{What The Orderbook Is Telling Us}
+
+The orderbook data is most useful as a state and path-risk layer:
+\begin{enumerate}
+  \item \textbf{State filter.} High displayed depth and low realized volatility identify a deep and quiet regime.
+  \item \textbf{Path filter.} The useful label is first-passage behavior: whether the path hits the upper or lower barrier first.
+  \item \textbf{Execution constraint.} Spread and displayed depth decide whether any gross edge can survive costs.
+  \item \textbf{Cross-venue control.} USDC/USDT disagreement is useful as venue state, but not as a clean lead-lag signal.
+\end{enumerate}
+
+The correct research chain is therefore
+\[
+  \text{orderbook state}
+  \rightarrow
+  \text{path labels}
+  \rightarrow
+  \text{market/meme controls}
+  \rightarrow
+  \text{capacity and cost checks}.
+\]
+The less reliable chain is
+\[
+  \text{all orderbook features}
+  \rightarrow
+  \text{one global model}
+  \rightarrow
+  \text{trade signal}.
+\]
+
+\section{Key Evidence}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Check & Result & Read \\
+\midrule
+Exact label audit & 0.205\% strict mismatch & Labels do not explain H4 gate \\
+Active H4 gate impact & 0 / 10 reads changed & H4 conclusion stable to exact labels \\
+BONK1MUSDT coverage & 99.84\% minutes & L2 coverage is strong \\
+Primary H4 gate affected rows & 0 / 1127 & Missing minutes do not explain gate \\
+Cross-venue lead-lag & max 0.0047 Spearman & No clear USDC/USDT leader \\
+Feature-family ablation & cross-venue ranks best & Useful as state/control \\
+Combined orderbook model & underperforms & Too many L2 features overfit \\
+\bottomrule
+\end{tabular}
+\caption{High-level robustness checks.}
+\end{table}
+
+\section{Regime Interpretation}
+
+The V4 state taxonomy places the active gate mostly in a deep and quiet regime:
+\[
+  \texttt{deep\_quiet\_wide\_common\_off\_cv\_mixed}.
+\]
+For the active combo gate
+\[
+  \texttt{depth\_high + rv\_low + cv\_spread},
+\]
+about 82.0\% of selected rows fall into that state.
+
+This means the gate is not simply a tight-spread liquidity state. It is deeper and quieter than average, but the spread can be wide and cross-venue state can be mixed. In plain terms, BONK looks most interesting when the book is deep enough to support movement, volatility is quiet enough to reduce lower-first path risk, and USDC/USDT venue state is not fully aligned.
+
+\section{Path And Edge Read}
+
+The current H4 state has enough gross path movement to deserve research follow-up. Previous gross-edge diagnostics showed that the H4 active gates can survive simple spread/fee stress on paper. The V4 capacity check refines this:
+\[
+  \text{top-book envelope} \approx 0,
+  \qquad
+  \text{5-level envelope} \approx 50 \text{ quote},
+  \qquad
+  \text{25-level stress envelope} \approx 500 \text{ quote}.
+\]
+So the phenomenon is not zero-capacity, but it is small. It should remain a research candidate, not an execution-ready strategy.
+
+\section{Short-Horizon Read}
+
+Short-horizon labels are feasible from existing data:
+\[
+  H \in \{5\text{m},15\text{m},30\text{m}\}, \qquad
+  B \in \{20,30\}\text{ bps}.
+\]
+For 5m labels, 100 bps is too wide and mostly misses the microstructure question. The useful short-horizon work should focus on 20--30 bps barriers.
+
+The strongest short-horizon diagnostics come from spread, depth, activity, and microprice state. However, adding all orderbook features to a context model does not consistently improve proper scores. This again supports selective state use instead of feature dumping.
+
+\section{Current BONK Status}
+
+The current BONK situation can be summarized as:
+\[
+\boxed{
+\begin{aligned}
+&\text{BONK has a plausible H4 orderbook-state phenomenon;}\\
+&\text{the phenomenon is regime-local, not a universal model edge;}\\
+&\text{it is not explained away by exact-label or missing-minute issues;}\\
+&\text{it is partially cross-venue / market-state dependent;}\\
+&\text{capacity is small and must be treated as a hard constraint.}
+\end{aligned}
+}
+\]
+
+The active candidate remains:
+\[
+  \texttt{BONK1MUSDT H4 depth\_high + rv\_low + cv\_spread}.
+\]
+The candidate should be classified as
+\[
+  \texttt{research\_state},
+\]
+not
+\[
+  \texttt{trade\_rule}.
+\]
+
+\section{Blockers}
+
+Promotion is blocked by:
+\begin{enumerate}
+  \item Negative-control weakness: random phase and time-shift controls are still too strong.
+  \item Short data window: only about two weeks of Bullish L2 data are available.
+  \item Capacity: displayed size is small, especially at top of book.
+  \item Model instability: gate-internal models and combined feature models do not consistently beat the manual state.
+  \item No incremental L2 queue reconstruction: strict OFI and queue-level behavior are not yet tested.
+\end{enumerate}
+
+\section{Next Step}
+
+The next useful engineering step is:
+\[
+  \text{canonical exact labels}
+  +
+  \text{canonical short-horizon labels}
+  \rightarrow
+  \text{rerun frozen V4 checks}.
+\]
+More L2 data collection is justified only if the frozen state survives:
+\[
+  \text{exact labels}
+  \land
+  \text{negative controls}
+  \land
+  \text{market/meme/SOL controls}
+  \land
+  \text{displayed-depth stress}.
+\]
+
+\end{document}

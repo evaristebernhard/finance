@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="520" viewBox="0 0 1180 520">
+<rect width="100%" height="100%" fill="#F8FAFC"/>
+<text x="30" y="36" font-size="20" font-family="Georgia,serif" font-weight="700" fill="#0F172A">Technical Patterns: Base vs Controls</text>
+<rect x="80" y="70" width="960" height="300" fill="#FFFFFF" stroke="#CBD5E1"/>
+<line x1="80" y1="370" x2="1040" y2="370" stroke="#64748B"/>
+<line x1="80" y1="70" x2="80" y2="370" stroke="#64748B"/>
+<line x1="80" y1="220.0" x2="1040" y2="220.0" stroke="#334155"/>
+<rect x="83.0" y="162.3" width="13.8" height="57.7" fill="#2563EB" rx="3"/>
+<rect x="101.0" y="220.0" width="13.8" height="20.7" fill="#D97706" rx="3"/>
+<text x="95.0" y="474" transform="rotate(-50 95.0 474)" font-size="8" fill="#334155">fib_extension_zone:random_bar_same_symbol</text>
+<rect x="143.0" y="162.3" width="13.8" height="57.7" fill="#2563EB" rx="3"/>
+<rect x="161.0" y="220.0" width="13.8" height="57.7" fill="#D97706" rx="3"/>
+<text x="155.0" y="474" transform="rotate(-50 155.0 474)" font-size="8" fill="#334155">fib_extension_zone:side_flip</text>
+<rect x="203.0" y="162.3" width="13.8" height="57.7" fill="#2563EB" rx="3"/>
+<rect x="221.0" y="174.8" width="13.8" height="45.2" fill="#D97706" rx="3"/>
+<text x="215.0" y="474" transform="rotate(-50 215.0 474)" font-size="8" fill="#334155">fib_extension_zone:timestamp_shift_minus_1</text>
+<rect x="263.0" y="162.3" width="13.8" height="57.7" fill="#2563EB" rx="3"/>
+<rect x="281.0" y="135.4" width="13.8" height="84.6" fill="#D97706" rx="3"/>
+<text x="275.0" y="474" transform="rotate(-50 275.0 474)" font-size="8" fill="#334155">fib_extension_zone:timestamp_shift_plus_12</text>
+<rect x="323.0" y="208.8" width="13.8" height="11.2" fill="#2563EB" rx="3"/>
+<rect x="341.0" y="220.0" width="13.8" height="49.6" fill="#D97706" rx="3"/>
+<text x="335.0" y="474" transform="rotate(-50 335.0 474)" font-size="8" fill="#334155">fib_retracement_zone:random_bar_same_symbo</text>
+<rect x="383.0" y="208.8" width="13.8" height="11.2" fill="#2563EB" rx="3"/>
+<rect x="401.0" y="220.0" width="13.8" height="11.2" fill="#D97706" rx="3"/>
+<text x="395.0" y="474" transform="rotate(-50 395.0 474)" font-size="8" fill="#334155">fib_retracement_zone:side_flip</text>
+<rect x="443.0" y="208.8" width="13.8" height="11.2" fill="#2563EB" rx="3"/>
+<rect x="461.0" y="217.6" width="13.8" height="2.4" fill="#D97706" rx="3"/>
+<text x="455.0" y="474" transform="rotate(-50 455.0 474)" font-size="8" fill="#334155">fib_retracement_zone:timestamp_shift_minus</text>
+<rect x="503.0" y="208.8" width="13.8" height="11.2" fill="#2563EB" rx="3"/>
+<rect x="521.0" y="203.6" width="13.8" height="16.4" fill="#D97706" rx="3"/>
+<text x="515.0" y="474" transform="rotate(-50 515.0 474)" font-size="8" fill="#334155">fib_retracement_zone:timestamp_shift_plus_</text>
+<rect x="563.0" y="120.5" width="13.8" height="99.5" fill="#2563EB" rx="3"/>
+<rect x="581.0" y="213.8" width="13.8" height="6.2" fill="#D97706" rx="3"/>
+<text x="575.0" y="474" transform="rotate(-50 575.0 474)" font-size="8" fill="#334155">market_structure_break:random_bar_same_sym</text>
+<rect x="623.0" y="120.5" width="13.8" height="99.5" fill="#2563EB" rx="3"/>
+<rect x="641.0" y="220.0" width="13.8" height="99.5" fill="#D97706" rx="3"/>
+<text x="635.0" y="474" transform="rotate(-50 635.0 474)" font-size="8" fill="#334155">market_structure_break:side_flip</text>
+<rect x="683.0" y="120.5" width="13.8" height="99.5" fill="#2563EB" rx="3"/>
+<rect x="701.0" y="100.2" width="13.8" height="119.8" fill="#D97706" rx="3"/>
+<text x="695.0" y="474" transform="rotate(-50 695.0 474)" font-size="8" fill="#334155">market_structure_break:timestamp_shift_min</text>
+<rect x="743.0" y="120.5" width="13.8" height="99.5" fill="#2563EB" rx="3"/>
+<rect x="761.0" y="95.8" width="13.8" height="124.2" fill="#D97706" rx="3"/>
+<text x="755.0" y="474" transform="rotate(-50 755.0 474)" font-size="8" fill="#334155">market_structure_break:timestamp_shift_plu</text>
+<rect x="803.0" y="220.0" width="13.8" height="135.0" fill="#2563EB" rx="3"/>
+<rect x="821.0" y="220.0" width="13.8" height="26.6" fill="#D97706" rx="3"/>
+<text x="815.0" y="474" transform="rotate(-50 815.0 474)" font-size="8" fill="#334155">vwap_deviation_reaction:random_bar_same_sy</text>
+<rect x="863.0" y="220.0" width="13.8" height="135.0" fill="#2563EB" rx="3"/>
+<rect x="881.0" y="85.0" width="13.8" height="135.0" fill="#D97706" rx="3"/>
+<text x="875.0" y="474" transform="rotate(-50 875.0 474)" font-size="8" fill="#334155">vwap_deviation_reaction:side_flip</text>
+<rect x="923.0" y="220.0" width="13.8" height="135.0" fill="#2563EB" rx="3"/>
+<rect x="941.0" y="220.0" width="13.8" height="130.6" fill="#D97706" rx="3"/>
+<text x="935.0" y="474" transform="rotate(-50 935.0 474)" font-size="8" fill="#334155">vwap_deviation_reaction:timestamp_shift_mi</text>
+<rect x="983.0" y="220.0" width="13.8" height="135.0" fill="#2563EB" rx="3"/>
+<rect x="1001.0" y="220.0" width="13.8" height="106.4" fill="#D97706" rx="3"/>
+<text x="995.0" y="474" transform="rotate(-50 995.0 474)" font-size="8" fill="#334155">vwap_deviation_reaction:timestamp_shift_pl</text>
+<rect x="1040" y="24" width="12" height="12" fill="#2563EB" rx="2"/>
+<text x="1058" y="35" font-size="12" fill="#334155">base</text>
+<rect x="1040" y="44" width="12" height="12" fill="#D97706" rx="2"/>
+<text x="1058" y="55" font-size="12" fill="#334155">control</text>
+</svg>
