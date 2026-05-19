@@ -65,12 +65,16 @@ OOS_ENTRY_FILES = {
     / "ccusdt_v1_tfi_oos_decay_entries_20260518_ccusdt_v1_tfi_oos_decay_day20260516_v1.csv",
     "OOS_2026_05_17": DATE_DIR
     / "ccusdt_v1_tfi_oos_decay_entries_20260518_ccusdt_v1_tfi_oos_decay_day20260517_v1.csv",
+    "OOS_2026_05_18": DATE_DIR
+    / "ccusdt_v1_tfi_oos_decay_entries_20260519_ccusdt_v1_tfi_oos_decay_day20260518_v1.csv",
 }
 OOS_UNION_FILES = {
     "OOS_2026_05_16": DATE_DIR
     / "ccusdt_v1_tfi_oos_decay_union_20260518_ccusdt_v1_tfi_oos_decay_day20260516_v1.csv",
     "OOS_2026_05_17": DATE_DIR
     / "ccusdt_v1_tfi_oos_decay_union_20260518_ccusdt_v1_tfi_oos_decay_day20260517_v1.csv",
+    "OOS_2026_05_18": DATE_DIR
+    / "ccusdt_v1_tfi_oos_decay_union_20260519_ccusdt_v1_tfi_oos_decay_day20260518_v1.csv",
 }
 
 

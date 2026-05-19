@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DATE_DIR = ROOT / "date"
 DOC_DIR = ROOT / "docs" / "markets" / "ccusdt"
 SCORED_ENTRIES = DATE_DIR / "ccusdt_v1_tfi_pretrade_scored_entries_20260518_ccusdt_v1_tfi_pretrade_identification_v1.csv"
+EXCHANGE_MAX_LEVERAGE = 7.0
+HOLD_MICROSECONDS = 60_000_000.0
 
 GAMMA00_GRID = [0.0, 0.25, 0.5, 0.75, 1.0]
 GAMMA10_GRID = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
@@ -39,8 +42,36 @@ FIXED_POLICIES = {
 }
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-tag", default=RUN_TAG, help="Output tag used in CSV/JSON/Markdown filenames.")
+    parser.add_argument(
+        "--scored-entries",
+        type=Path,
+        default=SCORED_ENTRIES,
+        help="Pretrade scored entry CSV. For C=0 reruns, pass the zero-fee scored entries.",
+    )
+    parser.add_argument(
+        "--max-leverage",
+        type=float,
+        default=EXCHANGE_MAX_LEVERAGE,
+        help="Exchange-level max leverage cap used for feasible scale diagnostics.",
+    )
+    parser.add_argument(
+        "--hold-seconds",
+        type=float,
+        default=60.0,
+        help="Fallback holding-window seconds for concurrency exposure if label_available_ts is absent.",
+    )
+    return parser.parse_args()
+
+
 def out_variants_csv() -> Path:
     return DATE_DIR / f"ccusdt_v1_tfi_strategy_sizing_variants_{RUN_TAG}.csv"
+
+
+def out_pareto_csv() -> Path:
+    return DATE_DIR / f"ccusdt_v1_tfi_strategy_sizing_pareto_{RUN_TAG}.csv"
 
 
 def out_walk_csv() -> Path:
@@ -77,6 +108,12 @@ def safe_div(num: float, den: float) -> float:
     return float(num / den) if np.isfinite(num) and np.isfinite(den) and abs(den) > 1e-12 else np.nan
 
 
+def cap_for_negative_loss(budget: float, value: float) -> float:
+    if not np.isfinite(value) or value >= 0.0:
+        return np.nan
+    return safe_div(budget, abs(value))
+
+
 def markdown_table(df: pd.DataFrame, columns: list[str], max_rows: int = 30) -> list[str]:
     if df.empty:
         return ["_No rows._"]
@@ -111,6 +148,41 @@ def cvar(values: np.ndarray, q: float = 0.10) -> float:
     cutoff = np.quantile(arr, q)
     tail = arr[arr <= cutoff]
     return float(np.mean(tail)) if len(tail) else np.nan
+
+
+def resolve_workspace_path(path: Path) -> Path:
+    return path if path.is_absolute() else ROOT / path
+
+
+def max_interval_exposure(active_df: pd.DataFrame, exposure: np.ndarray) -> float:
+    if active_df.empty or len(exposure) == 0 or "entry_ts" not in active_df.columns:
+        return np.nan
+    start = pd.to_numeric(active_df["entry_ts"], errors="coerce").to_numpy(dtype=float)
+    if "label_available_ts" in active_df.columns:
+        end = pd.to_numeric(active_df["label_available_ts"], errors="coerce").to_numpy(dtype=float)
+    else:
+        end = start + HOLD_MICROSECONDS
+    fallback_end = start + HOLD_MICROSECONDS
+    end = np.where(np.isfinite(end) & (end > start), end, fallback_end)
+    valid = np.isfinite(start) & np.isfinite(end) & np.isfinite(exposure) & (exposure > 0)
+    if not np.any(valid):
+        return np.nan
+    starts = start[valid]
+    ends = end[valid]
+    weights = exposure[valid]
+    times = np.concatenate([starts, ends])
+    deltas = np.concatenate([weights, -weights])
+    # Treat intervals as [start, end): releases at the same timestamp are processed
+    # before new entries so simultaneous relabeling does not inflate concurrency.
+    order_kind = np.concatenate([np.ones_like(weights), np.zeros_like(weights)])
+    order = np.lexsort((order_kind, times))
+    running = 0.0
+    peak = 0.0
+    for idx in order:
+        running += float(deltas[idx])
+        if running > peak:
+            peak = running
+    return peak
 
 
 def load_entries() -> pd.DataFrame:
@@ -173,6 +245,10 @@ def evaluate_entries(
             "exposure": 0.0,
             "total_net": 0.0,
             "mean_net": np.nan,
+            "max_entry_exposure": np.nan,
+            "max_concurrent_exposure": np.nan,
+            "cap_by_exchange_leverage": np.nan,
+            "scaled_total_net_exchange_cap": np.nan,
         }
     daily = active_df.assign(pnl=pnl, exposure=exposure).groupby("date", sort=True).agg(
         daily_net=("pnl", "sum"),
@@ -181,6 +257,10 @@ def evaluate_entries(
     )
     pos = float(np.sum(pnl[pnl > 0.0]))
     neg = float(np.sum(pnl[pnl < 0.0]))
+    total_net = float(np.sum(pnl))
+    max_entry_exposure = float(np.max(exposure)) if len(exposure) else np.nan
+    max_concurrent_exposure = max_interval_exposure(active_df, exposure)
+    cap_by_exchange = safe_div(EXCHANGE_MAX_LEVERAGE, max_concurrent_exposure)
     return {
         "variant": name,
         "scope": scope,
@@ -190,17 +270,22 @@ def evaluate_entries(
         "gamma11_r5_frames": gamma11,
         "entries": int(len(net)),
         "exposure": float(np.sum(exposure)),
-        "total_net": float(np.sum(pnl)),
-        "mean_net": safe_div(float(np.sum(pnl)), float(np.sum(exposure))),
+        "total_net": total_net,
+        "mean_net": safe_div(total_net, float(np.sum(exposure))),
         "median_net_unweighted": float(np.median(net)),
         "gt2_exposure_rate": safe_div(float(np.sum(exposure[net > 2.0])), float(np.sum(exposure))),
         "cost_hit_exposure_rate": safe_div(float(np.sum(exposure[net <= 0.0])), float(np.sum(exposure))),
         "positive_net": pos,
         "negative_net": neg,
         "pos_over_abs_neg": safe_div(pos, abs(neg)),
+        "entry_pnl_cvar05": cvar(pnl, 0.05),
         "entry_pnl_cvar10": cvar(pnl, 0.10),
         "entry_pnl_p10": float(np.quantile(pnl, 0.10)),
         "entry_pnl_p90": float(np.quantile(pnl, 0.90)),
+        "max_entry_exposure": max_entry_exposure,
+        "max_concurrent_exposure": max_concurrent_exposure,
+        "cap_by_exchange_leverage": cap_by_exchange,
+        "scaled_total_net_exchange_cap": total_net * cap_by_exchange if np.isfinite(cap_by_exchange) else np.nan,
         "daily_count": int(len(daily)),
         "positive_day_count": int((daily["daily_net"] > 0).sum()),
         "worst_day_net": float(daily["daily_net"].min()),
@@ -251,6 +336,33 @@ def all_variant_scorecard(df: pd.DataFrame) -> pd.DataFrame:
         row["risk_score"] = row["mean_net"] + 0.02 * row["daily_mean_net"] + 0.01 * row["worst_day_net"]
         rows.append(row)
     return pd.DataFrame(rows).sort_values(["risk_score", "mean_net"], ascending=False)
+
+
+def pareto_frontier(variants: pd.DataFrame) -> pd.DataFrame:
+    metrics = [
+        "total_net",
+        "mean_net",
+        "worst_day_net",
+        "daily_cvar20",
+        "max_drawdown",
+        "entry_pnl_cvar05",
+        "scaled_total_net_exchange_cap",
+    ]
+    available = [col for col in metrics if col in variants.columns]
+    work = variants.dropna(subset=available).copy()
+    if work.empty:
+        return work
+    values = work[available].to_numpy(dtype=float)
+    is_pareto = np.ones(len(work), dtype=bool)
+    for i in range(len(work)):
+        if not is_pareto[i]:
+            continue
+        dominates_i = np.all(values >= values[i], axis=1) & np.any(values > values[i], axis=1)
+        dominates_i[i] = False
+        if np.any(dominates_i):
+            is_pareto[i] = False
+    out = work.loc[is_pareto].copy()
+    return out.sort_values(["scaled_total_net_exchange_cap", "risk_score", "total_net"], ascending=False)
 
 
 def choose_variant(train: pd.DataFrame, min_days: int = MIN_TRAIN_DAYS) -> tuple[str, float, float, float, float, dict[str, Any]]:
@@ -343,17 +455,22 @@ def policy_entry_risk(df: pd.DataFrame, walk: pd.DataFrame) -> pd.DataFrame:
         net = test["net"].to_numpy(dtype=float)
         pnl = exposure * net
         active = np.isfinite(pnl) & (exposure > 0)
+        active_df = test.loc[test.index[active]].copy()
+        active_exposure = exposure[active]
         rows.append(
             {
                 "policy": policy,
                 "entry_worst_pnl": float(np.min(pnl[active])) if active.any() else np.nan,
                 "entry_cvar05": cvar(pnl[active], 0.05) if active.any() else np.nan,
                 "entry_cvar10": cvar(pnl[active], 0.10) if active.any() else np.nan,
+                "max_entry_exposure": float(np.max(active_exposure)) if active.any() else np.nan,
+                "max_concurrent_exposure": max_interval_exposure(active_df, active_exposure),
                 "active_entries": int(np.sum(active)),
             }
         )
     # Walk-forward chosen has varying gammas by day.
     parts = []
+    active_parts = []
     for _, row in walk.iterrows():
         day = test[test["date"].eq(str(row["test_date"]))].copy()
         gamma = gamma_for_cell(
@@ -365,15 +482,21 @@ def policy_entry_risk(df: pd.DataFrame, walk: pd.DataFrame) -> pd.DataFrame:
         )
         exposure = day["base_weight_locked"].to_numpy(dtype=float) * gamma
         pnl = exposure * day["net"].to_numpy(dtype=float)
-        parts.append(pnl[exposure > 0])
+        active = np.isfinite(pnl) & (exposure > 0)
+        parts.append(pnl[active])
+        active_parts.append((day.loc[day.index[active]].copy(), exposure[active]))
     if parts:
         pnl = np.concatenate(parts)
+        active_df = pd.concat([part[0] for part in active_parts], ignore_index=True) if active_parts else pd.DataFrame()
+        active_exposure = np.concatenate([part[1] for part in active_parts]) if active_parts else np.array([], dtype=float)
         rows.append(
             {
                 "policy": "walk_forward_chosen",
                 "entry_worst_pnl": float(np.min(pnl)) if len(pnl) else np.nan,
                 "entry_cvar05": cvar(pnl, 0.05),
                 "entry_cvar10": cvar(pnl, 0.10),
+                "max_entry_exposure": float(np.max(active_exposure)) if len(active_exposure) else np.nan,
+                "max_concurrent_exposure": max_interval_exposure(active_df, active_exposure),
                 "active_entries": int(len(pnl)),
             }
         )
@@ -395,28 +518,41 @@ def leverage_table(daily: pd.DataFrame, entry_risk: pd.DataFrame) -> pd.DataFram
         for budget in [50.0, 100.0, 200.0]:
             entry_worst = entry_lookup.get(policy, {}).get("entry_worst_pnl", np.nan)
             entry_cvar05 = entry_lookup.get(policy, {}).get("entry_cvar05", np.nan)
+            max_entry_exposure = entry_lookup.get(policy, {}).get("max_entry_exposure", np.nan)
+            max_concurrent_exposure = entry_lookup.get(policy, {}).get("max_concurrent_exposure", np.nan)
+            risk_cap_min = np.nanmin(
+                [
+                    cap_for_negative_loss(budget, worst),
+                    cap_for_negative_loss(budget, maxdd),
+                    cap_for_negative_loss(budget, entry_worst),
+                    cap_for_negative_loss(budget, entry_cvar05),
+                ]
+            )
+            exchange_cap = safe_div(EXCHANGE_MAX_LEVERAGE, max_concurrent_exposure)
+            exchange_entry_cap = safe_div(EXCHANGE_MAX_LEVERAGE, max_entry_exposure)
+            feasible_cap_min = np.nanmin([risk_cap_min, exchange_cap])
             rows.append(
                 {
                     "policy": policy,
                     "loss_budget_bps_units": budget,
-                    "cap_by_worst_day": safe_div(budget, abs(worst)),
-                    "cap_by_daily_cvar20": safe_div(budget, abs(cvar20)),
-                    "cap_by_max_drawdown": safe_div(budget, abs(maxdd)),
-                    "cap_by_worst_entry": safe_div(budget, abs(entry_worst)),
-                    "cap_by_entry_cvar05": safe_div(budget, abs(entry_cvar05)),
-                    "conservative_cap_min": np.nanmin(
-                        [
-                            safe_div(budget, abs(worst)),
-                            safe_div(budget, abs(maxdd)),
-                            safe_div(budget, abs(entry_worst)),
-                            safe_div(budget, abs(entry_cvar05)),
-                        ]
-                    ),
+                    "cap_by_worst_day": cap_for_negative_loss(budget, worst),
+                    "cap_by_daily_cvar20": cap_for_negative_loss(budget, cvar20),
+                    "cap_by_max_drawdown": cap_for_negative_loss(budget, maxdd),
+                    "cap_by_worst_entry": cap_for_negative_loss(budget, entry_worst),
+                    "cap_by_entry_cvar05": cap_for_negative_loss(budget, entry_cvar05),
+                    "conservative_cap_min": risk_cap_min,
+                    "exchange_max_leverage": EXCHANGE_MAX_LEVERAGE,
+                    "cap_by_exchange_leverage": exchange_cap,
+                    "cap_by_exchange_single_entry": exchange_entry_cap,
+                    "feasible_cap_min": feasible_cap_min,
+                    "scaled_total_net_feasible": feasible_cap_min * float(np.sum(nets)),
                     "worst_day_net": worst,
                     "daily_cvar20": cvar20,
                     "max_drawdown": maxdd,
                     "entry_worst_pnl": entry_worst,
                     "entry_cvar05": entry_cvar05,
+                    "max_entry_exposure": max_entry_exposure,
+                    "max_concurrent_exposure": max_concurrent_exposure,
                     "total_net": float(np.sum(nets)),
                     "positive_days": int(np.sum(nets > 0)),
                     "days": int(len(nets)),
@@ -515,6 +651,7 @@ def summarize_cells(df: pd.DataFrame, scope: str) -> pd.DataFrame:
 
 def write_report(
     variants: pd.DataFrame,
+    pareto: pd.DataFrame,
     walk: pd.DataFrame,
     daily: pd.DataFrame,
     cells: pd.DataFrame,
@@ -528,6 +665,13 @@ def write_report(
         f"Status: `{RUN_TAG}`.",
         "",
         f"Guardrail: `{GUARDRAIL}`.",
+        "",
+        "Input:",
+        "",
+        f"- scored entries: `{SCORED_ENTRIES}`",
+        f"- observed cost mode: `{summary.get('cost_mode', 'unknown')}`",
+        f"- max exchange leverage cap: `{fmt(summary.get('exchange_max_leverage'))}x`",
+        f"- concurrency horizon: `{fmt(summary.get('hold_seconds_for_concurrency'), 2)}s` via `label_available_ts-entry_ts` when available",
         "",
         "Mutually exclusive state layers:",
         "",
@@ -587,9 +731,35 @@ def write_report(
                 "daily_cvar20",
                 "max_drawdown",
                 "positive_day_count",
+                "max_concurrent_exposure",
+                "cap_by_exchange_leverage",
+                "scaled_total_net_exchange_cap",
                 "risk_score",
             ],
             max_rows=20,
+        ),
+        "",
+        "## In-Sample Pareto Frontier",
+        "",
+        *markdown_table(
+            pareto,
+            [
+                "variant",
+                "gamma00_none",
+                "gamma10_r5_only",
+                "gamma01_frames_only",
+                "gamma11_r5_frames",
+                "total_net",
+                "mean_net",
+                "worst_day_net",
+                "daily_cvar20",
+                "max_drawdown",
+                "entry_pnl_cvar05",
+                "max_concurrent_exposure",
+                "cap_by_exchange_leverage",
+                "scaled_total_net_exchange_cap",
+            ],
+            max_rows=30,
         ),
         "",
         "## Walk-Forward Daily Choices",
@@ -636,20 +806,24 @@ def write_report(
         "",
         "## Leverage Caps",
         "",
-        "These caps are dimensionless multipliers under a bp-unit loss budget. They are not account-level trading advice; map them to actual notional only after fill/slippage and exchange margin constraints.",
+        "These caps are dimensionless multipliers under a bp-unit loss budget. `cap_by_exchange_leverage` uses 60s interval concurrency from entry timestamps and a hard 7x account-level leverage limit. It is still a research proxy until actual order notional, fills, and margin accounting are wired.",
         "",
         *markdown_table(
-            lev[lev["loss_budget_bps_units"].eq(100.0)].sort_values("conservative_cap_min", ascending=False),
+            lev[lev["loss_budget_bps_units"].eq(100.0)].sort_values("scaled_total_net_feasible", ascending=False),
             [
                 "policy",
                 "loss_budget_bps_units",
+                "feasible_cap_min",
                 "conservative_cap_min",
+                "cap_by_exchange_leverage",
                 "cap_by_worst_day",
                 "cap_by_worst_entry",
                 "cap_by_entry_cvar05",
+                "max_concurrent_exposure",
                 "worst_day_net",
                 "entry_worst_pnl",
                 "entry_cvar05",
+                "scaled_total_net_feasible",
                 "total_net",
             ],
             max_rows=20,
@@ -662,6 +836,7 @@ def write_report(
         "## Outputs",
         "",
         f"- `{out_variants_csv()}`",
+        f"- `{out_pareto_csv()}`",
         f"- `{out_walk_csv()}`",
         f"- `{out_daily_csv()}`",
         f"- `{out_cells_csv()}`",
@@ -672,10 +847,18 @@ def write_report(
 
 
 def main() -> None:
+    global RUN_TAG, SCORED_ENTRIES, EXCHANGE_MAX_LEVERAGE, HOLD_MICROSECONDS
+    args = parse_args()
+    RUN_TAG = args.run_tag
+    SCORED_ENTRIES = resolve_workspace_path(args.scored_entries)
+    EXCHANGE_MAX_LEVERAGE = float(args.max_leverage)
+    HOLD_MICROSECONDS = float(args.hold_seconds) * 1_000_000.0
+
     DATE_DIR.mkdir(parents=True, exist_ok=True)
     DOC_DIR.mkdir(parents=True, exist_ok=True)
     df = load_entries()
     variants = all_variant_scorecard(df)
+    pareto = pareto_frontier(variants)
     walk, daily = walk_forward(df)
     test_dates = sorted(walk["test_date"].astype(str).unique().tolist())
     cells = pd.concat(
@@ -715,14 +898,20 @@ def main() -> None:
         f"{read} The 01 cell has {cell01['entries']:.0f} entries, mean {cell01['mean_net']:.4f} bps, "
         f"and positive days {cell01['positive_day_count']:.0f}/{cell01['days']:.0f} in the walk-forward test window. "
         "Strict 11 has high mean but low coverage; it is best treated as an add-on boost, not a standalone strategy. "
-        "Leverage should be capped by worst-day/CVaR, not by mean return."
+        "Under the zero-fee label, daily loss is not the binding cap in this test window; sizing is mainly constrained "
+        "by single-entry left tail and 60s concurrency under the exchange leverage limit."
     )
 
     summary = {
         "run_tag": RUN_TAG,
         "guardrail": GUARDRAIL,
+        "scored_entries": str(SCORED_ENTRIES),
+        "cost_mode": ",".join(sorted(df["cost_mode"].dropna().astype(str).unique().tolist())) if "cost_mode" in df.columns else "unknown",
+        "exchange_max_leverage": EXCHANGE_MAX_LEVERAGE,
+        "hold_seconds_for_concurrency": HOLD_MICROSECONDS / 1_000_000.0,
         "days": sorted(df["date"].unique().tolist()),
         "variant_count": int(len(variants)),
+        "pareto_count": int(len(pareto)),
         "cell_scorecard": cells.to_dict(orient="records"),
         "policy_summary": policy_summary.to_dict(orient="records"),
         "leverage_caps_100_budget": lev[lev["loss_budget_bps_units"].eq(100.0)].to_dict(orient="records"),
@@ -730,6 +919,7 @@ def main() -> None:
         "interpretation": interpretation,
         "outputs": {
             "variants_csv": str(out_variants_csv()),
+            "pareto_csv": str(out_pareto_csv()),
             "walk_csv": str(out_walk_csv()),
             "daily_csv": str(out_daily_csv()),
             "cells_csv": str(out_cells_csv()),
@@ -739,11 +929,12 @@ def main() -> None:
     }
 
     variants.to_csv(out_variants_csv(), index=False)
+    pareto.to_csv(out_pareto_csv(), index=False)
     walk.to_csv(out_walk_csv(), index=False)
     daily.to_csv(out_daily_csv(), index=False)
     cells.to_csv(out_cells_csv(), index=False)
     out_summary_json().write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    write_report(variants, walk, daily, cells, policy_summary, lev, summary)
+    write_report(variants, pareto, walk, daily, cells, policy_summary, lev, summary)
     print(
         "[ccusdt_tfi_strategy_sizing_opt] "
         f"variants={len(variants)} wf_days={len(walk)} "

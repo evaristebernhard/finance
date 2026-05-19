@@ -8,6 +8,7 @@ gross/net label is used only for evaluation.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 from pathlib import Path
@@ -21,6 +22,7 @@ import ccusdt_v1_tfi_momentum_conversion_math as conv
 
 RUN_TAG = "20260518_ccusdt_v1_tfi_pretrade_identification_v1"
 GUARDRAIL = "research_only_strict_pretrade_identification_no_execution_recommendation_no_alpha_claim"
+COST_MODE = "stored_net"
 WINDOWS = [5, 10, 20, 30, 50, 100]
 PI_BREAK_EVEN = 0.1998
 PI_2BPS = 0.6334
@@ -49,6 +51,18 @@ def out_summary_json() -> Path:
 
 def out_report_md() -> Path:
     return DOC_DIR / f"v1-tfi-pretrade-identification-{RUN_TAG}.md"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-tag", default=RUN_TAG)
+    parser.add_argument(
+        "--cost-mode",
+        choices=["stored_net", "zero_fee"],
+        default=COST_MODE,
+        help="stored_net uses fixed_net_maker_bps; zero_fee sets fixed_net_maker_bps := fixed_gross_bps and cost := 0.",
+    )
+    return parser.parse_args()
 
 
 def safe_div(num: float, den: float) -> float:
@@ -110,9 +124,15 @@ def weighted_quantile(values: np.ndarray, weights: np.ndarray, quantile: float) 
     return float(v[np.searchsorted(cdf, quantile, side="left").clip(0, len(v) - 1)])
 
 
-def load_data() -> tuple[pd.DataFrame, list[str], dict[str, float], dict[str, float]]:
+def load_data(cost_mode: str = COST_MODE) -> tuple[pd.DataFrame, list[str], dict[str, float], dict[str, float]]:
     eligible, base_weight_map = conv.load_weights()
     all_rows = conv.load_all_memberships(eligible).copy()
+    all_rows["source_fixed_net_maker_bps"] = pd.to_numeric(all_rows["fixed_net_maker_bps"], errors="coerce")
+    all_rows["source_fixed_cost_maker_bps"] = pd.to_numeric(all_rows["fixed_cost_maker_bps"], errors="coerce")
+    all_rows["cost_mode"] = cost_mode
+    if cost_mode == "zero_fee":
+        all_rows["fixed_net_maker_bps"] = pd.to_numeric(all_rows["fixed_gross_bps"], errors="coerce")
+        all_rows["fixed_cost_maker_bps"] = 0.0
     all_rows["entry_ts"] = pd.to_numeric(all_rows["entry_local_timestamp"], errors="coerce")
     # The fixed-path diagnostic uses a 60s timeout. Require prior labels to be
     # closed before they can influence the next score.
@@ -360,6 +380,10 @@ def write_report(scored: pd.DataFrame, gate_scores: pd.DataFrame, static_scores:
         "",
         f"Guardrail: `{GUARDRAIL}`.",
         "",
+        f"Cost mode: `{summary['cost_mode']}`.",
+        "",
+        "If cost mode is `zero_fee`, the upstream path label is rebuilt before scoring as `net := gross` and `cost := 0`; all rolling detectors and gates in this report are then recomputed from those zero-fee prior labels.",
+        "",
         "这份报告严格区分后验解释和前验识别。每个 entry 的 score 只允许使用：entry 前可见字段，以及在该 entry 时间之前已经过 60s timeout、可闭合的历史 entry 标签。当前 entry 的未来 `gross/net` 只在评估阶段使用。",
         "",
         f"执行权重口径使用已锁定的 `{conv.VARIANT}`：base bucket weights 加上 entry 前可见的 `frames_since_mid_change` 高 10% overlay，历史 Fold3 阈值为 `{fmt(summary['overlay_threshold_frames_since_mid_change'])}`。",
@@ -494,10 +518,15 @@ def write_report(scored: pd.DataFrame, gate_scores: pd.DataFrame, static_scores:
 
 
 def main() -> None:
+    args = parse_args()
+    global RUN_TAG, COST_MODE
+    RUN_TAG = args.run_tag
+    COST_MODE = args.cost_mode
+
     DATE_DIR.mkdir(parents=True, exist_ok=True)
     DOC_DIR.mkdir(parents=True, exist_ok=True)
 
-    rows, eligible, base_weight_map, refs = load_data()
+    rows, eligible, base_weight_map, refs = load_data(COST_MODE)
     scored = score_prequential(rows, refs)
     scored, entry_gate_thresholds = add_entry_time_composite_gates(scored)
     gate_scores = gate_scorecard(scored)
@@ -543,6 +572,7 @@ def main() -> None:
     summary = {
         "run_tag": RUN_TAG,
         "guardrail": GUARDRAIL,
+        "cost_mode": COST_MODE,
         "eligible_buckets": eligible,
         "windows": WINDOWS,
         "prequential_rule": "only current pre-entry fields plus entries whose 60s fixed label was already available",

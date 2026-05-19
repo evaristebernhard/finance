@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ import pandas as pd
 
 RUN_TAG = "20260518_ccusdt_v1_tfi_interpretable_grid_pareto_v1"
 GUARDRAIL = "research_only_interpretable_grid_walk_forward_pareto_no_execution_recommendation_no_alpha_claim"
+COST_MODE = "stored_net"
 ROOT = Path(__file__).resolve().parents[1]
 DATE_DIR = ROOT / "date"
 DOC_DIR = ROOT / "docs" / "markets" / "ccusdt"
@@ -92,6 +94,19 @@ def out_report_md() -> Path:
     return DOC_DIR / f"v1-tfi-interpretable-grid-pareto-{RUN_TAG}.md"
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-tag", default=RUN_TAG)
+    parser.add_argument("--scored-entries", default=str(SCORED_ENTRIES))
+    parser.add_argument(
+        "--cost-mode",
+        choices=["stored_net", "zero_fee"],
+        default=COST_MODE,
+        help="stored_net uses the scored-entry net labels; zero_fee uses gross labels and recomputes R5 cells.",
+    )
+    return parser.parse_args()
+
+
 def fmt(value: Any, digits: int = 4) -> str:
     try:
         f = float(value)
@@ -143,11 +158,41 @@ def max_drawdown(values: np.ndarray) -> float:
     return float(np.min(curve - peak))
 
 
-def load_entries() -> pd.DataFrame:
-    df = pd.read_csv(SCORED_ENTRIES)
+def recompute_r5_gate(df: pd.DataFrame, net_col: str = "net") -> pd.Series:
+    work = df.reset_index(drop=False).rename(columns={"index": "_orig_index"}).copy()
+    work["_row_key"] = np.arange(len(work), dtype="int64")
+    closed = work.sort_values(["label_available_ts", "entry_row"]).reset_index(drop=True)
+    timeline = work.sort_values(["entry_ts", "entry_row"]).reset_index(drop=True)
+    net_by_key = pd.to_numeric(work[net_col], errors="coerce").to_numpy(dtype=float)
+    gates = np.zeros(len(work), dtype=bool)
+    available_keys: list[int] = []
+    close_ptr = 0
+    for _, current in timeline.iterrows():
+        entry_ts = float(current["entry_ts"])
+        while close_ptr < len(closed) and float(closed.loc[close_ptr, "label_available_ts"]) < entry_ts:
+            available_keys.append(int(closed.loc[close_ptr, "_row_key"]))
+            close_ptr += 1
+        vals = net_by_key[np.asarray(available_keys[-5:], dtype=int)] if available_keys else np.asarray([], dtype=float)
+        vals = vals[np.isfinite(vals)]
+        pos = float(np.sum(vals[vals > 0.0])) if len(vals) else 0.0
+        neg_abs = float(-np.sum(vals[vals < 0.0])) if len(vals) else 0.0
+        gates[int(current["_row_key"])] = safe_div(pos, neg_abs) >= 1.0
+    return pd.Series(gates, index=df.index)
+
+
+def load_entries(scored_entries: Path = SCORED_ENTRIES, cost_mode: str = COST_MODE) -> pd.DataFrame:
+    df = pd.read_csv(scored_entries)
     df = df[(pd.to_numeric(df["weight"], errors="coerce") > 0) & pd.to_numeric(df["net"], errors="coerce").notna()].copy()
-    for col in ["net", "weight", "entry_ts", "entry_row", "label_available_ts"]:
+    for col in ["net", "gross", "cost", "weight", "entry_ts", "entry_row", "label_available_ts"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
+    df["source_net"] = df["net"]
+    df["source_cost"] = df["cost"]
+    df["cost_mode"] = cost_mode
+    if cost_mode == "zero_fee":
+        df["net"] = df["gross"]
+        df["cost"] = 0.0
+        df["weighted_net"] = pd.to_numeric(df["weight"], errors="coerce") * df["net"]
+        df["gate_r_n5"] = recompute_r5_gate(df, "net")
     df["date"] = df["date"].astype(str)
     df["A_r5"] = df["gate_r_n5"].astype(bool)
     df["B_frames_q90"] = df["gate_frames_q90"].astype(bool)
@@ -418,7 +463,7 @@ def selected_daily(variants: pd.DataFrame, df: pd.DataFrame, dates: list[str], t
     return pd.DataFrame(rows)
 
 
-def write_report(variants: pd.DataFrame, pareto: pd.DataFrame, daily: pd.DataFrame) -> None:
+def write_report(variants: pd.DataFrame, pareto: pd.DataFrame, daily: pd.DataFrame, cost_mode: str, scored_entries: Path) -> None:
     old = variants[
         variants["variant_id"].str.startswith("g00_0_g10_0.75_g01_0.25_g11_4__strength_none__loss_none")
     ]
@@ -427,6 +472,8 @@ def write_report(variants: pd.DataFrame, pareto: pd.DataFrame, daily: pd.DataFra
     best_total = variants.sort_values("total_net", ascending=False).head(12)
     best_worst = variants.sort_values(["worst_day_net", "total_net"], ascending=[False, False]).head(12)
     compact_pareto = pareto.head(20)
+    best_score_row = best_score.iloc[0]
+    best_worst_row = best_worst.iloc[0]
 
     lines = [
         "# CCUSDT TFI Interpretable Grid Pareto",
@@ -434,6 +481,14 @@ def write_report(variants: pd.DataFrame, pareto: pd.DataFrame, daily: pd.DataFra
         f"Status: `{RUN_TAG}`.",
         "",
         f"Guardrail: `{GUARDRAIL}`.",
+        "",
+        f"Cost mode: `{cost_mode}`.",
+        "",
+        f"Scored entries: `{scored_entries}`.",
+        "",
+        "For the full zero-fee pipeline, first regenerate the scored entries with `ccusdt_v1_tfi_pretrade_identification.py --cost-mode zero_fee`, then run this Pareto script with `--scored-entries <that file> --cost-mode stored_net`. In that mode, `stored_net` already means the upstream label is `net := gross` and `cost := 0`, with rolling detectors and `R5` recomputed upstream.",
+        "",
+        "This models the current Bullish CC/USDT promotional fee assumption only; it does not prove fill, latency, queue, or adverse-selection costs are zero.",
         "",
         "## Model Family",
         "",
@@ -458,6 +513,14 @@ def write_report(variants: pd.DataFrame, pareto: pd.DataFrame, daily: pd.DataFra
         r"$$",
         "",
         "Every train quantile is estimated only from prior dates in the main trading universe \\((A_t\\lor B_t)\\).",
+        "",
+        "## Main Read",
+        "",
+        f"Old anchor total `{fmt(old_row['total_net'])}`, worst day `{fmt(old_row['worst_day_net'])}`, positive days `{int(old_row['positive_days'])}`.",
+        f"Risk-score leader `{best_score_row['variant_id']}`: total `{fmt(best_score_row['total_net'])}`, mean `{fmt(best_score_row['mean_net'])}`, worst day `{fmt(best_score_row['worst_day_net'])}`, positive days `{int(best_score_row['positive_days'])}`.",
+        f"Worst-day leader `{best_worst_row['variant_id']}`: total `{fmt(best_worst_row['total_net'])}`, mean `{fmt(best_worst_row['mean_net'])}`, worst day `{fmt(best_worst_row['worst_day_net'])}`.",
+        "",
+        "The frontier is still a sizing and selection research surface. `C=0` only removes the explicit fee/cost label from this replay; it does not remove spread crossing, fill probability, latency, or adverse-selection risk from a live implementation.",
         "",
         "## Old Main Policy Anchor",
         "",
@@ -557,7 +620,15 @@ def main() -> None:
     DATE_DIR.mkdir(parents=True, exist_ok=True)
     DOC_DIR.mkdir(parents=True, exist_ok=True)
 
-    df = add_closed_roll_stats(load_entries())
+    args = parse_args()
+    global RUN_TAG, COST_MODE, SCORED_ENTRIES
+    RUN_TAG = args.run_tag
+    COST_MODE = args.cost_mode
+    SCORED_ENTRIES = Path(args.scored_entries)
+    if not SCORED_ENTRIES.is_absolute():
+        SCORED_ENTRIES = ROOT / SCORED_ENTRIES
+
+    df = add_closed_roll_stats(load_entries(SCORED_ENTRIES, COST_MODE))
     dates = sorted(df["date"].unique().tolist())
     thresholds = threshold_map(df, dates)
     candidates = build_candidates()
@@ -576,7 +647,7 @@ def main() -> None:
     variants.sort_values("risk_score", ascending=False).to_csv(out_variants_csv(), index=False)
     pareto.to_csv(out_pareto_csv(), index=False)
     daily.to_csv(out_daily_csv(), index=False)
-    write_report(variants, pareto, daily)
+    write_report(variants, pareto, daily, COST_MODE, SCORED_ENTRIES)
 
     old = variants[
         variants["variant_id"].str.startswith("g00_0_g10_0.75_g01_0.25_g11_4__strength_none__loss_none")

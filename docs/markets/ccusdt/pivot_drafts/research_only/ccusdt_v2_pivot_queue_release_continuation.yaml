@@ -1,0 +1,46 @@
+schema_version: 1
+draft_id: ccusdt_v2_pivot_queue_release_continuation
+status: research_only
+guardrail: no_execution_recommendation_no_alpha_claim
+source_failure:
+  framework_run_tag: 20260518_ccusdt_v2_framework_v1
+  maker_l2_run_tag: 20260518_ccusdt_v2_l2_queue_fill_all_practical_v1
+  taker_run_tag: 20260518_ccusdt_v2_taker_fallback_audit_v1
+  triggers:
+    - cost_defeat
+    - execution_fill_failure
+    - tail_concentration
+pivot_type: assumption_inversion
+thesis: >
+  Replace pre-fill TFI entries with a queue-release event signal. The old entry
+  asks to post before the queue moves and then fails to get paid. This pivot
+  waits for observable same-price queue depletion and opposite-side trade flow,
+  then tests whether the first quote release has continuation after costs.
+architecture:
+  hypothesis_type: quote_release_continuation
+  mechanism_tag: microstructure_event
+  entry_family: queue_depletion_release
+  horizon: ultra_short_1s_to_10s
+  execution_model: taker_or_join_after_release_only_if_cost_gap_positive
+required_new_features:
+  - same_price_l2_decrease_rate
+  - queue_depletion_to_top_size_ratio
+  - opposite_trade_after_queue_depletion
+  - first_quote_release_direction
+  - post_release_continuation_bps
+  - depth_replenishment_after_release
+validation_plan:
+  - Build labels from incremental_book_L2 plus trades, not snapshot-frame proxy labels.
+  - Fit thresholds on train folds only; validation receives frozen queue-release definitions.
+  - Require matched controls on date, side, spread, hour, recent return, and queue-depletion intensity.
+  - Score both taker-after-release and maker-join-after-release execution.
+promotion_gates:
+  - sample_count_per_promoted_fold >= 300
+  - real_cost_mean_bps > 2
+  - plus2bps_stress_mean_bps > 0
+  - matched_random_prob_ge_signal < 0.05
+  - top10_winner_share <= 0.85
+  - practical_fill_or_taker_gate_pass == true
+risk_notes:
+  - Main risk is chasing after release when spread widens.
+  - Reject if continuation exists only at zero latency or only before fees.

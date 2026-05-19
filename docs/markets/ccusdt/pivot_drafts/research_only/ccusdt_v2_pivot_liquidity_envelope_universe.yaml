@@ -1,0 +1,46 @@
+schema_version: 1
+draft_id: ccusdt_v2_pivot_liquidity_envelope_universe
+status: research_only
+guardrail: no_execution_recommendation_no_alpha_claim
+source_failure:
+  framework_run_tag: 20260518_ccusdt_v2_framework_v1
+  maker_l2_run_tag: 20260518_ccusdt_v2_l2_queue_fill_all_practical_v1
+  taker_run_tag: 20260518_ccusdt_v2_taker_fallback_audit_v1
+  triggers:
+    - cost_defeat
+    - execution_fill_failure
+    - instrument_envelope_failure
+pivot_type: objective_reframe
+thesis: >
+  Preserve the research framework but move the first gate from alpha discovery
+  to execution envelope discovery. CCUSDT failed because the observed signal
+  could not be monetized through maker or taker execution. This pivot screens a
+  broader venue/symbol universe for fillability and cost capacity before factor
+  mining.
+architecture:
+  hypothesis_type: universe_selection
+  mechanism_tag: execution_first
+  entry_family: liquidity_envelope_filter
+  horizon: short_microstructure
+  execution_model: maker_or_taker_selected_after_symbol_level_capacity_gate
+required_new_data:
+  - multi-symbol Bullish book_ticker, trades, and incremental_book_L2
+  - symbol-level fee and tick-size metadata
+required_new_features:
+  - practical_queue_fill_rate_250ms_5s_100quote
+  - filled_net_required_for_2bps
+  - top_of_book_depth_distribution
+  - spread_bps_distribution
+  - trade_arrival_rate_at_top
+validation_plan:
+  - Screen symbols with execution-only metrics before alpha labels.
+  - Run the CCUSDT V2 framework only on symbols passing liquidity envelope gates.
+  - Reserve final dates for out-of-sample execution validation.
+promotion_gates:
+  - practical_fill_rate >= 0.30 or taker_cost_capacity_bps >= 5
+  - median_spread_bps <= 2
+  - top_book_depth_supports_target_notional >= 95_percent_days
+  - after-cost signal gate remains positive in two adjacent validation folds
+risk_notes:
+  - This is a universe pivot, not a CCUSDT rescue.
+  - Reject symbols where fillability is caused by stale or crossed data.

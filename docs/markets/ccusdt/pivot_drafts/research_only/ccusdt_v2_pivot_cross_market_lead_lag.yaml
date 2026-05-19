@@ -1,0 +1,46 @@
+schema_version: 1
+draft_id: ccusdt_v2_pivot_cross_market_lead_lag
+status: research_only
+guardrail: no_execution_recommendation_no_alpha_claim
+source_failure:
+  framework_run_tag: 20260518_ccusdt_v2_framework_v1
+  maker_l2_run_tag: 20260518_ccusdt_v2_l2_queue_fill_all_practical_v1
+  taker_run_tag: 20260518_ccusdt_v2_taker_fallback_audit_v1
+  triggers:
+    - cost_defeat
+    - improvement_plateau
+    - weak_internal_controls
+pivot_type: archetype_switch
+thesis: >
+  Treat CCUSDT as a follower market rather than a self-contained TFI market.
+  The old single-venue order-flow signal is too thin after execution costs. This
+  pivot requires an external leading price/order-flow source and only trades
+  CCUSDT when the expected catch-up move clears taker or fill-adjusted maker cost.
+architecture:
+  hypothesis_type: lead_lag
+  mechanism_tag: cross_market_information
+  entry_family: external_leader_confirmation
+  horizon: short_1s_to_60s
+  execution_model: taker_only_if_predicted_move_exceeds_cost_ladder
+required_new_data:
+  - CCUSDT or CC-related market on another venue
+  - broad market anchors such as BTCUSDT and ETHUSDT micro returns
+  - synchronized timestamps with latency sanity checks
+required_new_features:
+  - external_mid_return_1s_5s_15s
+  - external_order_flow_imbalance
+  - cc_minus_external_lag_residual
+  - spread_adjusted_expected_catchup_bps
+validation_plan:
+  - Use purged walk-forward with no future alignment.
+  - Matched controls must include CC recent return, spread, hour, and external-volatility bucket.
+  - Negative controls: shuffled external leader, reversed side, stale external feed.
+promotion_gates:
+  - real_cost_mean_bps > 2
+  - taker_plus2bps_mean_bps > 0
+  - median_bps >= 0 for promoted taker rows
+  - day_bootstrap_p05_mean_bps > 0
+  - external-leader negative controls fail to reproduce signal
+risk_notes:
+  - Reject if edge is timestamp-latency artifact.
+  - Reject if external feed availability is not reproducible live.

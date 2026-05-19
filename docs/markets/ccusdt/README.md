@@ -1,13 +1,67 @@
 # CCUSDT Docs Index
 
-Status: 2026-05-18. CCUSDT is the current Bullish/Tardis CEX L2 pivot after the BONK short-horizon factor work showed instrument-envelope issues. These notes are research diagnostics only, not trading rules or execution recommendations.
+Status: 2026-05-19. CCUSDT is the current Bullish/Tardis CEX L2 pivot after the BONK short-horizon factor work showed instrument-envelope issues. These notes are research diagnostics only, not trading rules or execution recommendations.
 
-## Active Research
+## Current First Read
+
+The current V1 TFI branch is path-first. Do not start from aggregate Pareto
+tables alone. The central mechanism is fast release followed by possible decay
+inside the fixed 60s label horizon.
+
+Read in this order:
+
+1. [V1 current TFI strategy handoff](v1-current-tfi-strategy-handoff-20260518.md)
+2. [V1 TFI current research map](v1-tfi-current-research-map-20260519.md)
+3. [V1 TFI 2026-05-09 high/chop deep dive](v1-tfi-0509-high-chop-deep-dive-20260518_ccusdt_v1_tfi_0509_high_chop_deep_dive_v1.md)
+4. [V1 TFI release/decay factor analysis](v1-tfi-release-decay-factor-analysis-20260518_ccusdt_v1_tfi_release_decay_factor_v1.md)
+5. [V1 TFI exit walk-forward check](v1-tfi-exit-walkforward-20260518_ccusdt_v1_tfi_exit_walkforward_v1.md)
+6. [V1 TFI price-only trailing parameter research](v1-tfi-price-trailing-param-research-20260519_ccusdt_v1_tfi_price_trailing_param_v1.md)
+7. [V1 TFI watcher-aware 3x four-quadrant Pareto](v1-tfi-watcher-pareto-20260519_ccusdt_v1_tfi_watcher_pareto_4quad_lev3_v1.md)
+8. [V1 TFI 3x capacity manager](v1-tfi-capacity-manager-20260519_ccusdt_v1_tfi_capacity_manager_lev3_v1.md)
+9. [V1 TFI leverage-constrained optimization](v1-tfi-leverage-constrained-opt-20260519_ccusdt_v1_tfi_leverage_constrained_opt_v1.md)
+10. [V1 TFI 2026-05-18 current-strategy OOS check](v1-tfi-current-strategy-oos-day20260518-20260519_ccusdt_v1_tfi_current_strategy_oos_day20260518_v1.md)
+11. [V1 TFI zero-fee four-quadrant sizing Pareto 7x sensitivity](v1-tfi-strategy-sizing-opt-20260519_ccusdt_v1_tfi_strategy_sizing_zero_fee_4quad_lev7_v1.md)
+
+Canonical accident to remember: `entry_row=1615412` reached `+12.5612bps`
+MFE in `4.7051s`, then ended near `-27.8923bps` at 60s; with exposure `8`,
+that became `-242.4187` PnL units. This is a release/decay and sizing problem,
+not merely an entry-quality problem.
+
+Zero fee is the current venue-fee baseline, not a discarded assumption. Robust
+strategy work should evaluate:
+
+$$
+y_i(c)=R_i(\tau_i^{exit})-C_{fee,i}-c,\qquad C_{fee,i}=0,\quad c>0,
+$$
+
+so the stress term reserves room for spread/fill/latency/adverse-selection and
+path-decay uncertainty.
+
+## Current And Reference Reports
+
+The current branch is V1 TFI path-first research. V2 items below are retained
+as execution/no-go references, not as the active modeling path.
 
 - [V1 current TFI strategy handoff](v1-current-tfi-strategy-handoff-20260518.md): latest active CCUSDT branch; four-cell TFI state sizing plus absolute-strength Pareto optimization. Start here for the current strategy state.
+- [V1 TFI current research map](v1-tfi-current-research-map-20260519.md): current path-first map; keeps the `1615412` fast-release/decay accident visible and states the modeling order: entry, release, decay hazard, exit, then sizing.
+- [V1 TFI latent state taxonomy](v1-tfi-latent-state-taxonomy-20260518_ccusdt_v1_tfi_latent_state_taxonomy_v1.md): mechanism taxonomy for release, absorption, exhaustion, liquidity vacuum, chop, and weak-bucket overtrade; frames the next pass as regime-state estimation rather than another entry-threshold tweak.
+- [V1 TFI latent-state diagnostic panel](v1-tfi-latent-state-panel-20260518_ccusdt_v1_tfi_latent_state_panel_v1.md): entry-level prior-proxy panel and expanding-prior daily score tests for distinguishing `I_d = G_high - G_reduce`, including the `2026-05-09` vs `2026-05-13` contradiction.
+- [V1 TFI 2026-05-09 high/chop deep dive](v1-tfi-0509-high-chop-deep-dive-20260518_ccusdt_v1_tfi_0509_high_chop_deep_dive_v1.md): isolates the 5/09 high/chop accident group; shows the focus loss is dominated by one oversized `11` row while the more precise matched bucket is `11_r5_frames / short / q70_85 / delta10=s80_100` on that date.
+- [V1 TFI release/decay factor analysis](v1-tfi-release-decay-factor-analysis-20260518_ccusdt_v1_tfi_release_decay_factor_v1.md): rebuilds multi-horizon paths for TFI entries and separates release from post-release decay; low opposite depth predicts fast release, while sustained 5-20s signed flow predicts lower decay.
+- [V1 TFI exit walk-forward check](v1-tfi-exit-walkforward-20260518_ccusdt_v1_tfi_exit_walkforward_v1.md): frozen-candidate walk-forward validation of fixed timeouts, TP+timeout, flow-confirmed hold, and exposure caps versus locked 60s; flow gate is promising but not promoted without fresh OOS/execution checks.
+- [V1 TFI price-only trailing parameter research](v1-tfi-price-trailing-param-research-20260519_ccusdt_v1_tfi_price_trailing_param_v1.md): small walk-forward parameter pass for release-trigger plus trailing stop; best `p80/eta30/act10s` candidate improves `fixed_60s` total and worst day while retaining about `82%` of q90, but remains a mid-price proxy rather than executable guidance.
+- [V1 TFI watcher-aware 3x four-quadrant Pareto](v1-tfi-watcher-pareto-20260519_ccusdt_v1_tfi_watcher_pareto_4quad_lev3_v1.md): current sizing/Pareto pass using the full `00/10/01/11` universe, path-manager/watch overlays where rebuilt, fixed60 fallback elsewhere, zero venue fee, and a 3x CC/USDT margin cap. Cleaner q70 scaled leader is `gamma00=1.25, gamma10=0.75, gamma01=0, gamma11=0.75`, raw total `6042.8705`, max concurrency `3.375`, scaled100 `5371.4405`.
+- [V1 TFI 3x capacity manager](v1-tfi-capacity-manager-20260519_ccusdt_v1_tfi_capacity_manager_lev3_v1.md): turns the 3x cap into an online overlap-allocation diagnostic. For the cleaner q70 point, `global_downscale` is `5371.4405` but online FIFO/arrival clip reaches `6038.2000` with only `4` clipped legs; high-gamma rows can reach larger totals but have more skipped/clipped legs and larger single-leg tail.
+- [V1 TFI leverage-constrained optimization](v1-tfi-leverage-constrained-opt-20260519_ccusdt_v1_tfi_leverage_constrained_opt_v1.md): treats the 3x cap as part of the strategy rather than a final scale. It keeps the cleaner q70 core and adds `01_frames_only` as an idle-capacity sleeve. Historical C=0 core-only is `6038.2000`; `idle01_g1_r0` is `6907.5648` with delta `+869.3648`, worst day `+48.3285`, positive days `14/14`, and only `1.90%` core-displacement ratio. 2026-05-18 OOS C=0 improves `415.8276 -> 472.5926`.
+- [V1 TFI 2026-05-18 current-strategy OOS check](v1-tfi-current-strategy-oos-day20260518-20260519_ccusdt_v1_tfi_current_strategy_oos_day20260518_v1.md): applies the locked cleaner q70 3x current strategy to the newly downloaded 2026-05-18 data without optimizing on that day. Cleaner q70 C=0 online FIFO clip has `304` entries, actual total `415.8276` weighted log-bp units, exact simple bp-units `416.6424`, approximate account simple return `4.2459%`, max concurrency `3.0`, clipped legs `3`, skipped legs `1`; under pressure `C=1` total is `257.7026` and `C=2` total is `99.5776`.
+- [V1 TFI R5+Q factor decomposition](v1-tfi-factor-decomposition-20260518_ccusdt_v1_tfi_factor_decomp_v1.md): plain factor decomposition of `R5/Delta/E/Z`, frames quantile `Q`, cell/direction interactions, and worst-day composition-vs-payoff attribution.
+- [V1 TFI entry-level estimation](v1-tfi-entry-estimation-20260518_ccusdt_v1_tfi_entry_estimation_v1.md): strict as-of entry estimates for `E[r|x]`, `P(r>2bps|x)`, right-tail dependence, `CVaR`, quality classes, and daily quality attribution.
 - [V1 TFI interpretable grid Pareto](v1-tfi-interpretable-grid-pareto-20260518_ccusdt_v1_tfi_interpretable_grid_pareto_v1.md): `16960`-candidate interpretable grid over four-cell gamma, absolute-strength gate/ramp, and recent-loss suppressor; key Pareto leader uses `closed10_score_abs >= Q30_train`.
+- [V1 TFI zero-fee four-quadrant sizing Pareto 7x sensitivity](v1-tfi-strategy-sizing-opt-20260519_ccusdt_v1_tfi_strategy_sizing_zero_fee_4quad_lev7_v1.md): earlier C=0 rerun for the old `00/10/01/11` sizing framework, with `gamma00` allowed and a 60s-concurrency 7x diagnostic. Treat this as sensitivity unless CC/USDT actually has a 7x venue cap; the current watcher-aware branch uses 3x.
 - [V1 TFI worst-day frontier](v1-tfi-worst-day-frontier-20260518_ccusdt_v1_tfi_worst_day_frontier_v1.md): mathematical decomposition of `R5` into `Delta/E/Z` and prior-only worst-day gating.
 - [V1 TFI strategy sizing opt v2](v1-tfi-strategy-sizing-opt-20260518_ccusdt_v1_tfi_strategy_sizing_opt_v2.md): four-cell sizing split for `00/10/01/11`; confirms `01` stale-only should not be silently folded into base.
+- [V1 classic LOB stylized factors](v1-lob-stylized-factors-20260518_ccusdt_v1_lob_stylized_factors_v1.md): independent BTC-style LOB factor pass on CCUSDT; static book shape is mostly state/regime material, while dynamic trade-flow/MLOFI remains the strongest diagnostic family.
+- [V1 TFI core quantity estimation](v1-tfi-core-quantity-estimation-20260518_ccusdt_v1_tfi_core_quantity_estimation_v1.md): first-principles estimates of pressure stock `X`, absorption threshold `Theta`, release ratio `U`, absorption/exhaustion scores, and prior conversion `lambda`.
 - [V2 current execution no-go handoff](v2-current-execution-no-go-handoff.md): latest consolidated status, hard evidence, reproduce commands, and valid next-work conditions.
 - [V2 structural pivot proposals](v2-structural-pivot-proposals-20260518.md): research-only structurally different pivots after current candidates hit execution no-go.
 - [V2 queue-release pivot prototype](v2-queue-release-pivot-20260518_ccusdt_v2_queue_release_pivot_fast_v1.md): lightweight book-ticker test of the direct queue-release continuation pivot.
@@ -52,17 +106,19 @@ Status: 2026-05-18. CCUSDT is the current Bullish/Tardis CEX L2 pivot after the 
 
 ## Superseded References
 
-- [Fixed event-orderbook factors v2](v1-fixed-event-orderbook-factors-v2.md): superseded transition pass; go to v3 for the current corrected panel.
-- [Fixed event-orderbook factors v1](v1-fixed-event-orderbook-factors.md): superseded first pass; go to v3 for the current corrected panel.
+- [CCUSDT archive](archive/README.md): non-current diagnostics and superseded reports moved out of the main read path.
+- [Fixed event-orderbook factors v2](archive/superseded/v1-fixed-event-orderbook-factors-v2.md): superseded transition pass; go to v3 for the current corrected panel.
+- [Fixed event-orderbook factors v1](archive/superseded/v1-fixed-event-orderbook-factors.md): superseded first pass; go to v3 for the current corrected panel.
+- [Zero-fee interpretable-grid diagnostics](archive/diagnostics/v1-tfi-interpretable-grid-pareto-20260519_ccusdt_v1_tfi_interpretable_grid_pareto_zero_fee_full_v1.md): archived only because this is not the current four-quadrant branch; zero-fee itself remains the current venue-fee baseline.
 
 ## Current Data Window
 
-Local Tardis Bullish raw coverage for `CCUSDT` is complete for `2026-04-29..2026-05-15`:
+Local Tardis Bullish raw coverage for `CCUSDT`:
 
-- `incremental_book_L2`: `17/17`
-- `book_snapshot_25`: `17/17`
-- `book_ticker`: `17/17`
-- `trades`: `17/17`
+- `incremental_book_L2`: complete for `2026-04-29..2026-05-18`
+- `book_ticker`: complete for `2026-04-29..2026-05-18`
+- `trades`: complete for `2026-04-29..2026-05-18`
+- `book_snapshot_25`: complete for `2026-04-29..2026-05-15`
 
 The fixed-factor panel is stored under:
 
@@ -70,6 +126,9 @@ The fixed-factor panel is stored under:
 data/ccusdt/v1/derived/ccusdt_v1_fixed_event_factor_panel/run_tag=20260517_ccusdt_fixed_factors_v1
 data/ccusdt/v1/derived/ccusdt_v1_fixed_event_factor_panel/run_tag=20260517_ccusdt_fixed_factors_v2
 data/ccusdt/v1/derived/ccusdt_v1_fixed_event_factor_panel/run_tag=20260517_ccusdt_fixed_factors_v3
+data/ccusdt/v1/derived/ccusdt_v1_fixed_event_factor_panel/run_tag=20260518_ccusdt_fixed_factors_oos_day20260516_v1
+data/ccusdt/v1/derived/ccusdt_v1_fixed_event_factor_panel/run_tag=20260518_ccusdt_fixed_factors_oos_day20260517_v1
+data/ccusdt/v1/derived/ccusdt_v1_fixed_event_factor_panel/run_tag=20260519_ccusdt_fixed_factors_oos_day20260518_v1
 ```
 
 Primary output tables are:
