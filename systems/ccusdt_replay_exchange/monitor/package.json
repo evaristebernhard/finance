@@ -1,0 +1,9 @@
+{
+  "name": "ccusdt-replay-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo monitor-not-implemented"
+  }
+}
+

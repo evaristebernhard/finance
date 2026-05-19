@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "order_event_v1",
+  "type": "object",
+  "required": ["id", "side", "kind", "qty", "status", "created_seq"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "client_order_id": { "type": ["string", "null"] },
+    "side": { "enum": ["buy", "sell"] },
+    "kind": { "enum": ["market", "limit"] },
+    "qty": { "type": "number", "exclusiveMinimum": 0 },
+    "limit_price": { "type": ["number", "null"] },
+    "status": { "enum": ["open", "filled", "canceled", "rejected"] },
+    "created_seq": { "type": "integer", "minimum": 0 },
+    "updated_seq": { "type": "integer", "minimum": 0 }
+  }
+}
+

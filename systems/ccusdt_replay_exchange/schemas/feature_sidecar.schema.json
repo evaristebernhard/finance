@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feature_sidecar_v1",
+  "type": "object",
+  "required": ["seq", "local_ts_us", "feature_namespace", "features"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "local_ts_us": { "type": "integer" },
+    "feature_namespace": { "type": "string" },
+    "features": { "type": "object" },
+    "pretrade_safe": { "type": "boolean", "const": true }
+  }
+}
+

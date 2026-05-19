@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "quote_frame_v1",
+  "type": "object",
+  "required": ["seq", "exchange_ts_us", "local_ts_us", "bid_px", "bid_qty", "ask_px", "ask_qty", "mid_px", "spread_bps"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "exchange_ts_us": { "type": "integer" },
+    "local_ts_us": { "type": "integer" },
+    "bid_px": { "type": "number", "exclusiveMinimum": 0 },
+    "bid_qty": { "type": "number", "minimum": 0 },
+    "ask_px": { "type": "number", "exclusiveMinimum": 0 },
+    "ask_qty": { "type": "number", "minimum": 0 },
+    "mid_px": { "type": "number", "exclusiveMinimum": 0 },
+    "spread_bps": { "type": "number", "minimum": 0 }
+  }
+}
+

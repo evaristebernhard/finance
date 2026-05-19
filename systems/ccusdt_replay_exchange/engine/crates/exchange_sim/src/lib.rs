@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 
-use crate::types::{
+use ccusdt_replay_core::{
     AccountView, ExchangeConfig, ExchangeSnapshot, Fill, Liquidity, MarketFrame, NewOrder, Order,
     OrderKind, OrderStatus, Side, TimeInForce,
 };

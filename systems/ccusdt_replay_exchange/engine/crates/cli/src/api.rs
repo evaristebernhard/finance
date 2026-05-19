@@ -10,8 +10,8 @@ use serde::Deserialize;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::exchange::PaperExchange;
-use crate::types::{ExchangeSnapshot, Fill, NewOrder, Order, ResetResponse};
+use ccusdt_exchange_sim::PaperExchange;
+use ccusdt_replay_core::{ExchangeSnapshot, Fill, NewOrder, Order, ResetResponse};
 
 #[derive(Clone)]
 pub struct ApiState {

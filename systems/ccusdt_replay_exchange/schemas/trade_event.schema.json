@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trade_event_v1",
+  "type": "object",
+  "required": ["seq", "trade_id", "exchange_ts_us", "local_ts_us", "side", "price", "qty", "notional_quote"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "trade_id": { "type": "string" },
+    "exchange_ts_us": { "type": "integer" },
+    "local_ts_us": { "type": "integer" },
+    "side": { "enum": ["buy", "sell"] },
+    "price": { "type": "number", "exclusiveMinimum": 0 },
+    "qty": { "type": "number", "minimum": 0 },
+    "notional_quote": { "type": "number", "minimum": 0 }
+  }
+}
+

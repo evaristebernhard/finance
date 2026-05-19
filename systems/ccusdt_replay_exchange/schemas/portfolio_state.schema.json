@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio_state_v1",
+  "type": "object",
+  "required": ["cash", "position_qty", "equity", "notional", "leverage"],
+  "properties": {
+    "cash": { "type": "number" },
+    "position_qty": { "type": "number" },
+    "avg_entry_price": { "type": "number" },
+    "realized_pnl": { "type": "number" },
+    "unrealized_pnl": { "type": "number" },
+    "fees_paid": { "type": "number", "minimum": 0 },
+    "equity": { "type": "number" },
+    "notional": { "type": "number", "minimum": 0 },
+    "leverage": { "type": "number", "minimum": 0 }
+  }
+}
+

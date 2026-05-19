@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fill_event_v1",
+  "type": "object",
+  "required": ["id", "order_id", "side", "qty", "price", "fee", "liquidity", "seq"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "order_id": { "type": "integer", "minimum": 1 },
+    "side": { "enum": ["buy", "sell"] },
+    "qty": { "type": "number", "exclusiveMinimum": 0 },
+    "price": { "type": "number", "exclusiveMinimum": 0 },
+    "fee": { "type": "number", "minimum": 0 },
+    "liquidity": { "enum": ["maker", "taker"] },
+    "seq": { "type": "integer", "minimum": 0 }
+  }
+}
+

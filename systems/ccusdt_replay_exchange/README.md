@@ -1,36 +1,70 @@
-# CCUSDT Replay Exchange MVP
+# CCUSDT Replay Exchange
 
-Status: MVP, 2026-05-19.
+Status: catalog + canonical MVP, 2026-05-19.
 
-This directory is intentionally independent from the older root `backend/` and
-`frontend/` replay workbench. It is a local paper exchange surface that strategy
-clients can talk to over HTTP while the market clock advances through a replay.
+This is a standalone local replay + paper exchange system. It is intentionally
+separate from root-level research scripts, the older replay workbench backend,
+and the legacy `date/` research-output directory.
 
-## Run
-
-Synthetic replay:
-
-```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/Cargo.toml -- --addr 127.0.0.1:8797
-```
-
-CSV replay:
-
-```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/Cargo.toml -- --csv systems/ccusdt_replay_exchange/examples/frames.csv
-```
-
-CSV contract:
+System boundary:
 
 ```text
-ts,bid,ask
+old raw/research files -> catalog -> canonical events -> replay exchange -> runs
 ```
 
-Accepted timestamp aliases are `ts`, `timestamp`, `local_ts`, and
-`local_timestamp`. Accepted quote aliases are `bid`/`best_bid`/`best_bid_price`
-and `ask`/`best_ask`/`best_ask_price`.
+## Layout
 
-## API
+```text
+docs/       architecture, contracts, execution model, runbook
+configs/    local roots and runtime configs
+schemas/    event/order/fill/portfolio contracts
+engine/     Rust workspace
+strategies/ external strategy clients
+monitor/    future UI
+runs/       local run outputs
+tests/      fixtures and integration assets
+```
+
+## Catalog And Canonical
+
+Scan local source coverage:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
+```
+
+Build 2026-05-18 canonical market truth:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset trade_event_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset l2_level_update_v1 --from 2026-05-18 --to 2026-05-18
+```
+
+Validate:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical validate --from 2026-05-18 --to 2026-05-18
+```
+
+Generated outputs live under repo-level `data/catalog` and `data/canonical`.
+Those directories are local generated data and remain git-ignored.
+
+## Serve
+
+Serve from canonical quote frames:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --canonical-date 2026-05-18 --addr 127.0.0.1:8797
+```
+
+Serve from a small fixture:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --csv systems/ccusdt_replay_exchange/tests/fixtures/frames.csv
+```
+
+API:
 
 ```text
 GET  /health
@@ -43,36 +77,9 @@ POST /api/orders/{id}/cancel
 GET  /api/fills
 ```
 
-Example market order:
+## Boundary Rules
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8797/api/orders `
-  -Method Post `
-  -ContentType 'application/json' `
-  -Body '{"side":"buy","kind":"market","qty":10,"tif":"ioc"}'
-```
-
-Example resting maker order:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8797/api/orders `
-  -Method Post `
-  -ContentType 'application/json' `
-  -Body '{"side":"buy","kind":"limit","qty":10,"limit_price":0.9999,"tif":"gtc"}'
-Invoke-RestMethod 'http://127.0.0.1:8797/api/step?frames=1' -Method Post
-```
-
-## MVP Fill Model
-
-- Market buy fills at current ask.
-- Market sell fills at current bid.
-- New crossing limit orders fill as taker at current ask/bid.
-- Resting limit orders fill when the future quote crosses the limit; fill price
-  is the limit price.
-- Fees are configured in bps and default to zero.
-- Risk rejects orders whose projected position notional exceeds
-  `equity * max_leverage`.
-
-This is a paper-exchange scaffold, not queue-position evidence. The next layer
-should add latency, partial fills, queue model, strategy client process, and a UI
-or log monitor.
+- Do not import root `scripts/` from this system.
+- Do not make `date/` a runtime input.
+- Use raw venue files as material for canonical market truth.
+- Treat TFI/factor outputs as sidecars or labels, never as exchange truth.

@@ -1,0 +1,7 @@
+repo_root: "."
+raw_root: "data/ccusdt/v1/external"
+catalog_root: "data/catalog/ccusdt/v1"
+canonical_root: "data/canonical/cex/bullish/CCUSDT"
+legacy_research_root: "date"
+runs_root: "systems/ccusdt_replay_exchange/runs"
+
