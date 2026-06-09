@@ -23,6 +23,18 @@ tmp/
 /CryoBacktester/
 /external/github_lob_research/
 
+# Generated book and document build outputs.
+docs/books/**/out/
+docs/books/**/build/
+*.aux
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.synctex
+*.synctex.gz
+*.toc
+
 # Local handoff/archive packages.
 *.zip
 *.tar
