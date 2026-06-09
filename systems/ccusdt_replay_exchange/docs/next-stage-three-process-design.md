@@ -429,6 +429,79 @@ batch all L2 rows with same local_ts_us up to max_batch_rows
 If a timestamp has more than `max_batch_rows`, emit multiple batches with the
 same `local_ts_us` and increasing batch index.
 
+## Fast-vs-Strict Hot Path
+
+There are two valid replay paths, and they answer different questions:
+
+```text
+fast strategy backtest     edge, parameters, capacity, tail
+sim-live strict replay     execution shape, latency, fills, causal logs
+```
+
+They must share the same market-derived cache, policy profile, capacity
+allocator, and Bot-owned state, but they should not share the same transport
+cost. The strict NDJSON stream is the realism gate, not the daily parameter
+scanner.
+
+The current deterministic strict bridge still sends one public event and drains
+Python once per event. This preserves real exchange-style causality, but the
+cost is:
+
+```text
+O(market_events * bridge_settle)
+```
+
+The next performance entry point is not to loosen the fill model. It is to add
+an explicit sparse market transport while preserving the same decision clock:
+
+```text
+strict_ndjson_full_stream   every quote/trade/L2 event, audit realism gate
+batched_public_stream       arrays of market events with explicit private-feedback barriers
+panel_sparse_stream         decision_frame_v1 events plus required raw trades/L2 summaries
+panel_sparse_fast_clock     decision_frame_v1 clock plus quote_frame_v1 last-known top-of-book fills
+```
+
+`batched_public_stream` may reduce stdin/stdout overhead, but the bot must still
+process the events in deterministic order and may only emit intents bound to an
+observed event inside the batch. In `batched_public_barrier_v1`, an actionable
+intent closes the current batch at `consumed_seq`; Runner executes deterministic
+private feedback and then replays the unconsumed suffix. `panel_sparse_stream`
+is stricter: Runner sends only market-derived decision frames that are already
+covered by the decision-frame cache manifest, plus audit hashes for the cache
+and source canonical files. Runner still owns canonical market truth, latency,
+arrival quote, fill, portfolio, and compact event log. It is allowed for fast
+strict-audit acceleration, but it is not a substitute for a full-stream gate
+when validating online feature reconstruction.
+`panel_sparse_fast_clock_v1` is even narrower: it keeps Runner ownership of
+arrival/fill/portfolio, but drops full quote/trade/L2 scanning for the
+top-of-book deterministic audit and uses the quote index as the only execution
+truth needed by that fill profile.
+
+The first full-day batch experiment exposed the real constraint:
+
+```text
+batch span 30s  faster, but private fill feedback drift changed lot lifecycle
+batch span 5s   transport-equivalent to strict_event for current 60s fixed-exit profile
+barrier 30s/60s transport-equivalent to strict_event with 606 / 606 fills
+panel sparse    transport-equivalent to strict_event/barrier with 304 capacity decisions and 606 fills
+fast clock      transport-equivalent to panel sparse/barrier with market_read_ms 331464 -> 11
+```
+
+Therefore batch mode must have either a conservative span cap or an explicit
+causal barrier. The span cap is a semantic control, not only a performance knob.
+If a strategy needs private fills before the next decision, the batch must close
+at that dependency and replay the suffix only after private feedback is visible.
+
+All three modes must produce identical shadow intents under the same
+policy/capacity profile:
+
+```text
+timestamp, cell, side, membership, requested_exposure, actual_exposure
+```
+
+Execution differences are allowed only through declared fill/latency/depth
+profiles and must be explained by the fast-vs-strict decomposition.
+
 ## Execution Models
 
 Two taker execution models should coexist.

@@ -2,8 +2,19 @@
   "name": "ccusdt-replay-monitor",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "echo monitor-not-implemented"
+    "monitor": "node src/console_monitor.mjs",
+    "dev": "node src/monitor_server.mjs --dev",
+    "serve": "node src/monitor_server.mjs",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^3.8.1",
+    "vite": "^6.1.0"
   }
 }
-

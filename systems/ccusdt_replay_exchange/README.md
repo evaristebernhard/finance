@@ -1,6 +1,6 @@
 # CCUSDT Replay Exchange
 
-Status: catalog + canonical + taker-first stream runner MVP, 2026-05-19.
+Status: catalog + canonical + sparse taker-first stream runner MVP, 2026-05-19.
 
 This is a standalone local replay + paper exchange system. It is intentionally
 separate from root-level research scripts, the older replay workbench backend,
@@ -38,10 +38,10 @@ Strategy Bot  = independent client: online feature state and sparse intents
 Monitor       = read-only screen: state/events/summary, never hot path
 ```
 
-The current stdin/stdout Python runner remains useful for deterministic smoke
-tests. The next implementation step is to split that model into independent
-processes, compact the event log, stream canonical quote/trade/L2 through a
-bounded-memory merge iterator, and move online features into the bot.
+The current TCP runner server is the hard experimental kernel: Rust runs as a
+local exchange process with public/private/order NDJSON sockets, while Python
+runs as an independent bot process. The older stdin/stdout sparse runner remains
+as a deterministic regression harness.
 
 ## Catalog And Canonical
 
@@ -70,32 +70,37 @@ Those directories are local generated data and remain git-ignored.
 
 ## Runner
 
-Run the exchange-style Python stream runner from canonical quote/trade frames:
+Run the sparse exchange-style Python bot from canonical quote/trade streams:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run python --canonical-date 2026-05-18 --max-frames 250 --latency-us 50000
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
 ```
 
-This path is the realistic bot harness. Rust owns virtual time, latency,
-portfolio, risk, fills, and the event log. Python receives stdin NDJSON
-`session_start`, `market_quote`, `market_trade`, optional `market_l2_update`,
-`account_snapshot`, `order_ack`, `order_reject`, and `fill` messages. Python may
-only return `heartbeat`, `hold`, `submit_order`, or `cancel_order`.
+Python receives stdin NDJSON `session_start`, `market_quote`, `market_trade`,
+optional `market_l2_update`, `account_snapshot`, `order_ack`, `order_reject`,
+and `fill` messages. In sparse mode Python returns only `heartbeat`,
+`submit_order`, or `cancel_order` when needed; it does not emit per-event holds.
 
 The default fill model is `top_of_book_taker_ioc_v1`: market buy fills at the
 arrival ask, market sell fills at the arrival bid, with `fee_bps=0` unless
 configured otherwise. Timestamp latency is measured in microseconds:
 
 ```text
-arrival frame = first quote with local_ts_us >= observed_local_ts_us + latency_us
+target_arrival_local_ts_us = observed_local_ts_us + latency_us
+default arrival = exact virtual timer at target_arrival_local_ts_us
+fill quote/book = last known quote/book before arrival
 ```
 
+Use `--arrival-mode timer` for the default research baseline. Use
+`--arrival-mode next-event` only as a conservative stress mode; it waits until
+the first later market event and therefore adds event-gap overshoot to latency.
+
 Each order/fill event records observed quote, arrival quote, fill price, arrival
-spread, latency, and latency slippage. Optional L2 smoke can be enabled without
-changing the default top-of-book fill model:
+spread, latency, wall-latency diagnostics, and latency slippage. Optional L2
+depth fill can be enabled as the execution model:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run python --canonical-date 2026-05-18 --max-frames 20 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --l2-depth-smoke-qty 10
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
 ```
 
 For pressure testing only, `--clock-mode accelerated-async` maps Python wall
@@ -104,6 +109,78 @@ response time into additional virtual staleness:
 ```text
 effective_latency_us = latency_us + bridge_wall_latency_us * wall_latency_speedup
 ```
+
+`run python` is retained as the older dense compatibility runner. New work
+should prefer `run sparse-python`.
+
+Run the independent Runner Server:
+
+```powershell
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --order-addr 127.0.0.1:8803 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
+```
+
+Run the independent Python bot in a second terminal:
+
+```powershell
+python systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/tcp_bot.py --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --order-addr 127.0.0.1:8803
+```
+
+Run the read-only monitor in a third terminal:
+
+```powershell
+npm --prefix systems/ccusdt_replay_exchange/monitor run monitor -- --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --state-url http://127.0.0.1:8804/api/state
+```
+
+The monitor does not accept or know the order ingress port. It only reads
+public/private streams and prints current clock, quote/account state, fills,
+latency/slippage summaries, order causal chains, and the optional read-only
+state endpoint. Add `--run-dir <run_dir>` to include the compact
+`events.ndjson` and `summary.json` audit after `session_end`.
+
+For a completed run:
+
+```powershell
+npm --prefix systems/ccusdt_replay_exchange/monitor run monitor -- --offline-run-dir systems/ccusdt_replay_exchange/runs/<run_id>
+```
+
+## Diagnostics
+
+Run the hardening suite after changing runner/bot/log behavior:
+
+```powershell
+python systems/ccusdt_replay_exchange/diagnostics/hardening_suite.py --repo-root . --date 2026-05-18
+```
+
+Run the individual checks:
+
+```powershell
+python systems/ccusdt_replay_exchange/diagnostics/audit_event_log.py --run-dir systems/ccusdt_replay_exchange/runs/<run_id>
+python systems/ccusdt_replay_exchange/diagnostics/feature_state_check.py --repo-root . --date 2026-05-18
+```
+
+Latest hardening report:
+
+```text
+systems/ccusdt_replay_exchange/docs/hardening-report-20260520.md
+```
+
+Current strict-audit default for top-of-book taker research is
+`panel_sparse_fast_clock_v1`: validated `decision_frame_v1` Parquet cache drives
+the decision clock, while the runner uses the `quote_frame_v1` last-known quote
+index for deterministic timer arrival/fill. It is much faster than full L2
+streaming and remains equivalent to the full-stream/barrier gates for
+`top_of_book_taker_ioc_v1`. Latest 2026-05-16..2026-05-18 four-profile matrix:
+
+```text
+systems/ccusdt_replay_exchange/runs/profile_matrix_top_of_book_20260516_18_20260521
+```
+
+Use the full-stream/barrier gates for L2-depth, maker/queue, or online feature
+reconstruction validation.
+
+The server writes the same compact `events.ndjson` causal chain. `event_sleep_us`
+is a deliberate replay-throttle knob for local socket experiments; accelerated
+async pressure mode remains explicit through `--clock-mode accelerated-async`.
 
 Run a deterministic toy strategy from canonical quote frames:
 

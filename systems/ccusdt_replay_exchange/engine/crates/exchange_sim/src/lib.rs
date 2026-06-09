@@ -131,6 +131,18 @@ impl PaperExchange {
         })
     }
 
+    pub fn from_current_frame(config: ExchangeConfig, frame: MarketFrame) -> Result<Self> {
+        Self::new(config, vec![frame])
+    }
+
+    pub fn advance_to_frame(&mut self, frame: MarketFrame) -> ExchangeSnapshot {
+        self.frames.clear();
+        self.frames.push(frame);
+        self.cursor = 0;
+        self.match_open_orders();
+        self.snapshot()
+    }
+
     pub fn reset(&mut self) {
         self.cursor = 0;
         self.account = AccountLedger::new(self.config.starting_cash);
@@ -146,12 +158,16 @@ impl PaperExchange {
 
     pub fn snapshot(&self) -> ExchangeSnapshot {
         let frame = self.current_frame().clone();
+        self.snapshot_at_frame(&frame)
+    }
+
+    pub fn snapshot_at_frame(&self, frame: &MarketFrame) -> ExchangeSnapshot {
         ExchangeSnapshot {
             config: self.config.clone(),
             cursor: self.cursor,
             frame_count: self.frames.len(),
             account: self.account.view(frame.mid),
-            current_frame: frame,
+            current_frame: frame.clone(),
             open_orders: self
                 .orders
                 .iter()
@@ -215,6 +231,153 @@ impl PaperExchange {
         Ok(self.orders[index].clone())
     }
 
+    pub fn place_taker_depth_order(
+        &mut self,
+        request: NewOrder,
+        filled_qty: f64,
+        vwap: Option<f64>,
+    ) -> Result<Order> {
+        self.validate_new_order(&request)?;
+        if request.kind != OrderKind::Market || request.tif != TimeInForce::Ioc {
+            bail!("depth execution only supports market IOC orders");
+        }
+        if let Some(price) = vwap {
+            if price <= 0.0 || !price.is_finite() {
+                bail!("vwap must be positive and finite");
+            }
+        }
+        if filled_qty < 0.0 || !filled_qty.is_finite() {
+            bail!("filled_qty must be finite and >= 0");
+        }
+
+        let seq = self.current_frame().seq;
+        let id = self.next_order_id;
+        self.next_order_id += 1;
+
+        let mut order = Order {
+            id,
+            client_order_id: request.client_order_id.clone(),
+            side: request.side,
+            kind: request.kind,
+            qty: request.qty,
+            remaining_qty: request.qty,
+            filled_qty: 0.0,
+            limit_price: request.limit_price,
+            tif: request.tif,
+            reduce_only: request.reduce_only,
+            status: OrderStatus::Open,
+            reject_reason: None,
+            avg_fill_price: None,
+            created_seq: seq,
+            updated_seq: seq,
+        };
+
+        if let Err(reason) = self.check_risk(&order) {
+            order.status = OrderStatus::Rejected;
+            order.reject_reason = Some(reason);
+            self.orders.push(order.clone());
+            return Ok(order);
+        }
+
+        let qty = filled_qty.min(order.qty);
+        if qty > 0.0 {
+            let Some(price) = vwap else {
+                bail!("vwap is required when filled_qty > 0");
+            };
+            let fee = price * qty * self.config.fee_bps / 10_000.0;
+            self.account.apply_fill(order.side, qty, price, fee);
+            order.filled_qty = qty;
+            order.remaining_qty = (order.qty - qty).max(0.0);
+            order.avg_fill_price = Some(price);
+            self.fills.push(Fill {
+                id: self.next_fill_id,
+                order_id: order.id,
+                side: order.side,
+                qty,
+                price,
+                fee,
+                liquidity: Liquidity::Taker,
+                seq,
+                ts: self.current_frame().ts.clone(),
+            });
+            self.next_fill_id += 1;
+        }
+
+        order.status = if order.remaining_qty <= 1e-12 {
+            OrderStatus::Filled
+        } else {
+            OrderStatus::Canceled
+        };
+        order.updated_seq = seq;
+        self.orders.push(order.clone());
+        Ok(order)
+    }
+
+    pub fn place_taker_quote_order(
+        &mut self,
+        request: NewOrder,
+        fill_frame: &MarketFrame,
+    ) -> Result<Order> {
+        self.validate_new_order(&request)?;
+        if request.kind != OrderKind::Market || request.tif != TimeInForce::Ioc {
+            bail!("quote execution only supports market IOC orders");
+        }
+
+        let id = self.next_order_id;
+        self.next_order_id += 1;
+        let seq = fill_frame.seq;
+        let price = match request.side {
+            Side::Buy => fill_frame.ask,
+            Side::Sell => fill_frame.bid,
+        };
+
+        let mut order = Order {
+            id,
+            client_order_id: request.client_order_id.clone(),
+            side: request.side,
+            kind: request.kind,
+            qty: request.qty,
+            remaining_qty: request.qty,
+            filled_qty: 0.0,
+            limit_price: request.limit_price,
+            tif: request.tif,
+            reduce_only: request.reduce_only,
+            status: OrderStatus::Open,
+            reject_reason: None,
+            avg_fill_price: None,
+            created_seq: seq,
+            updated_seq: seq,
+        };
+
+        if let Err(reason) = self.check_risk_at_frame(&order, fill_frame) {
+            order.status = OrderStatus::Rejected;
+            order.reject_reason = Some(reason);
+            self.orders.push(order.clone());
+            return Ok(order);
+        }
+
+        let fee = price * order.qty * self.config.fee_bps / 10_000.0;
+        self.account.apply_fill(order.side, order.qty, price, fee);
+        order.filled_qty = order.qty;
+        order.remaining_qty = 0.0;
+        order.avg_fill_price = Some(price);
+        order.status = OrderStatus::Filled;
+        self.fills.push(Fill {
+            id: self.next_fill_id,
+            order_id: order.id,
+            side: order.side,
+            qty: order.qty,
+            price,
+            fee,
+            liquidity: Liquidity::Taker,
+            seq,
+            ts: fill_frame.ts.clone(),
+        });
+        self.next_fill_id += 1;
+        self.orders.push(order.clone());
+        Ok(order)
+    }
+
     pub fn cancel_order(&mut self, order_id: u64) -> Option<Order> {
         let seq = self.current_frame().seq;
         let order = self
@@ -260,7 +423,14 @@ impl PaperExchange {
     }
 
     fn check_risk(&self, order: &Order) -> std::result::Result<(), String> {
-        let frame = self.current_frame();
+        self.check_risk_at_frame(order, self.current_frame())
+    }
+
+    fn check_risk_at_frame(
+        &self,
+        order: &Order,
+        frame: &MarketFrame,
+    ) -> std::result::Result<(), String> {
         let mark = match order.side {
             Side::Buy => frame.ask,
             Side::Sell => frame.bid,
@@ -454,5 +624,59 @@ mod tests {
             })
             .unwrap();
         assert_eq!(order.status, OrderStatus::Rejected);
+    }
+
+    #[test]
+    fn depth_ioc_partial_fill_cancels_remainder() {
+        let mut exchange =
+            PaperExchange::from_current_frame(ExchangeConfig::default(), frames()[0].clone())
+                .unwrap();
+        let order = exchange
+            .place_taker_depth_order(
+                NewOrder {
+                    side: Side::Buy,
+                    kind: OrderKind::Market,
+                    qty: 10.0,
+                    limit_price: None,
+                    tif: TimeInForce::Ioc,
+                    reduce_only: false,
+                    client_order_id: Some("depth-partial".to_string()),
+                },
+                4.0,
+                Some(101.5),
+            )
+            .unwrap();
+        assert_eq!(order.status, OrderStatus::Canceled);
+        assert_eq!(order.filled_qty, 4.0);
+        assert_eq!(order.remaining_qty, 6.0);
+        assert_eq!(order.avg_fill_price, Some(101.5));
+        assert_eq!(exchange.fills().len(), 1);
+        assert_eq!(exchange.snapshot().account.position_qty, 4.0);
+    }
+
+    #[test]
+    fn quote_taker_fill_can_snapshot_at_arrival_frame() {
+        let mut exchange =
+            PaperExchange::from_current_frame(ExchangeConfig::default(), frames()[0].clone())
+                .unwrap();
+        let arrival = MarketFrame::new(7, "arrival", 198.0, 202.0).unwrap();
+        let order = exchange
+            .place_taker_quote_order(
+                NewOrder {
+                    side: Side::Buy,
+                    kind: OrderKind::Market,
+                    qty: 1.0,
+                    limit_price: None,
+                    tif: TimeInForce::Ioc,
+                    reduce_only: false,
+                    client_order_id: Some("arrival-fill".to_string()),
+                },
+                &arrival,
+            )
+            .unwrap();
+        assert_eq!(order.status, OrderStatus::Filled);
+        assert_eq!(exchange.fills()[0].price, 202.0);
+        assert_eq!(exchange.snapshot_at_frame(&arrival).current_frame.seq, 7);
+        assert_eq!(exchange.snapshot_at_frame(&arrival).account.notional, 200.0);
     }
 }

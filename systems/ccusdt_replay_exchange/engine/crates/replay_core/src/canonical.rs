@@ -9,7 +9,7 @@ use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::date_range;
-use crate::types::{L2LevelUpdate, Side, TradeEvent};
+use crate::types::{L2LevelUpdate, MarketFrame, Side, TradeEvent};
 
 const RAW_ROOT: &str = "data/ccusdt/v1/external";
 const CANONICAL_ROOT: &str = "data/canonical/cex/bullish";
@@ -114,17 +114,7 @@ pub fn load_canonical_trades(
     let mut out = Vec::new();
     for row in reader.records() {
         let row = row?;
-        let side = parse_side(field(&row, idx.side))?;
-        out.push(TradeEvent {
-            seq: parse_u64(&row, idx.seq, "seq")?,
-            trade_id: field(&row, idx.trade_id).to_string(),
-            exchange_ts_us: parse_u64(&row, idx.exchange_ts, "exchange_ts_us")?,
-            local_ts_us: parse_u64(&row, idx.local_ts, "local_ts_us")?,
-            side,
-            price: parse_f64(&row, idx.price, "price")?,
-            qty: parse_f64(&row, idx.qty, "qty")?,
-            notional_quote: parse_f64(&row, idx.notional_quote, "notional_quote")?,
-        });
+        out.push(parse_canonical_trade(&row, &idx)?);
     }
     Ok(out)
 }
@@ -145,17 +135,57 @@ pub fn load_canonical_l2_updates(
             break;
         }
         let row = row?;
-        out.push(L2LevelUpdate {
-            seq: parse_u64(&row, idx.seq, "seq")?,
-            exchange_ts_us: parse_u64(&row, idx.exchange_ts, "exchange_ts_us")?,
-            local_ts_us: parse_u64(&row, idx.local_ts, "local_ts_us")?,
-            is_snapshot: parse_bool(field(&row, idx.is_snapshot)),
-            side: parse_side(field(&row, idx.side))?,
-            price: parse_f64(&row, idx.price, "price")?,
-            qty: parse_f64(&row, idx.qty, "qty")?,
-        });
+        out.push(parse_canonical_l2(&row, &idx)?);
     }
     Ok(out)
+}
+
+pub fn stream_canonical_quotes(
+    repo_root: &Path,
+    symbol: &str,
+    date: &str,
+) -> Result<CanonicalQuoteIter> {
+    CanonicalQuoteIter::open(canonical_quote_path(repo_root, symbol, date))
+}
+
+pub fn stream_canonical_trades(
+    repo_root: &Path,
+    symbol: &str,
+    date: &str,
+) -> Result<CanonicalTradeIter> {
+    CanonicalTradeIter::open(canonical_trade_path(repo_root, symbol, date))
+}
+
+pub fn stream_canonical_l2_batches(
+    repo_root: &Path,
+    symbol: &str,
+    date: &str,
+    max_batch_rows: usize,
+    max_rows: Option<usize>,
+) -> Result<CanonicalL2BatchIter> {
+    CanonicalL2BatchIter::open(
+        canonical_l2_path(repo_root, symbol, date),
+        max_batch_rows,
+        max_rows,
+    )
+}
+
+pub fn stream_canonical_market(
+    repo_root: &Path,
+    symbol: &str,
+    date: &str,
+    include_l2: bool,
+    l2_batch_size: usize,
+    l2_max_rows: Option<usize>,
+) -> Result<CanonicalMarketStream> {
+    CanonicalMarketStream::open(
+        repo_root,
+        symbol,
+        date,
+        include_l2,
+        l2_batch_size,
+        l2_max_rows,
+    )
 }
 
 fn build_quote_frame(repo_root: &Path, symbol: &str, date: &str) -> Result<CanonicalDateResult> {
@@ -347,6 +377,308 @@ fn validate_one(
     })
 }
 
+pub struct CanonicalQuoteIter {
+    reader: csv::Reader<Box<dyn Read>>,
+    idx: CanonicalQuoteIdx,
+}
+
+impl CanonicalQuoteIter {
+    fn open(path: PathBuf) -> Result<Self> {
+        let mut reader = csv_reader(&path)?;
+        let headers = reader.headers()?.clone();
+        Ok(Self {
+            reader,
+            idx: CanonicalQuoteIdx::new(&headers)?,
+        })
+    }
+
+    fn read_next(&mut self) -> Result<Option<MarketFrame>> {
+        let mut row = csv::StringRecord::new();
+        if !self.reader.read_record(&mut row)? {
+            return Ok(None);
+        }
+        let seq = parse_u64(&row, self.idx.seq, "seq")?;
+        let exchange_ts_us = parse_u64(&row, self.idx.exchange_ts, "exchange_ts_us")?;
+        let local_ts_us = parse_u64(&row, self.idx.local_ts, "local_ts_us")?;
+        let bid = parse_f64(&row, self.idx.bid_px, "bid_px")?;
+        let ask = parse_f64(&row, self.idx.ask_px, "ask_px")?;
+        Ok(Some(MarketFrame::new_with_timestamps(
+            seq,
+            exchange_ts_us.to_string(),
+            exchange_ts_us,
+            local_ts_us,
+            bid,
+            ask,
+        )?))
+    }
+}
+
+impl Iterator for CanonicalQuoteIter {
+    type Item = Result<MarketFrame>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.read_next().transpose()
+    }
+}
+
+pub struct CanonicalTradeIter {
+    reader: csv::Reader<Box<dyn Read>>,
+    idx: CanonicalTradeIdx,
+}
+
+impl CanonicalTradeIter {
+    fn open(path: PathBuf) -> Result<Self> {
+        let mut reader = csv_reader(&path)?;
+        let headers = reader.headers()?.clone();
+        Ok(Self {
+            reader,
+            idx: CanonicalTradeIdx::new(&headers)?,
+        })
+    }
+
+    fn read_next(&mut self) -> Result<Option<TradeEvent>> {
+        let mut row = csv::StringRecord::new();
+        if !self.reader.read_record(&mut row)? {
+            return Ok(None);
+        }
+        Ok(Some(parse_canonical_trade(&row, &self.idx)?))
+    }
+}
+
+impl Iterator for CanonicalTradeIter {
+    type Item = Result<TradeEvent>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.read_next().transpose()
+    }
+}
+
+pub struct CanonicalL2BatchIter {
+    reader: csv::Reader<Box<dyn Read>>,
+    idx: CanonicalL2Idx,
+    max_batch_rows: usize,
+    max_rows: Option<usize>,
+    rows_seen: usize,
+    buffered: Option<L2LevelUpdate>,
+}
+
+impl CanonicalL2BatchIter {
+    fn open(path: PathBuf, max_batch_rows: usize, max_rows: Option<usize>) -> Result<Self> {
+        anyhow::ensure!(max_batch_rows > 0, "max_batch_rows must be >= 1");
+        let mut reader = csv_reader(&path)?;
+        let headers = reader.headers()?.clone();
+        Ok(Self {
+            reader,
+            idx: CanonicalL2Idx::new(&headers)?,
+            max_batch_rows,
+            max_rows,
+            rows_seen: 0,
+            buffered: None,
+        })
+    }
+
+    fn read_update(&mut self) -> Result<Option<L2LevelUpdate>> {
+        if self.max_rows.is_some_and(|max| self.rows_seen >= max) {
+            return Ok(None);
+        }
+        let mut row = csv::StringRecord::new();
+        if !self.reader.read_record(&mut row)? {
+            return Ok(None);
+        }
+        self.rows_seen += 1;
+        parse_canonical_l2(&row, &self.idx).map(Some)
+    }
+
+    fn read_next_batch(&mut self) -> Result<Option<Vec<L2LevelUpdate>>> {
+        let first = if let Some(buffered) = self.buffered.take() {
+            buffered
+        } else {
+            let Some(update) = self.read_update()? else {
+                return Ok(None);
+            };
+            update
+        };
+        let batch_ts = first.local_ts_us;
+        let mut batch = vec![first];
+        while batch.len() < self.max_batch_rows {
+            let Some(next) = self.read_update()? else {
+                break;
+            };
+            if next.local_ts_us != batch_ts {
+                self.buffered = Some(next);
+                break;
+            }
+            batch.push(next);
+        }
+        if batch.len() >= self.max_batch_rows {
+            while let Some(next) = self.read_update()? {
+                if next.local_ts_us != batch_ts {
+                    self.buffered = Some(next);
+                    break;
+                }
+                batch.push(next);
+            }
+        }
+        Ok(Some(batch))
+    }
+}
+
+impl Iterator for CanonicalL2BatchIter {
+    type Item = Result<Vec<L2LevelUpdate>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.read_next_batch().transpose()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum CanonicalMarketEvent {
+    Quote {
+        stream_seq: u64,
+        frame: MarketFrame,
+    },
+    Trade {
+        stream_seq: u64,
+        trade: TradeEvent,
+    },
+    L2Batch {
+        stream_seq: u64,
+        local_ts_us: u64,
+        updates: Vec<L2LevelUpdate>,
+    },
+}
+
+impl CanonicalMarketEvent {
+    pub fn stream_seq(&self) -> u64 {
+        match self {
+            Self::Quote { stream_seq, .. }
+            | Self::Trade { stream_seq, .. }
+            | Self::L2Batch { stream_seq, .. } => *stream_seq,
+        }
+    }
+
+    pub fn local_ts_us(&self) -> u64 {
+        match self {
+            Self::Quote { frame, .. } => frame.local_ts_us,
+            Self::Trade { trade, .. } => trade.local_ts_us,
+            Self::L2Batch { local_ts_us, .. } => *local_ts_us,
+        }
+    }
+}
+
+pub struct CanonicalMarketStream {
+    quote_iter: CanonicalQuoteIter,
+    trade_iter: CanonicalTradeIter,
+    l2_iter: Option<CanonicalL2BatchIter>,
+    next_quote: Option<MarketFrame>,
+    next_trade: Option<TradeEvent>,
+    next_l2_batch: Option<Vec<L2LevelUpdate>>,
+    next_stream_seq: u64,
+}
+
+impl CanonicalMarketStream {
+    fn open(
+        repo_root: &Path,
+        symbol: &str,
+        date: &str,
+        include_l2: bool,
+        l2_batch_size: usize,
+        l2_max_rows: Option<usize>,
+    ) -> Result<Self> {
+        let mut quote_iter = stream_canonical_quotes(repo_root, symbol, date)?;
+        let mut trade_iter = stream_canonical_trades(repo_root, symbol, date)?;
+        let mut l2_iter = if include_l2 {
+            Some(stream_canonical_l2_batches(
+                repo_root,
+                symbol,
+                date,
+                l2_batch_size,
+                l2_max_rows,
+            )?)
+        } else {
+            None
+        };
+        let next_quote = quote_iter.next().transpose()?;
+        let next_trade = trade_iter.next().transpose()?;
+        let next_l2_batch = match l2_iter.as_mut() {
+            Some(iter) => iter.next().transpose()?,
+            None => None,
+        };
+        Ok(Self {
+            quote_iter,
+            trade_iter,
+            l2_iter,
+            next_quote,
+            next_trade,
+            next_l2_batch,
+            next_stream_seq: 0,
+        })
+    }
+
+    fn read_next(&mut self) -> Result<Option<CanonicalMarketEvent>> {
+        let quote_key = self
+            .next_quote
+            .as_ref()
+            .map(|quote| (quote.local_ts_us, 0u8));
+        let trade_key = self
+            .next_trade
+            .as_ref()
+            .map(|trade| (trade.local_ts_us, 1u8));
+        let l2_key = self
+            .next_l2_batch
+            .as_ref()
+            .and_then(|batch| batch.first().map(|update| (update.local_ts_us, 2u8)));
+        let choice = [quote_key, trade_key, l2_key]
+            .into_iter()
+            .enumerate()
+            .filter_map(|(idx, key)| key.map(|key| (idx, key)))
+            .min_by_key(|(_, key)| *key)
+            .map(|(idx, _)| idx);
+        let Some(choice) = choice else {
+            return Ok(None);
+        };
+        let stream_seq = self.next_stream_seq;
+        self.next_stream_seq += 1;
+        match choice {
+            0 => {
+                let frame = self.next_quote.take().expect("choice checked quote");
+                self.next_quote = self.quote_iter.next().transpose()?;
+                Ok(Some(CanonicalMarketEvent::Quote { stream_seq, frame }))
+            }
+            1 => {
+                let trade = self.next_trade.take().expect("choice checked trade");
+                self.next_trade = self.trade_iter.next().transpose()?;
+                Ok(Some(CanonicalMarketEvent::Trade { stream_seq, trade }))
+            }
+            2 => {
+                let updates = self.next_l2_batch.take().expect("choice checked l2");
+                let local_ts_us = updates
+                    .first()
+                    .map(|update| update.local_ts_us)
+                    .unwrap_or_default();
+                self.next_l2_batch = match self.l2_iter.as_mut() {
+                    Some(iter) => iter.next().transpose()?,
+                    None => None,
+                };
+                Ok(Some(CanonicalMarketEvent::L2Batch {
+                    stream_seq,
+                    local_ts_us,
+                    updates,
+                }))
+            }
+            _ => unreachable!("only three market sources"),
+        }
+    }
+}
+
+impl Iterator for CanonicalMarketStream {
+    type Item = Result<CanonicalMarketEvent>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.read_next().transpose()
+    }
+}
+
 fn raw_path(repo_root: &Path, data_dir: &str, symbol: &str, date: &str) -> PathBuf {
     repo_root
         .join(RAW_ROOT)
@@ -431,6 +763,31 @@ fn parse_side(side: &str) -> Result<Side> {
     }
 }
 
+fn parse_canonical_trade(row: &csv::StringRecord, idx: &CanonicalTradeIdx) -> Result<TradeEvent> {
+    Ok(TradeEvent {
+        seq: parse_u64(row, idx.seq, "seq")?,
+        trade_id: field(row, idx.trade_id).to_string(),
+        exchange_ts_us: parse_u64(row, idx.exchange_ts, "exchange_ts_us")?,
+        local_ts_us: parse_u64(row, idx.local_ts, "local_ts_us")?,
+        side: parse_side(field(row, idx.side))?,
+        price: parse_f64(row, idx.price, "price")?,
+        qty: parse_f64(row, idx.qty, "qty")?,
+        notional_quote: parse_f64(row, idx.notional_quote, "notional_quote")?,
+    })
+}
+
+fn parse_canonical_l2(row: &csv::StringRecord, idx: &CanonicalL2Idx) -> Result<L2LevelUpdate> {
+    Ok(L2LevelUpdate {
+        seq: parse_u64(row, idx.seq, "seq")?,
+        exchange_ts_us: parse_u64(row, idx.exchange_ts, "exchange_ts_us")?,
+        local_ts_us: parse_u64(row, idx.local_ts, "local_ts_us")?,
+        is_snapshot: parse_bool(field(row, idx.is_snapshot)),
+        side: parse_side(field(row, idx.side))?,
+        price: parse_f64(row, idx.price, "price")?,
+        qty: parse_f64(row, idx.qty, "qty")?,
+    })
+}
+
 fn parse_bool(raw: &str) -> bool {
     matches!(
         raw.trim().to_ascii_lowercase().as_str(),
@@ -470,6 +827,26 @@ impl QuoteIdx {
             bid_qty: header_idx(headers, "bid_amount")?,
             ask_px: header_idx(headers, "ask_price")?,
             ask_qty: header_idx(headers, "ask_amount")?,
+        })
+    }
+}
+
+struct CanonicalQuoteIdx {
+    seq: usize,
+    exchange_ts: usize,
+    local_ts: usize,
+    bid_px: usize,
+    ask_px: usize,
+}
+
+impl CanonicalQuoteIdx {
+    fn new(headers: &csv::StringRecord) -> Result<Self> {
+        Ok(Self {
+            seq: header_idx(headers, "seq")?,
+            exchange_ts: header_idx(headers, "exchange_ts_us")?,
+            local_ts: header_idx(headers, "local_ts_us")?,
+            bid_px: header_idx(headers, "bid_px")?,
+            ask_px: header_idx(headers, "ask_px")?,
         })
     }
 }
@@ -692,6 +1069,64 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("non-monotonic seq"));
+    }
+
+    #[test]
+    fn market_stream_merges_by_time_with_stable_ties() {
+        let root = temp_repo("market_stream_order");
+        write_raw_gz(
+            &canonical_path(&root, "CCUSDT", "quote_frame_v1", "2026-05-18"),
+            "seq,exchange_ts_us,local_ts_us,bid_px,bid_qty,ask_px,ask_qty,mid_px,spread_bps\n0,100,1000,1.00,4,1.01,5,1.005,99.5\n1,200,2000,1.01,4,1.02,5,1.015,98.5\n",
+        );
+        write_raw_gz(
+            &canonical_path(&root, "CCUSDT", "trade_event_v1", "2026-05-18"),
+            "seq,trade_id,exchange_ts_us,local_ts_us,side,price,qty,notional_quote\n0,t0,100,1000,buy,1.01,7,7.07\n",
+        );
+        write_raw_gz(
+            &canonical_path(&root, "CCUSDT", "l2_level_update_v1", "2026-05-18"),
+            "seq,exchange_ts_us,local_ts_us,is_snapshot,side,price,qty\n0,100,1000,true,buy,1.00,4\n",
+        );
+
+        let events = stream_canonical_market(&root, "CCUSDT", "2026-05-18", true, 100, None)
+            .unwrap()
+            .take(4)
+            .map(|event| event.unwrap())
+            .collect::<Vec<_>>();
+        let tags = events
+            .iter()
+            .map(|event| match event {
+                CanonicalMarketEvent::Quote { .. } => "quote",
+                CanonicalMarketEvent::Trade { .. } => "trade",
+                CanonicalMarketEvent::L2Batch { .. } => "l2",
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(tags, vec!["quote", "trade", "l2", "quote"]);
+        assert_eq!(
+            events
+                .iter()
+                .map(CanonicalMarketEvent::stream_seq)
+                .collect::<Vec<_>>(),
+            vec![0, 1, 2, 3]
+        );
+    }
+
+    #[test]
+    fn l2_stream_batches_never_split_same_timestamp() {
+        let root = temp_repo("l2_batch_cap");
+        write_raw_gz(
+            &canonical_path(&root, "CCUSDT", "l2_level_update_v1", "2026-05-18"),
+            "seq,exchange_ts_us,local_ts_us,is_snapshot,side,price,qty\n0,100,1000,true,buy,1.00,4\n1,101,1000,true,sell,1.01,5\n2,102,1000,true,buy,0.99,6\n3,200,2000,false,sell,1.02,7\n",
+        );
+
+        let batches = stream_canonical_l2_batches(&root, "CCUSDT", "2026-05-18", 2, None)
+            .unwrap()
+            .map(|batch| batch.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(batches.len(), 2);
+        assert_eq!(batches[0].len(), 3);
+        assert_eq!(batches[1].len(), 1);
+        assert_eq!(batches[0][0].local_ts_us, 1000);
+        assert_eq!(batches[1][0].local_ts_us, 2000);
     }
 
     fn temp_repo(name: &str) -> PathBuf {
