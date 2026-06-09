@@ -1,0 +1,150 @@
+\chapter{decision\_frame：把市场压成一行可回测状态}
+
+\section{本章要解决的困惑}
+
+为什么不直接在 fast backtest 里读 quote、trade、L2？因为 raw stream 是事件流，不是一行一行可直接判断 entry 的状态表。
+\code{decision_frame_v1} 的作用，就是把市场事件压成策略在某个观察点能看到的一行。
+
+\section{一行 decision frame 回答什么问题}
+
+一行 \code{decision_frame} 可以粗略理解为：
+
+\begin{quote}
+在这个 L2/panel clock 时刻，策略能看到的 top-of-book、最近成交流、价格停滞状态和过去短路径状态是什么？
+\end{quote}
+
+关键字段如下：
+
+\begin{longtable}{p{0.30\textwidth}p{0.24\textwidth}p{0.36\textwidth}}
+\toprule
+字段 & 类型 & 交易含义 \\
+\midrule
+\code{observed_seq} & int & 观察到的事件序号 \\
+\code{local_ts_us} & int & 本地时间戳，微秒 \\
+\code{best_bid_price} & float & 当前最好买价 \\
+\code{best_ask_price} & float & 当前最好卖价 \\
+\code{mid_price} & float & 中间价 \\
+\code{spread_bps} & float & 顶层价差，bps \\
+\code{trade_window_count} & int & 最近 trade window 内成交数量 \\
+\code{trade_buy_amount} & float & 最近窗口 buy 主动量 \\
+\code{trade_sell_amount} & float & 最近窗口 sell 主动量 \\
+\code{trade_flow_imbalance} & float & TFI \\
+\code{frames_since_mid_change} & float & mid 已经多少帧没变 \\
+\code{past_event_25_bps} & float & 过去约 25 个事件 mid 变化 \\
+\code{fwd_time_60s_bucket} & int & 用于限制同 bucket 重复触发 \\
+\bottomrule
+\end{longtable}
+
+\warningline{\code{fwd_time_60s_bucket} 不是 future label；它是分桶 clock。不要被名字里的 fwd 吓到。}
+
+\section{小例子：从盘口和成交到一行状态}
+
+假设当前盘口：
+
+\begin{lstlisting}
+best_bid_price = 0.1120
+best_bid_amount = 12000
+best_ask_price = 0.1124
+best_ask_amount = 9000
+\end{lstlisting}
+
+最近 2 秒成交：
+
+\begin{lstlisting}
+buy qty  = 500
+sell qty = 0
+\end{lstlisting}
+
+过去 25 个事件 mid 几乎没动：
+
+\begin{lstlisting}
+past_event_25_bps = 0.2
+frames_since_mid_change = 34
+\end{lstlisting}
+
+则：
+
+\[
+mid = 0.1122,
+\quad
+spread\_bps = \frac{0.1124 - 0.1120}{0.1122} \times 10000.
+\]
+
+\[
+TFI = \frac{500 - 0}{500 + 0} = 1.
+\]
+
+这行状态就具备了旧策略判断 entry 所需的核心信息：
+
+\begin{lstlisting}
+TFI = 1
+trade_window_count > 0
+abs(past_event_25_bps) <= 0.5
+frames_since_mid_change >= 25
+spread_bps known
+\end{lstlisting}
+
+\section{decision frame 不是 label table}
+
+这点必须讲清楚。一个合法的 runtime-safe decision frame 可以包含：
+
+\begin{itemize}[leftmargin=2em]
+  \item 当前 bid、ask、mid；
+  \item 最近成交流；
+  \item 当前或过去的 L2 状态；
+  \item 当前时刻以前的 mid path 统计；
+  \item 用于同频判断的 clock bucket。
+\end{itemize}
+
+它不能包含：
+
+\begin{itemize}[leftmargin=2em]
+  \item entry 后 60 秒收益；
+  \item 未来最大涨幅 MFE；
+  \item 未来最大回撤 MAE；
+  \item 事后打分的 scored entries；
+  \item 策略跑完后的 PnL。
+\end{itemize}
+
+如果把这些答案写进 decision frame，再让策略读它，就不是回测，是作弊。
+
+\section{对应代码入口}
+
+主要看：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/decision_frame.py
+systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py
+\end{lstlisting}
+
+\code{decision_frame.py} 里最值得先看：
+
+\begin{lstlisting}
+CACHE_FIELDS
+DecisionFrameBuilder
+DecisionL2Book
+observe_trade
+build_from_l2_updates
+\end{lstlisting}
+
+\code{decision_frame_cache.py} 里最值得先看：
+
+\begin{lstlisting}
+PARQUET_SCHEMA
+cache_path
+manifest_path
+iter_cached_decision_frames
+\end{lstlisting}
+
+\section{手动执行检查点}
+
+拿到一行 frame，先用纸算三件事：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \code{spread_bps} 是否等于 \((ask-bid)/mid \times 10000\)？
+  \item \code{trade_flow_imbalance} 的正负方向是否和 buy/sell 主动量一致？
+  \item \code{past_event_25_bps} 小不小，\code{frames_since_mid_change} 高不高？
+\end{enumerate}
+
+能算出这三件事，就能进入 entry 章节。
+

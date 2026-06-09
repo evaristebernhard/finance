@@ -1,0 +1,124 @@
+\chapter{fast\_strategy\_backtest：Python fast 线完整执行}
+
+\section{本章要解决的困惑}
+
+前面讲的是一笔 entry。真实 fast backtest 做的是把同样的状态机应用到很多天、很多 frame 上。
+
+\code{fast_strategy_backtest.py} 不是另一个策略。它是研究侧快速复现当前 shadow policy 的 runner：
+
+\begin{lstlisting}
+decision_frame rows
+-> ShadowFourCellPolicy.on_decision_frame
+-> EntrySpreadAdmissionGate
+-> CapacityLedger
+-> ManagerPathPosition / fixed60 close
+-> entries/exits/daily/summary
+\end{lstlisting}
+
+\section{fast 线为什么快}
+
+strict Runner 要模拟 public/private stream、订单到达、latency、fill、portfolio、event log。
+fast 线先把市场压成 \code{decision_frame_v1}，再用 Python 顺序扫描：
+
+\begin{lstlisting}
+for frame in iter_cached_decision_frames(...):
+    signal = policy.on_decision_frame(frame, observed_seq)
+    if signal is shadow_entry:
+        add_entry(...)
+    close matured positions when due
+\end{lstlisting}
+
+它快，是因为它不重放完整交易所交互。它牺牲了一些成交细节，换来快速研究。
+
+\section{主对象}
+
+\begin{longtable}{p{0.30\textwidth}p{0.28\textwidth}p{0.32\textwidth}}
+\toprule
+对象 & 来源 & 作用 \\
+\midrule
+\code{ShadowFourCellPolicy} & \code{shadow_policy.py} & 产生 shadow entry / lifecycle close \\
+\code{EntrySpreadAdmissionGate} & \code{execution_runtime.py} & 用 spread q70 接受或拒绝 \\
+\code{CapacityLedger} & \code{execution_runtime.py} & 按 3x 杠杆剪仓 \\
+\code{QuoteFrameIndex} & \code{fast_strategy_backtest.py} & 找 entry/exit top-of-book \\
+\code{ManagerPathPosition} & \code{fast_strategy_backtest.py} & 跟踪 fixed60 或 manager exit path \\
+\bottomrule
+\end{longtable}
+
+\section{最小命令不是重点，但要知道验证什么}
+
+典型 fast 命令会类似：
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-16 ^
+  --to-date 2026-05-18 ^
+  --exit-profile fixed60_taker ^
+  --capacity-profile core_idle01 ^
+  --admission-profile entry_spread_q70_v1 ^
+  --admission-thresholds-json <prior_day_thresholds.json> ^
+  --leverage-cap 3
+\end{lstlisting}
+
+这条命令验证的是：
+
+\begin{quote}
+当前状态机在指定日期和 profile 下，使用 top-of-book taker 近似后，能产生多少 entry、多少 actual exposure、多少 daily/summary 结果。
+\end{quote}
+
+它不是在训练模型，也不是在搜索新因子。
+
+\section{输出文件怎么读}
+
+\begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
+\toprule
+文件 & 先看什么 \\
+\midrule
+\code{summary.json} & run id、profile、actual entries、total weighted bps、参数 hash \\
+\code{daily.csv} & 每天 entries、exits、actual exposure、day pnl \\
+\code{entries.parquet} & 每笔 entry 的 trigger、cell、gamma、actual exposure \\
+\code{exits.parquet} & 每笔退出的 mid/taker 结果、exit reason、net bps \\
+\code{profile_manifest.json} & 本次 admission、capacity、exit profile 的边界声明 \\
+\bottomrule
+\end{longtable}
+
+新人最常犯的错是只看 summary 的一个收益数字。正确顺序是：
+
+\begin{lstlisting}
+summary profile
+-> actual_entries
+-> daily split
+-> entry cell distribution
+-> executable vs mid
+-> worst day
+\end{lstlisting}
+
+\section{fast 线不能回答什么}
+
+fast 线不负责：
+
+\begin{itemize}[leftmargin=2em]
+  \item Python 响应慢了会怎样；
+  \item order intent 到达时 quote 是否已经变了；
+  \item event log 是否能完整审计 causal chain；
+  \item TCP public/private/order stream 是否正确；
+  \item L2 depth fill 是否和 top-of-book 有差别。
+\end{itemize}
+
+这些是 strict Runner 的问题。
+
+\section{手动检查点}
+
+跑完 fast 后，不要先问“赚了多少”。先问：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \code{actual_entries} 是否只统计 \code{actual_exposure > 0}？
+  \item \code{admission_rejected_entries} 是否符合 spread gate 预期？
+  \item \code{01_frames_only} 是否因为 gamma 或 idle profile 被限制？
+  \item \code{fixed60_mid} 和 \code{fixed60_taker} 是否混比了？
+  \item \code{summary.json} 里的 profile 是否和你以为的一致？
+\end{enumerate}
+
+\checkpoint{fast backtest 是研究显微镜，不是交易所。它让你快速看状态机表现，但不能替代 strict audit。}
+

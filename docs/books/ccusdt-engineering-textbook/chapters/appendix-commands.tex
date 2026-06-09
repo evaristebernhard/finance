@@ -1,0 +1,123 @@
+\chapter{最小命令索引}
+
+\section{原则}
+
+这里不是 runbook。每条命令只说明它验证哪条工程链路。
+
+\section{检查 decision frame cache}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py validate ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18
+\end{lstlisting}
+
+验证：
+
+\begin{quote}
+市场事实能否被读成 runtime-safe 的 \code{decision_frame_v1}。
+\end{quote}
+
+\section{构建 decision frame cache}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py build ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18
+\end{lstlisting}
+
+验证：
+
+\begin{quote}
+canonical trade/L2 stream 能否生成 Parquet hot path。
+\end{quote}
+
+\section{运行 fast backtest}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18 ^
+  --exit-profile fixed60_taker ^
+  --capacity-profile core_idle01 ^
+  --admission-profile entry_spread_q70_v1 ^
+  --leverage-cap 3
+\end{lstlisting}
+
+验证：
+
+\begin{quote}
+状态机能否从 decision frame 生成 entries、exits、daily、summary。
+\end{quote}
+
+注意：实际项目中 q70 admission 往往还需要 prior-day threshold JSON。没有阈值时不要假装结果等价。
+
+\section{运行 sparse strict replay}
+
+\begin{lstlisting}
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml ^
+  -p ccusdt_replay_cli -- run sparse-python ^
+  --canonical-date 2026-05-18 ^
+  --max-events 500 ^
+  --latency-us 50000
+\end{lstlisting}
+
+验证：
+
+\begin{quote}
+Runner 能否把 market stream 送给 Python Bot，并把 submit order 变成 fill/event log。
+\end{quote}
+
+\section{运行 Runner Server + Bot + Monitor}
+
+Runner Server：
+
+\begin{lstlisting}
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml ^
+  -p ccusdt_replay_cli -- run server ^
+  --canonical-date 2026-05-18 ^
+  --max-events 900 ^
+  --latency-us 50000 ^
+  --state-addr 127.0.0.1:8804
+\end{lstlisting}
+
+Python Bot：
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/tcp_bot.py
+\end{lstlisting}
+
+Monitor：
+
+\begin{lstlisting}
+npm --prefix systems/ccusdt_replay_exchange/monitor run monitor -- ^
+  --public-addr 127.0.0.1:8801 ^
+  --private-addr 127.0.0.1:8802 ^
+  --state-url http://127.0.0.1:8804/api/state
+\end{lstlisting}
+
+验证：
+
+\begin{quote}
+三进程边界是否成立：Runner 是交易所，Bot 是策略，Monitor 只读。
+\end{quote}
+
+\section{审计 event log}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/audit_event_log.py ^
+  --run-dir systems/ccusdt_replay_exchange/runs/<run_id>
+\end{lstlisting}
+
+验证：
+
+\begin{quote}
+订单因果链是否完整，arrival quote、fill、portfolio 是否可审计。
+\end{quote}
+

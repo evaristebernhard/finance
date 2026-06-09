@@ -1,0 +1,136 @@
+\chapter{为什么简单状态机会被写得很难懂}
+
+\section{本章要解决的困惑}
+
+你现在的直觉是对的：当前 CCUSDT 策略并不复杂。它不是深度学习，不是动态
+L2 path model，也不是一个需要大量金融数学才能读懂的预测器。它更像一个
+手写的状态机：
+
+\begin{lstlisting}
+TFI trigger
++ past_event / frames filter
++ spread q70 admission
++ R5 / frames four-cell sizing
++ 3x capacity ledger
++ fixed60 / simple exit
+\end{lstlisting}
+
+那为什么代码会显得难？因为仓库里同时存在四套语言：
+
+\begin{longtable}{p{0.22\textwidth}p{0.33\textwidth}p{0.35\textwidth}}
+\toprule
+语言 & 读者看到的东西 & 它真正表示什么 \\
+\midrule
+研究语言 & 因子、label、MFE、MAE、Pareto、path & 事后分析，不一定进入 runtime \\
+fast 语言 & \code{decision_frame}、entry、exit、daily、summary & 快速复现策略状态机 \\
+Bot 语言 & online feature、shadow policy、submit order & 只读当前事件，生成订单意图 \\
+Runner 语言 & replay clock、latency、fill、event log & 本地交易所，负责成交和审计 \\
+\bottomrule
+\end{longtable}
+
+如果把这四套语言混起来，就会误以为策略很高级；如果按所有权拆开，它其实很朴素。
+
+\section{第一性原理：代码难读不是算法难，而是边界难}
+
+一个交易回测系统最少要回答四个问题：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 市场在某个时刻是什么样？
+  \item 策略在这个时刻想不想下单？
+  \item 交易所会不会成交，按什么价格成交？
+  \item 这笔交易最后赚了多少，日志能不能审计？
+\end{enumerate}
+
+这四个问题不能由同一个对象随便回答。原因很简单：如果策略在判断 entry 时读到了未来收益，
+回测就已经污染；如果 Monitor 可以下单，它就不是只读观察工具；如果 Runner 计算策略因子，
+Bot 的 runtime 逻辑就失去独立性。
+
+因此，当前系统的硬边界是：
+
+\begin{lstlisting}
+Runner does not read labels.
+Bot does not read date/.
+Monitor does not create facts.
+\end{lstlisting}
+
+\warningline{这三句话比任何架构图都重要。它们是判断文档、代码和实验是否可信的第一把尺子。}
+
+\section{当前策略的真实骨架}
+
+先把复杂词汇全部拿掉。当前 runtime 做的是下面这件事：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 看最近 2 秒主动成交方向，得到 \code{TFI}。
+  \item 如果 \code{abs(TFI) >= 1}，说明窗口内成交方向是单边的。
+  \item 如果 \code{abs(past_event_25_bps) <= 0.5}，说明刚才价格没有明显释放。
+  \item 如果 \code{trade_window_count > 0}，说明这个信号不是空窗口。
+  \item 如果 entry 成本不超过 prior-day q70 spread gate，就允许尝试。
+  \item 用已闭合的最近 5 笔结果算 \code{R5}，再结合 \code{frames_since_mid_change} 分 cell。
+  \item 用 cell 查 \code{gamma}，得到目标 exposure。
+  \item 用 3x capacity ledger 剪掉超过杠杆上限的部分。
+  \item 到 60 秒后退出，写 \code{entries.parquet}、\code{exits.parquet}、\code{daily.csv} 和 \code{summary.json}。
+\end{enumerate}
+
+这一整套逻辑可以压成一个式子：
+
+\[
+\text{row}_t
+\xrightarrow{\text{trigger}}
+\text{signal}_t
+\xrightarrow{\text{admission}}
+\text{accepted}_t
+\xrightarrow{\gamma,\ \text{ledger}}
+\text{actual exposure}_t
+\xrightarrow{\text{fixed60}}
+\text{pnl}_t .
+\]
+
+这不是玄学。它只是一个可审计的状态转移。
+
+\section{为什么不能写成 API 手册}
+
+API 手册会说：
+
+\begin{quote}
+运行 \code{fast_strategy_backtest.py}，读取 \code{decision_frame_v1}，输出 parquet。
+\end{quote}
+
+这句话对已经懂系统的人有用，对新人没有用。新人真正的问题是：
+
+\begin{itemize}[leftmargin=2em]
+  \item 一行 \code{decision_frame} 里的字段分别从哪来？
+  \item \code{TFI = 1} 到底是不是“买盘很多”的意思？
+  \item \code{q70} 是谁的分位数，为什么不能用当天未来分布？
+  \item \code{R5} 为什么不是当前订单簿因子，而是已闭合交易的记忆？
+  \item \code{gamma} 是预测器吗，还是只是一个仓位倍率？
+  \item \code{actual_exposure} 为什么会小于 \code{target_exposure}？
+\end{itemize}
+
+所以本书每章都按同一个教学顺序写：
+
+\begin{lstlisting}
+困惑
+-> 交易直觉
+-> 小数据例子
+-> 数学对象
+-> 代码入口
+-> 手动检查点
+-> 常见误解
+\end{lstlisting}
+
+\section{读代码的最短路径}
+
+如果你只想先跑通当前 fast 线，不需要先读 Rust。最短路径是：
+
+\begin{lstlisting}
+docs/markets/ccusdt/current/CURRENT_STRATEGY_PLAIN.md
+systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py
+systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/shadow_policy.py
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/execution_runtime.py
+\end{lstlisting}
+
+Rust Runner 等你理解 fast 线以后再读。因为 Runner 不是策略本身；它是把策略意图放进一个更真实的本地交易所里，检查延迟、到达价格、成交和日志。
+
+\checkpoint{读完本章，只要记住一句话：当前难点不是“算法多高级”，而是“同一个简单状态机有多个投影”。}
+

@@ -1,0 +1,64 @@
+\chapter{代码索引}
+
+\section{当前策略真相}
+
+\begin{longtable}{p{0.42\textwidth}p{0.48\textwidth}}
+\toprule
+路径 & 先看什么 \\
+\midrule
+\file{docs/markets/ccusdt/current/CURRENT_STRATEGY_PLAIN.md} & 当前 runtime 已用和未用内容 \\
+\file{docs/markets/ccusdt/START_HERE.md} & 当前 CCUSDT 主线入口 \\
+\bottomrule
+\end{longtable}
+
+\section{数据转换}
+
+\begin{longtable}{p{0.42\textwidth}p{0.48\textwidth}}
+\toprule
+路径 & 先看什么 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/decision_frame.py} & \code{DecisionL2Book}、\code{DecisionFrameBuilder} \\
+\file{systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py} & Parquet schema、build、validate、manifest \\
+\bottomrule
+\end{longtable}
+
+\section{fast 与 Bot}
+
+\begin{longtable}{p{0.42\textwidth}p{0.48\textwidth}}
+\toprule
+路径 & 先看什么 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py} & \code{QuoteFrameIndex}、\code{add_entry}、output write \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/shadow_policy.py} & trigger、membership、cell、gamma \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/execution_runtime.py} & admission、capacity、taker helper \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/online_features.py} & rolling TFI、quote state、closed outcome R5 \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/strategy.py} & sparse stdin/stdout Bot loop \\
+\bottomrule
+\end{longtable}
+
+\section{Rust Runner}
+
+\begin{longtable}{p{0.42\textwidth}p{0.48\textwidth}}
+\toprule
+路径 & 先看什么 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/engine/crates/cli/src/main.rs} & command tree、RunCommand \\
+\file{systems/ccusdt_replay_exchange/engine/crates/runner/src/lib.rs} & replay loop、arrival、fill、event log \\
+\file{systems/ccusdt_replay_exchange/docs/event_contracts.md} & market/order/fill/portfolio/event log 契约 \\
+\file{systems/ccusdt_replay_exchange/docs/execution_model.md} & taker、latency、fill model 边界 \\
+\bottomrule
+\end{longtable}
+
+\section{推荐阅读路径}
+
+\begin{lstlisting}
+CURRENT_STRATEGY_PLAIN.md
+-> 本书第一章
+-> decision_frame.py
+-> shadow_policy.py
+-> execution_runtime.py
+-> fast_strategy_backtest.py
+-> event_contracts.md
+-> runner/src/lib.rs
+\end{lstlisting}
+

@@ -1,0 +1,63 @@
+\chapter{如何安全改一个实验}
+
+\section{本章要解决的困惑}
+
+读懂系统后，第一反应通常是改参数或加因子。本章只讲安全实验原则，不设计新策略。
+
+\section{一次只改一个问题}
+
+推荐实验模板：
+
+\begin{lstlisting}
+Question:
+  我想验证什么？
+
+Change:
+  只改哪个参数或哪个 gate？
+
+Runtime inputs:
+  是否只使用 entry 时刻可见数据？
+
+Profile:
+  policy / admission / capacity / exit / leverage
+
+Readout:
+  actual_entries / executable return / daily split / worst day
+\end{lstlisting}
+
+\section{不要改错地方}
+
+如果只是研究 entry 或 gamma，不要改 Runner。先写 diagnostic 或 fast profile。Runner 是本地交易所，只有在成交、latency、event log 相关时才改。
+
+如果只是看 Monitor，不要让 Monitor 下单。Monitor 只读。
+
+如果只是想引入 Delta/Energy，不要直接说“runtime 已经用了”。先明确它是研究候选，还是 Bot profile 改动。
+
+\section{安全边界}
+
+\begin{lstlisting}
+不修改 data/
+不修改 date/
+不修改 runs/ 中已有用户结果
+不打印 .env* 或 rpc.txt
+不让 Bot 读 future labels
+不让 Runner 读 labels
+\end{lstlisting}
+
+\section{实验报告至少写什么}
+
+\begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
+\toprule
+项目 & 内容 \\
+\midrule
+目标 & 这次验证哪个具体问题 \\
+输入 & 使用哪些 runtime-safe 数据 \\
+改动 & 改了哪个参数或 profile \\
+输出 & actual entries、daily、executable、worst day \\
+边界 & fast evidence 还是 strict audit \\
+结论 & 是否值得进入下一阶段 \\
+\bottomrule
+\end{longtable}
+
+\checkpoint{安全实验不是保守不动，而是让每一次结果都能解释、能复现、能审计。}
+

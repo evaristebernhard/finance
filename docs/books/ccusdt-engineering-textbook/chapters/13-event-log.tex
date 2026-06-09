@@ -1,0 +1,107 @@
+\chapter{event log：如何验证订单因果链}
+
+\section{本章要解决的困惑}
+
+fast 回测的输出是表格。strict replay 的核心输出是 compact event log：
+
+\begin{lstlisting}
+runs/<run_id>/events.ndjson
+\end{lstlisting}
+
+它不是为了好看，而是为了回答：
+
+\begin{quote}
+这笔订单为什么出现？什么时候到达？按什么价格成交？成交后账户如何变化？
+\end{quote}
+
+\section{NDJSON 为什么适合 event log}
+
+NDJSON 是一行一个 JSON 事件。优点是：
+
+\begin{itemize}[leftmargin=2em]
+  \item 可以流式写入，不需要把整天事件放内存；
+  \item 崩溃时前面的事件仍然可读；
+  \item Monitor 和 audit 工具可以逐行解析；
+  \item compact log 可以只记录 causality，不记录每帧 hold。
+\end{itemize}
+
+当前 compact log 不应该记录每个市场事件上的 hold，因为那会把日志膨胀成低价值流水账。
+
+\section{事件 envelope}
+
+\code{event_contracts.md} 中的 run event log envelope：
+
+\begin{lstlisting}
+event_id
+run_id
+event_type
+replay_seq
+replay_ts
+wall_ts_ms
+source
+payload
+\end{lstlisting}
+
+读事件时，先看 \code{event_type}，再看 \code{payload}。
+
+\section{订单因果链}
+
+一笔严格 replay 的链条大致是：
+
+\begin{lstlisting}
+market event
+-> strategy_feature_checkpoint
+-> order_intent
+-> order_scheduled
+-> order_arrived
+-> order_ack or order_reject
+-> fill_created
+-> portfolio_state_on_change
+\end{lstlisting}
+
+Monitor 的订单链表就是把这些事件按 \code{intent_id} 或相关 id 聚合起来。它不创造事实，只把事实排成可读链。
+
+\section{一个因果链要检查什么}
+
+\begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
+\toprule
+检查项 & 问题 \\
+\midrule
+\code{observed_seq} & Bot 是看到哪一个市场事件后下单的？ \\
+\code{arrival_seq} & 订单到达时 Runner 选的是哪个 quote/book？ \\
+\code{side} & buy 还是 sell，是否和 TFI 方向一致？ \\
+\code{fill_price} & buy 是否打 arrival ask，sell 是否打 arrival bid？ \\
+\code{arrival_quote_lag} & 到达 quote 是否滞后？ \\
+\code{latency_slippage_bps} & observed 到 arrival 之间损失多少？ \\
+\code{portfolio_state} & 成交后 position/equity 是否更新？ \\
+\bottomrule
+\end{longtable}
+
+\section{event log 和 entries.parquet 的关系}
+
+\code{entries.parquet} 是 fast/research 表格输出。event log 是 strict replay 的因果审计输出。
+
+它们回答的问题不同：
+
+\begin{itemize}[leftmargin=2em]
+  \item entries/exits：这个策略在 fast 近似下表现如何？
+  \item events.ndjson：这个订单在本地交易所里到底发生了什么？
+\end{itemize}
+
+不要用 event log 重新发明策略，也不要让 Monitor 从日志里创造没有发生过的订单。
+
+\section{手动检查点}
+
+看到一笔 \code{fill_created}，往前找：
+
+\begin{lstlisting}
+same intent/order id
+-> order_ack
+-> order_arrived
+-> order_scheduled
+-> order_intent
+-> strategy_feature_checkpoint
+\end{lstlisting}
+
+如果往前找不到完整链，先做 audit，不要先讨论策略收益。
+

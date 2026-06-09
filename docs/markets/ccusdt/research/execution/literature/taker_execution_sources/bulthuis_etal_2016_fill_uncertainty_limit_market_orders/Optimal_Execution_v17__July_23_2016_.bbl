@@ -1,0 +1,73 @@
+\begin{thebibliography}{}
+
+\bibitem[\protect\astroncite{Almgren and Chriss}{2000}]{AC2000}
+Almgren, R. and Chriss, N. (2000).
+\newblock Optimal execution of portfolio transactions.
+\newblock {\em Journal of Risk}, 3:5--39.
+
+\bibitem[\protect\astroncite{Avellaneda and
+  Stoikov}{2008}]{AvellandaStoikov2008}
+Avellaneda, M. and Stoikov, S. (2008).
+\newblock High-frequency trading in a limit order book.
+\newblock {\em Quantitative Finance}, 8(3):217--224.
+
+\bibitem[\protect\astroncite{Cartea and Jaimungal}{2015}]{SeblimitmarketQF2015}
+Cartea, A. and Jaimungal, S. (2015).
+\newblock Optimal execution with limit and market orders.
+\newblock {\em Quantitative Finance}, 13(8):1279--1291.
+
+\bibitem[\protect\astroncite{Cartea and Jaimungal}{2016}]{sebVWAP}
+Cartea, A. and Jaimungal, S. (2016).
+\newblock A closed-form execution strategy to target volume weighted average
+  price.
+\newblock {\em SIAM Journal of Financial Mathematics}, 7:760–785.
+
+\bibitem[\protect\astroncite{Cartea et~al.}{2015}]{sebBook}
+Cartea, A., Jaimungal, S., and Penalva, J. (2015).
+\newblock {\em Algorithmic and High-Frequency Trading}.
+\newblock Cambridge University Press, 1st edition.
+
+\bibitem[\protect\astroncite{Cheng et~al.}{2017}]{TaiHoACF}
+Cheng, X., {Di Giacinto}, M., and Wang, T. (2017).
+\newblock Optimal execution with uncertain order fills in {A}lmgren-{C}hriss
+  framework.
+\newblock {\em Quantitative Finance}, 17(1):55--69.
+
+\bibitem[\protect\astroncite{Guilbaud and Pham}{2013}]{GuilbaudPham2013}
+Guilbaud, F. and Pham, H. (2013).
+\newblock Optimal high-frequency trading with limit and market orders.
+\newblock {\em Quantitative Finance}, 15(1):79--94.
+
+\bibitem[\protect\astroncite{Kratz and Schoeneborn}{2015}]{kratzSchoneborn}
+Kratz, P. and Schoeneborn, G. (2015).
+\newblock Portfolio liquidation in dark pools in continuous time.
+\newblock {\em Mathematical Finance}, 25(3):496--544.
+
+\bibitem[\protect\astroncite{Kukanov}{2013}]{arseniythesis}
+Kukanov, A. (2013).
+\newblock {\em Stochastic Models of Limit Order Markets}.
+\newblock PhD thesis, Columbia University.
+
+\bibitem[\protect\astroncite{Lee}{2008}]{lee2008}
+Lee, K. (2008).
+\newblock Risk minimization under budget constraints.
+\newblock {\em The Journal of Risk Finance}, 9(1):71--80.
+
+\bibitem[\protect\astroncite{Lehalle and Laruelle}{2013}]{lehalleBook}
+Lehalle, C. and Laruelle, S. (2013).
+\newblock {\em Market Microstructure in Practice}.
+\newblock World Scientific Publishing Company, 1st edition.
+
+\bibitem[\protect\astroncite{Leung and Liu}{2012}]{LeungLiu2012}
+Leung, T. and Liu, P. (2012).
+\newblock Risk premia and optimal liquidation of credit derivatives.
+\newblock {\em International Journal of Theoretical \& Applied Finance},
+  15(8):1250059.
+
+\bibitem[\protect\astroncite{Leung and Shirai}{2015}]{LeungShirai2015}
+Leung, T. and Shirai, Y. (2015).
+\newblock Optimal derivative liquidation timing under path-dependent risk
+  penalties.
+\newblock {\em Journal of Financial Engineering}, 2(1):1550004.
+
+\end{thebibliography}

@@ -1,0 +1,234 @@
+\begin{thebibliography}{42}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\expandafter\ifx\csname url\endcsname\relax
+  \def\url#1{{\tt #1}}\fi
+\expandafter\ifx\csname urlprefix\endcsname\relax\def\urlprefix{URL }\fi
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \expandafter\ifx\csname doi\endcsname\relax
+  \def\doi#1{doi:\discretionary{}{}{}#1}\fi \else
+  \expandafter\ifx\csname doi\endcsname\relax
+  \def\doi{doi:\discretionary{}{}{}\begingroup \urlstyle{rm}\Url}\fi \fi
+
+\bibitem[{Alfonsi et~al.(2010)Alfonsi, Fruth, and Schied}]{Alfonsi2010}
+Alfonsi, Aur\'{e}lien, Antje Fruth, Alexander Schied. 2010.
+\newblock {Optimal execution strategies in limit order books with general shape
+  functions}.
+\newblock {\it Quantitative Finance\/} {\bf 10}(2) 143--157.
+
+\bibitem[{Almgren and Chriss(2000)}]{almgren00}
+Almgren, R, N~Chriss. 2000.
+\newblock {Optimal execution of portfolio transactions}.
+\newblock {\it Journal of Risk\/} {\bf 3} 5--39.
+
+\bibitem[{Almgren and Harts(2008)}]{almgrenharts}
+Almgren, R, W.~Harts. 2008.
+\newblock {A Dynamic Algorithm for Smart Order Routing}.
+\newblock Tech. rep., StreamBase.
+
+\bibitem[{Almgren et~al.(2005)Almgren, Thum, Hauptmann, and Li}]{almgren05}
+Almgren, R, C~Thum, E~Hauptmann, H~Li. 2005.
+\newblock {Direct Estimation of Equity Market Impact}.
+\newblock {\it Risk\/} {\bf 18} 57.
+
+\bibitem[{Baron et~al.(2014)Baron, Brogaard, and Kirilenko}]{Baron2012}
+Baron, Matthew, Jonathan Brogaard, Andrei Kirilenko. 2014.
+\newblock Risk and returns in high frequency trading.
+\newblock Tech. rep.
+
+\bibitem[{Battalio et~al.(2013)Battalio, Corwin, and Jennings}]{Battalio2013}
+Battalio, Robert, Shane Corwin, Robert Jennings. 2013.
+\newblock {Can Brokers Have it all? On the Relation between Make Take Fees \&
+  Limit Order Execution Quality}.
+\newblock Working paper.
+
+\bibitem[{Bayraktar and Ludkovski(2011)}]{Bayraktar2011}
+Bayraktar, Erhan, Michael Ludkovski. 2011.
+\newblock {Optimal Trade Execution in Illiquid Markets}.
+\newblock {\it Mathematical Finance\/} {\bf 21}(4) 681--701.
+
+\bibitem[{Bertsimas and Lo(1998)}]{bertsimas98}
+Bertsimas, D, Andrew~W Lo. 1998.
+\newblock {Optimal control of execution costs}.
+\newblock {\it Journal of Financial Markets\/} {\bf 1}(1) 1--50.
+
+\bibitem[{Boehmer and Jennings(2007)}]{Boehmer2006}
+Boehmer, Ekkehart, Robert Jennings. 2007.
+\newblock {Public disclosure and private decisions: Equity market execution
+  quality and order routing}.
+\newblock {\it Review of Financial Studies\/} {\bf 20}(2) 315--358.
+
+\bibitem[{Brogaard et~al.(2014)Brogaard, Garriott, and
+  Pomeranets}]{Brogaard2014}
+Brogaard, Jonathan, Corey Garriott, Anna Pomeranets. 2014.
+\newblock {High-Frequency Trading Competition}.
+
+\bibitem[{Cao et~al.(2008)Cao, Hansch, and Wang}]{Cao2008}
+Cao, Charles, Oliver Hansch, Xiaoxin Wang. 2008.
+\newblock {Order placement strategies in a pure limit order book market}.
+\newblock {\it Journal of Financial Research\/} {\bf 31}(2) 113--140.
+
+\bibitem[{Cont(2011)}]{Cont2011}
+Cont, Rama. 2011.
+\newblock Statistical modeling of high-frequency financial data.
+\newblock {\it IEEE Signal Processing\/} {\bf 28}(5) 16--25.
+
+\bibitem[{Cont and De~Larrard(2013)}]{Cont2011b}
+Cont, Rama, Adrien De~Larrard. 2013.
+\newblock Price dynamics in a {Markovian} limit order market.
+\newblock {\it SIAM Journal on Financial Mathematics\/} {\bf 4}(1) 1--25.
+
+\bibitem[{Cont et~al.(2014)Cont, Kukanov, and Stoikov}]{ContKukanov2013}
+Cont, Rama, Arseniy Kukanov, Sasha Stoikov. 2014.
+\newblock {Price impact of order book events}.
+\newblock {\it Journal of Financial Econometrics\/} {\bf 12}(1) 47--88.
+
+\bibitem[{Eisler et~al.(2012)Eisler, Bouchaud, and Kockelkoren}]{eisler10}
+Eisler, Zoltan, Jean-Philippe Bouchaud, Julien Kockelkoren. 2012.
+\newblock The price impact of order book events: market orders, limit orders
+  and cancellations.
+\newblock {\it Quantitative Finance\/} {\bf 12}(9) 1395--1419.
+
+\bibitem[{Foucault and Menkveld(2008)}]{Foucault2008}
+Foucault, T, A.J. Menkveld. 2008.
+\newblock {Competition for Order Flow and Smart Order Routing Systems}.
+\newblock {\it Journal of Finance\/} {\bf 63}(1) 112.
+
+\bibitem[{Foucault(1999)}]{Foucault1999}
+Foucault, Thierry. 1999.
+\newblock {Order flow composition and trading costs in a dynamic limit order
+  market}.
+\newblock {\it Journal of Financial Markets\/} {\bf 2}(2) 99--134.
+
+\bibitem[{Foucault et~al.(2005)Foucault, Kadan, and Kandel}]{foucault05}
+Foucault, Thierry, O~Kadan, Eugene Kandel. 2005.
+\newblock {Limit Order Book as a Market for Liquidity}.
+\newblock {\it Review of Financial Studies\/} {\bf 18}(4) 1171--1217.
+
+\bibitem[{Ganchev et~al.(2010)Ganchev, Nevmyvaka, and Kearns}]{Ganchev2010}
+Ganchev, Kuzman, Yuriy Nevmyvaka, Michael Kearns. 2010.
+\newblock {Censored exploration and the dark pool problem}.
+\newblock {\it Communications of the ACM\/} {\bf 53}(5) 99.
+
+\bibitem[{Glosten and Milgrom(1985)}]{glosten85}
+Glosten, L, P~Milgrom. 1985.
+\newblock {Bid, ask and transaction prices in a specialist market with
+  heterogeneously informed traders}.
+\newblock {\it Journal of Financial Economics\/} {\bf 14} 71--100.
+
+\bibitem[{Gueant and Lehalle(2014)}]{Gueant2012}
+Gueant, Olivier, C.A. Lehalle. 2014.
+\newblock {General Intensity Shapes in Optimal Liquidation}.
+\newblock {\it Mathematical Finance\/} {\bf to appear}.
+
+\bibitem[{Guilbaud and Pham(2014)}]{Guilbaud2012}
+Guilbaud, Fabien, Huyen Pham. 2014.
+\newblock {Optimal high frequency trading in a pro-rata microstructure with
+  predictive information}.
+\newblock {\it Mathematical Finance\/} {\bf to appear}.
+
+\bibitem[{Guo et~al.(2013)Guo, Larrard, and Ruan}]{Guo2013}
+Guo, Xin, Adrien~De Larrard, Z~Ruan. 2013.
+\newblock {Optimal Placement in a Limit Order Book}.
+
+\bibitem[{Harris and Hasbrouck(1996)}]{Harris1996}
+Harris, Lawrence, Joel Hasbrouck. 1996.
+\newblock {Market vs. limit orders: the SuperDOT evidence on order submission
+  strategy}.
+\newblock {\it Journal of Financial and Quantitative Analysis\/} {\bf 31}(2)
+  213--231.
+
+\bibitem[{Huberman and Stanzl(2005)}]{huberman2005}
+Huberman, Gur, Werner Stanzl. 2005.
+\newblock Optimal liquidity trading.
+\newblock {\it Review of Finance\/} {\bf 9}(2) 165--200.
+
+\bibitem[{Huitema(2012)}]{Huitema2012}
+Huitema, Robert. 2012.
+\newblock {Optimal Portfolio Execution using Market and Limit Orders}.
+
+\bibitem[{Kushner and Yin(2003)}]{Kushner2003}
+Kushner, Harold, George Yin. 2003.
+\newblock {\it {Stochastic Approximation and Recursive Algorithms and
+  Applications}\/}.
+\newblock Springer, New York.
+
+\bibitem[{Kyle(1985)}]{Kyle1985}
+Kyle, A.S. 1985.
+\newblock Continuous auctions and insider trading.
+\newblock {\it Econometrica\/}  1315--1335.
+
+\bibitem[{Laruelle et~al.(2011)Laruelle, Lehalle, and Pages}]{Laruelle2009}
+Laruelle, Sophie, Charles-Albert Lehalle, Gilles Pages. 2011.
+\newblock Optimal split of orders across liquidity pools: a stochastic
+  algorithm approach.
+\newblock {\it SIAM Journal on Financial Mathematics\/} {\bf 2}(1) 1042--1076.
+
+\bibitem[{Li(2013)}]{Li2013}
+Li, Tianhui~Michael. 2013.
+\newblock {Optimal Limit-versus-Market Order Slicing under a VWAP Bechmark -
+  Continuous Case}.
+
+\bibitem[{Lynch and Flitter(2014)}]{Reuters2014}
+Lynch, Sarah, Emily Flitter. 2014.
+\newblock {SEC probing brokerages over handling of retail orders}.
+\newblock {\it Reuters\/} .
+
+\bibitem[{Mastromatteo et~al.(2013)Mastromatteo, Toth, and
+  Bouchaud}]{Mastromatteo2013}
+Mastromatteo, I, B.~Toth, Jean-Philippe Bouchaud. 2013.
+\newblock {Agent-based models for latent liquidity and concave price impact}.
+
+\bibitem[{Menkveld(2013)}]{Menkveld2011}
+Menkveld, A.J. 2013.
+\newblock {High frequency trading and the new-market makers}.
+\newblock {\it Journal of Financial Markets\/} {\bf 16}(4) 712--740.
+
+\bibitem[{Moallemi et~al.(2012)Moallemi, Maglaras, and Zheng}]{Moallemi2011}
+Moallemi, C.C., Constantinos Maglaras, Hua Zheng. 2012.
+\newblock {Optimal Order Routing in a Fragmented Market}.
+\newblock Working Paper DRO-2012-02, Columbia University.
+
+\bibitem[{Nemirovski et~al.(2009)Nemirovski, Juditsky, Lan, and
+  Shapiro}]{Nemirovski2009}
+Nemirovski, A, A~Juditsky, G~Lan, A~Shapiro. 2009.
+\newblock {Robust stochastic approximation approach to stochastic programming}.
+\newblock {\it SIAM Journal on Optimization\/} {\bf 19}(4) 1574--1609.
+
+\bibitem[{Obizhaeva and Wang(2012)}]{obizhaeva05}
+Obizhaeva, Anna~A, Jiang Wang. 2012.
+\newblock Optimal trading strategy and supply/demand dynamics.
+\newblock {\it Journal of Financial Markets\/} {\bf 16}(1) 1--32.
+
+\bibitem[{Parlour(1998)}]{parlour98}
+Parlour, Christine. 1998.
+\newblock {Price dynamics in limit order markets}.
+\newblock {\it Review of Financial Studies\/} {\bf 11}(4) 789--816.
+
+\bibitem[{Phillips(2014)}]{Bloomberg2014}
+Phillips, Matthew. 2014.
+\newblock {What's E*Trade Doing With Its Customers' Orders Anyway?}
+\newblock {\it Bloomberg Businessweek\/} .
+
+\bibitem[{Predoiu et~al.(2011)Predoiu, Shaikhet, and Shreve}]{Predoiu2011}
+Predoiu, Silviu, Gennady Shaikhet, Steven Shreve. 2011.
+\newblock {Optimal Execution in a General One-Sided Limit-Order Book}.
+\newblock {\it SIAM Journal on Financial Mathematics\/} {\bf 2}(1) 183--212.
+
+\bibitem[{Rosu(2009)}]{rosu09}
+Rosu, Ioanid. 2009.
+\newblock {A Dynamic Model of the Limit Order Book}.
+\newblock {\it Review of Financial Studies\/} {\bf 22}(11) 4601.
+
+\bibitem[{{U.S. Senate}(2014)}]{USSenate2014}
+{U.S. Senate}. 2014.
+\newblock {Conflicts of Interest in the U.S. Equity Markets: Testimony of
+  Robert Battalio}.
+\newblock {\it {Permanent Subcommittee on Investigations of the Committee on
+  Homeland Security and Governmental Affairs}\/} .
+
+\bibitem[{Williamson and Shmoys(2011)}]{williamson2011}
+Williamson, David~P, David~B Shmoys. 2011.
+\newblock {\it The design of approximation algorithms\/}.
+\newblock Cambridge University Press.
+
+\end{thebibliography}

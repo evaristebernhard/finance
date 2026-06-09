@@ -1,0 +1,59 @@
+\chapter{最小命令索引}
+
+\section{编译本书}
+
+\begin{lstlisting}
+xelatex -interaction=nonstopmode -output-directory docs/books/ccusdt-engineering-textbook/out docs/books/ccusdt-engineering-textbook/book.tex
+xelatex -interaction=nonstopmode -output-directory docs/books/ccusdt-engineering-textbook/out docs/books/ccusdt-engineering-textbook/book.tex
+Copy-Item -Force docs/books/ccusdt-engineering-textbook/out/book.pdf docs/books/ccusdt-engineering-textbook/out/ccusdt-engineering-textbook-v0.2.pdf
+\end{lstlisting}
+
+\section{检查 decision frame cache}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py validate ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18
+\end{lstlisting}
+
+验证：数据是否已经能进入 runtime-safe decision frame hot path。
+
+\section{运行 fast backtest}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18 ^
+  --exit-profile fixed60_taker ^
+  --capacity-profile core_idle01 ^
+  --admission-profile entry_spread_q70_v1 ^
+  --leverage-cap 3
+\end{lstlisting}
+
+验证：状态机是否能从 decision frame 生成 entries/exits/daily/summary。
+
+\section{运行 sparse strict replay}
+
+\begin{lstlisting}
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml ^
+  -p ccusdt_replay_cli -- run sparse-python ^
+  --canonical-date 2026-05-18 ^
+  --max-events 500 ^
+  --latency-us 50000
+\end{lstlisting}
+
+验证：Runner 能否把 Bot intent 变成 arrival、fill、portfolio 和 event log。
+
+\section{审计 event log}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/audit_event_log.py ^
+  --run-dir systems/ccusdt_replay_exchange/runs/<run_id>
+\end{lstlisting}
+
+验证：订单因果链是否完整。
+

@@ -1,0 +1,153 @@
+\chapter{已有数据到底是什么：quote、trade、L2、cache、run artifact}
+
+\section{本章要解决的困惑}
+
+新人最容易把“市场数据”和“回测结果”混在一起。当前系统里至少有五种东西都像数据：
+
+\begin{lstlisting}
+raw venue files
+canonical CSV.GZ
+canonical Parquet decision_frame cache
+run artifacts
+research reports / labels
+\end{lstlisting}
+
+它们不是同一类东西。策略 runtime 只能看市场已经给出的事实，不能看事后标签。
+
+\section{市场事实的三条主线}
+
+当前 replay exchange 文档把市场事实分成三类：
+
+\begin{longtable}{p{0.24\textwidth}p{0.30\textwidth}p{0.36\textwidth}}
+\toprule
+数据集 & 核心字段 & 第一性原理含义 \\
+\midrule
+\code{quote_frame_v1} & \code{bid_px, ask_px, mid_px, spread_bps} & 当时最好买卖价是什么 \\
+\code{trade_event_v1} & \code{side, price, qty, notional_quote} & 刚才谁主动成交了多少 \\
+\code{l2_level_update_v1} & \code{side, price, qty, is_snapshot} & 订单簿某个价位挂单量如何变化 \\
+\bottomrule
+\end{longtable}
+
+如果只讲当前 fast 状态机，最重要的是 \code{decision_frame_v1}。它不是新的市场真相，而是从 trade 和 L2 事件重建出来的一行策略可读状态。
+
+\section{quote：最简单的订单簿切片}
+
+假设某一刻顶层盘口是：
+
+\begin{longtable}{p{0.22\textwidth}p{0.18\textwidth}p{0.18\textwidth}p{0.28\textwidth}}
+\toprule
+side & price & qty & 含义 \\
+\midrule
+best bid & 0.1120 & 12000 & 你如果立刻卖，理论上打到这里 \\
+best ask & 0.1124 & 9000 & 你如果立刻买，理论上打到这里 \\
+\bottomrule
+\end{longtable}
+
+中间价和价差是：
+
+\[
+m_t = \frac{bid_t + ask_t}{2}
+    = \frac{0.1120 + 0.1124}{2}
+    = 0.1122.
+\]
+
+\[
+spread\_bps_t
+= \frac{ask_t - bid_t}{m_t} \times 10000
+\approx 35.65.
+\]
+
+如果现在做多，用 taker market buy 入场，实际入场近似打到 \code{ask}；
+如果现在做空，用 taker market sell 入场，实际入场近似打到 \code{bid}。
+所以零手续费不等于零执行成本。spread 本身就是你 cross 的成本。
+
+\section{trade：TFI 的原料}
+
+\code{trade_event_v1} 只关心已经成交的主动流。简化例子：
+
+\begin{longtable}{p{0.20\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.28\textwidth}}
+\toprule
+time & side & qty & 解释 \\
+\midrule
+0.1s & buy & 300 & 买方主动吃 ask \\
+0.7s & buy & 200 & 买方主动吃 ask \\
+1.4s & sell & 100 & 卖方主动吃 bid \\
+\bottomrule
+\end{longtable}
+
+当前窗口内：
+
+\[
+\text{signed qty} = 300 + 200 - 100 = 400,
+\quad
+\text{abs qty} = 300 + 200 + 100 = 600.
+\]
+
+主动成交流不平衡是：
+
+\[
+TFI_t = \frac{\text{signed qty}}{\text{abs qty}}
+      = \frac{400}{600}
+      = 0.667.
+\]
+
+这个例子不会触发当前旧策略的主 entry，因为它没有达到 \code{abs(TFI) >= 1}。
+这也暴露出当前 entry 很硬：只有窗口内方向完全单边或近似单边时，才进入后续判断。
+
+\section{L2：当前策略并没有深度使用}
+
+L2 更新给的是订单簿价位和数量的变化。例如：
+
+\begin{lstlisting}
+side=buy, price=0.1120, qty=15000
+side=sell, price=0.1124, qty=7000
+\end{lstlisting}
+
+这能用来研究 OFI、MLOFI、depth giveway、capacity、滑点等问题。但必须诚实说：
+
+\warningline{当前 CC runtime entry trigger 不是 OFI/MLOFI，也不是动态 L2 path prediction。}
+
+L2 在当前主线里的最直接作用，是帮助构建 \code{decision_frame_v1} 的 top-of-book 和 clock 等字段；更复杂的 L2 因子主要还在研究层。
+
+\section{decision frame cache：市场事实的热路径}
+
+\code{decision_frame_cache.py} 把慢的 canonical trade/L2 stream 变成 Parquet：
+
+\begin{lstlisting}
+data/canonical_parquet/cex/bullish/CCUSDT/decision_frame_v1/dt=YYYY-MM-DD/part_000001.parquet
+\end{lstlisting}
+
+它的注释很重要：
+
+\begin{quote}
+This cache is market-derived. It must not read legacy fixed panels, scored entries, labels, PnL, MFE, or MAE.
+\end{quote}
+
+翻译成人话就是：cache 可以压缩市场事实，但不能把答案塞进去。
+
+\section{run artifact：回测跑完以后才出现}
+
+fast backtest 结束后会写：
+
+\begin{lstlisting}
+summary.json
+daily.csv
+entries.parquet
+exits.parquet
+profile_manifest.json
+\end{lstlisting}
+
+这些不是策略 entry 的输入，而是输出。你可以用它们检查结果，但不能让 Bot 在 entry 时读取它们。
+
+\section{手动检查点}
+
+读一个回测目录时，先问三件事：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \code{summary.json} 说这次用了什么 profile？
+  \item \code{entries.parquet} 里 \code{actual_exposure > 0} 的有多少？
+  \item \code{exits.parquet} 的 \code{exit_profile} 是 \code{fixed60_mid} 还是 \code{fixed60_taker}？
+\end{enumerate}
+
+如果这三件事没看清，不要讨论收益好坏。收益数字离开 profile 和 execution approximation 没有意义。
+

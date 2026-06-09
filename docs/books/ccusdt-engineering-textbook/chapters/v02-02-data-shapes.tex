@@ -1,0 +1,248 @@
+\chapter{我们得到的数据到底长什么样}
+
+\section{本章要解决的困惑}
+
+第一章用 L2 和成交把策略讲完了。现在进入工程问题：这些 L2 订单簿和成交数据在仓库里到底是什么形态？
+
+当前系统主要有三类市场事实：
+
+\begin{lstlisting}
+quote_frame_v1
+trade_event_v1
+l2_level_update_v1
+\end{lstlisting}
+
+它们不是回测结果，也不是 label。它们是策略运行前就可以看到的市场事实。
+
+\section{quote\_frame\_v1}
+
+\code{quote_frame_v1} 是 top-of-book 快照。核心字段：
+
+\begin{lstlisting}
+seq, exchange_ts_us, local_ts_us,
+bid_px, bid_qty, ask_px, ask_qty,
+mid_px, spread_bps
+\end{lstlisting}
+
+用第一章的 L2 表表示，它只保留最上面一层：
+
+\begin{longtable}{p{0.24\textwidth}p{0.24\textwidth}p{0.42\textwidth}}
+\toprule
+字段 & 例子 & 意义 \\
+\midrule
+\code{bid_px} & 0.1120 & 当前最好买价 \\
+\code{bid_qty} & 12000 & 最好买价挂单量 \\
+\code{ask_px} & 0.1124 & 当前最好卖价 \\
+\code{ask_qty} & 9000 & 最好卖价挂单量 \\
+\code{mid_px} & 0.1122 & 中间价 \\
+\code{spread_bps} & 35.65 & 顶层价差 \\
+\bottomrule
+\end{longtable}
+
+quote 主要用于：
+
+\begin{itemize}[leftmargin=2em]
+  \item top-of-book taker 入场和退出；
+  \item deterministic timer arrival quote；
+  \item fast backtest 的 executable return。
+\end{itemize}
+
+\section{trade\_event\_v1}
+
+\code{trade_event_v1} 是主动成交流。核心字段：
+
+\begin{lstlisting}
+seq, trade_id, exchange_ts_us, local_ts_us,
+side, price, qty, notional_quote
+\end{lstlisting}
+
+这里的 \code{side} 是主动方向：
+
+\begin{itemize}[leftmargin=2em]
+  \item \code{buy}：buyer-initiated，买方主动吃 ask；
+  \item \code{sell}：seller-initiated，卖方主动打 bid。
+\end{itemize}
+
+TFI 就从这里来：
+
+\[
+TFI=\frac{\sum qty_{buy}-\sum qty_{sell}}{\sum qty_{buy}+\sum qty_{sell}+\epsilon}.
+\]
+
+\section{l2\_level\_update\_v1}
+
+\code{l2_level_update_v1} 是订单簿价位更新：
+
+\begin{lstlisting}
+seq, exchange_ts_us, local_ts_us,
+is_snapshot, side, price, qty
+\end{lstlisting}
+
+它不是一张完整表，而是一串更新。比如：
+
+\begin{lstlisting}
+is_snapshot=true,  side=buy,  price=0.1120, qty=12000
+is_snapshot=true,  side=sell, price=0.1124, qty=9000
+is_snapshot=false, side=sell, price=0.1124, qty=7000
+is_snapshot=false, side=buy,  price=0.1118, qty=0
+\end{lstlisting}
+
+工程上要做的事是：把这些增量更新放进一个内存订单簿里，随时取 best bid 和 best ask。
+
+\section{raw、canonical、cache、run artifact}
+
+仓库里的数据有层次：
+
+\begin{lstlisting}
+raw venue files
+-> canonical CSV.GZ
+-> decision_frame_v1 Parquet
+-> fast run artifacts
+-> strict events.ndjson
+\end{lstlisting}
+
+每一层回答的问题不同：
+
+\begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
+\toprule
+层 & 作用 \\
+\midrule
+raw & 交易所原始下载或采集文件 \\
+canonical & 统一 schema 的市场事实 \\
+decision frame cache & 把 trade/L2 转成策略可逐行读取的状态 \\
+fast artifacts & fast backtest 输出的 entries/exits/daily/summary \\
+strict event log & Runner 本地交易所输出的订单因果链 \\
+\bottomrule
+\end{longtable}
+
+\warningline{run artifacts 是输出，不是 Bot runtime 输入。}
+
+\section{三种市场事实不要混}
+
+新人最常见的错误，是把 quote、trade、L2 当成同一种“行情”。它们其实回答三个不同问题：
+
+\begin{longtable}{p{0.20\textwidth}p{0.28\textwidth}p{0.34\textwidth}}
+\toprule
+数据 & 问题 & 例子 \\
+\midrule
+quote & 现在最优买卖价是多少 & bid 0.1120, ask 0.1124 \\
+trade & 刚才谁主动成交了 & buy 300 at ask \\
+L2 update & 某个挂单价位变成多少量 & ask 0.1124 qty 8500 \\
+\bottomrule
+\end{longtable}
+
+quote 是状态快照，trade 是成交事件，L2 update 是订单簿增量。TFI 只从 trade 来；spread 只从 quote/L2 top 来；frames 和 past event 只从 mid path 来。
+
+\section{canonical quote 的最小例子}
+
+一行 quote 可以理解为：
+
+\begin{lstlisting}
+seq = 100
+local_ts_us = 1716000000000000
+bid_px = 0.1120
+bid_qty = 12000
+ask_px = 0.1124
+ask_qty = 9000
+mid_px = 0.1122
+spread_bps = 35.65
+\end{lstlisting}
+
+这行本身不能告诉你主动买卖方向，因为没有 trade side。它只能告诉你此刻 top-of-book 能以什么价成交。
+
+\section{canonical trade 的最小例子}
+
+一行 trade 可以理解为：
+
+\begin{lstlisting}
+seq = 101
+local_ts_us = 1716000000100000
+side = buy
+price = 0.1124
+qty = 300
+notional_quote = 33.72
+\end{lstlisting}
+
+它的交易含义是：有人主动买入，打到了当时 ask。它不能单独告诉你新 ask 还剩多少，这要看 L2 update 或后续 quote。
+
+\section{canonical L2 update 的最小例子}
+
+一行 L2 update 可以理解为：
+
+\begin{lstlisting}
+seq = 103
+is_snapshot = false
+side = sell
+price = 0.1124
+qty = 8500
+\end{lstlisting}
+
+它的含义不是“发生了一笔 sell trade”，而是 ask 侧 0.1124 这一档当前挂单量变成 8500。侧边 \code{sell} 表示卖盘，不表示 seller-initiated trade。
+
+\warningline{trade 的 \code{side=sell} 和 L2 update 的 \code{side=sell} 不是同一件事。前者是主动卖成交，后者是卖盘挂单档位。}
+
+\section{一段市场如何同时更新三类对象}
+
+继续第一章的例子：
+
+\begin{longtable}{p{0.14\textwidth}p{0.18\textwidth}p{0.56\textwidth}}
+\toprule
+时间 & 数据 & 工程状态变化 \\
+\midrule
+0.0s & L2 snapshot & \code{DecisionL2Book} 建出 bid/ask \\
+0.2s & trade buy 300 & \code{trades} deque 增加一笔 buy \\
+0.3s & L2 ask qty 8700 & ask 档位剩余量更新 \\
+0.9s & trade buy 200 & TFI 分子继续偏正 \\
+1.0s & quote & 可作为 top-of-book 检查点 \\
+1.4s & trade buy 100 & \code{trade_window_count=3} \\
+1.5s & L2 bid qty 12500 & bid 档位更新，可能输出新 frame \\
+\bottomrule
+\end{longtable}
+
+这个片段里，策略 entry 不是在“看到某个单独 L2 update”时神秘触发，而是在 builder 已经维护好 book、trades、mid history 后，拿一行 \code{decision_frame} 给 policy 判断。
+
+\section{cache 和 artifact 的区别}
+
+\code{decision_frame_v1} cache 是“可回测状态”。它应该可以被 fast runner 和 Runner panel mode 重放。它不是策略结果。
+
+\code{entries.parquet}、\code{exits.parquet}、\code{daily.csv}、\code{summary.json} 是“跑完某个策略 profile 的输出”。它们不能再作为 Bot runtime 输入。
+
+\begin{longtable}{p{0.24\textwidth}p{0.26\textwidth}p{0.40\textwidth}}
+\toprule
+对象 & 能否作为 runtime 输入 & 原因 \\
+\midrule
+\code{quote_frame_v1} & 可以，经 Runner stream & 市场事实 \\
+\code{trade_event_v1} & 可以，经 Runner stream & 市场事实 \\
+\code{l2_level_update_v1} & 可以，经 Runner stream & 市场事实 \\
+\code{decision_frame_v1} & 可以，经 replay/panel stream & 由过去市场事实合成 \\
+\code{entries.parquet} & 不可以 & 策略运行结果 \\
+\code{exits.parquet} & 不可以 & 包含未来 exit 结果 \\
+\code{MFE/MAE labels} & 不可以 & 未来路径标签 \\
+\bottomrule
+\end{longtable}
+
+\section{为什么不能直接读旧 research panel}
+
+旧研究输出里可能已经包含 scored entries、future returns、MFE、MAE、PnL 等字段。它们适合做研究解释，但不能进入 runtime。
+
+\code{decision_frame_cache.py} 的注释说得很直白：
+
+\begin{lstlisting}
+It must not read legacy fixed panels, scored entries,
+labels, PnL, MFE, or MAE.
+\end{lstlisting}
+
+这就是工程边界。
+
+\section{手动检查点}
+
+看到一个字段时，先问：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 它是 quote、trade、L2，还是 run output？
+  \item entry 当时能不能知道？
+  \item 它是市场事实，还是策略跑完后的结果？
+  \item 如果 Bot 读了它，会不会偷看未来？
+\end{enumerate}
+
+\checkpoint{本章之后，读者应该知道：策略不是直接读 L2 全书，而是先把 quote/trade/L2 转成一行行 decision frame。}

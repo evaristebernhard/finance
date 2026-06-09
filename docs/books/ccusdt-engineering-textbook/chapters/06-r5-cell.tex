@@ -1,0 +1,172 @@
+\chapter{R5：闭合历史记忆如何进入四象限}
+
+\section{本章要解决的困惑}
+
+很多文档把 R5 写得很神秘，好像它是订单簿里某种复杂微观结构。当前 runtime 里不是这样。
+当前 R5 是一个\term{已闭合交易结果的短记忆}。它只看最近已经结束的 shadow entries，不看当前未来。
+
+\warningline{R5 不是 entry 后未来 label，也不是当前 L2 depth 因子。它来自已经闭合的历史 outcome。}
+
+\section{ClosedOutcomeState 的定义}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/online_features.py
+ClosedOutcomeState
+\end{lstlisting}
+
+窗口长度是 5。设最近已经闭合的 5 笔收益为：
+
+\[
+g_1,g_2,g_3,g_4,g_5.
+\]
+
+代码计算：
+
+\[
+P_5=\sum_{i=1}^{5} \max(g_i,0),
+\quad
+N_5=\sum_{i=1}^{5} \max(-g_i,0).
+\]
+
+R5 是：
+
+\[
+R5=\frac{P_5}{N_5+\epsilon}.
+\]
+
+这里 \(g_i\) 是已经闭合的 PnL bps。不是未来，也不是当前 entry 的收益。
+
+\section{手算例子}
+
+假设最近 5 笔已经闭合结果是：
+
+\begin{longtable}{p{0.18\textwidth}p{0.24\textwidth}p{0.46\textwidth}}
+\toprule
+index & pnl bps & 归类 \\
+\midrule
+1 & +3.0 & positive \\
+2 & -1.0 & negative \\
+3 & +2.0 & positive \\
+4 & +1.5 & positive \\
+5 & -0.5 & negative \\
+\bottomrule
+\end{longtable}
+
+那么：
+
+\[
+P_5=3.0+2.0+1.5=6.5,
+\quad
+N_5=1.0+0.5=1.5.
+\]
+
+\[
+R5=\frac{6.5}{1.5}=4.33.
+\]
+
+所以：
+
+\[
+A_t = 1\{R5_t \ge 1\}=1.
+\]
+
+如果最近 5 笔是：
+
+\[
+[-2.0,-1.5,+0.5,-1.0,+0.2],
+\]
+
+则：
+
+\[
+P_5=0.7,\quad N_5=4.5,\quad R5=0.156.
+\]
+
+此时 \(A_t=0\)。
+
+\section{四象限的两个轴}
+
+当前 cell 只看两个布尔量：
+
+\[
+A_t = 1\{R5_t \ge 1\},
+\quad
+B_t = 1\{frames\_since\_mid\_change_t \ge 31\}.
+\]
+
+于是：
+
+\begin{longtable}{p{0.18\textwidth}p{0.18\textwidth}p{0.25\textwidth}p{0.29\textwidth}}
+\toprule
+\(A_t\) & \(B_t\) & cell & 人话 \\
+\midrule
+0 & 0 & \code{00_none} & R5 不好，mid 不 stale \\
+1 & 0 & \code{10_r5_only} & R5 好，但 mid 不 stale \\
+0 & 1 & \code{01_frames_only} & R5 不好，但 mid stale \\
+1 & 1 & \code{11_r5_frames} & R5 好，且 mid stale \\
+\bottomrule
+\end{longtable}
+
+这就是“四象限”。它不是四个复杂模型，只是两个 yes/no 切口。
+
+\section{R5 在当前策略中的真实角色}
+
+R5 不决定方向。方向已经由 TFI 决定：
+
+\[
+side_t = \operatorname{sign}(TFI_t).
+\]
+
+R5 也不是 entry 的第一开关。entry 候选已经由 TFI/past event/frames/membership 产生。
+
+R5 的主要作用是：
+
+\begin{lstlisting}
+cell = _cell(a_r5, b_frames)
+gamma = GAMMA_PRESETS[gamma_preset][cell]
+target_exposure = weak_overlay_weight * gamma
+\end{lstlisting}
+
+换句话说，R5 在当前 runtime 里是 sizing/context，不是新的 entry primitive。
+
+\section{Delta、Energy、Z 为什么容易混乱}
+
+\code{ClosedOutcomeState} 里也有：
+
+\begin{lstlisting}
+delta  = positives - negatives
+energy = positives + negatives
+z      = (positive_bps + negative_bps) / sqrt(abs(positive_bps)+abs(negative_bps)+eps)
+\end{lstlisting}
+
+这些在研究上有意义，因为 R5 这个比例会丢掉强度信息。但必须诚实：
+
+\warningline{\code{Delta_bps / Energy_bps} 目前没有进入 CC runtime 控制。}
+
+当前 runtime cell 只看 \(R5 \ge 1\) 和 frames 阈值。不要读了研究报告就以为 Delta/Energy 已经在 Bot 里控制 sizing。
+
+\section{手动检查点}
+
+拿一组 closed outcomes：
+
+\begin{lstlisting}
+closed_bps = [2.0, -1.0, 0.5, 1.5, -0.2]
+frames_since_mid_change = 34
+\end{lstlisting}
+
+手算：
+
+\[
+P_5=2.0+0.5+1.5=4.0,\quad
+N_5=1.0+0.2=1.2,\quad
+R5=3.33.
+\]
+
+\[
+A=1,\quad B=1,\quad cell=\code{11_r5_frames}.
+\]
+
+这就是四象限计算的全部。
+

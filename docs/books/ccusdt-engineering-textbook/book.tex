@@ -1,0 +1,109 @@
+\documentclass[11pt,a4paper,openany]{ctexbook}
+
+\usepackage[a4paper,left=22mm,right=22mm,top=20mm,bottom=22mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black,
+  citecolor=blue!55!black,
+  pdftitle={CCUSDT 工程回测教材 v0.2},
+  pdfauthor={Jiang / Codex}
+}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.46em}
+\setlength{\headheight}{14pt}
+\linespread{1.24}
+\raggedbottom
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{CCUSDT 工程回测教材}
+\fancyhead[R]{简单状态机，从数据到自己回测}
+\fancyfoot[C]{\thepage}
+
+\definecolor{codebg}{RGB}{247,248,247}
+\definecolor{rulegray}{RGB}{210,215,210}
+\definecolor{deepgreen}{RGB}{18,88,62}
+\definecolor{softblue}{RGB}{36,84,128}
+\definecolor{warnred}{RGB}{130,45,45}
+
+\lstdefinestyle{code}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{rulegray},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=2
+}
+\lstset{style=code}
+
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\urlstyle{tt}
+\newcommand{\file}[1]{\nolinkurl{#1}}
+\newcommand{\term}[1]{\textbf{#1}}
+\newcommand{\truth}[1]{\par\noindent\textcolor{deepgreen}{\textbf{真相：}}#1\par}
+\newcommand{\warningline}[1]{\par\noindent\textcolor{warnred}{\textbf{边界：}}#1\par}
+\newcommand{\checkpoint}[1]{\par\noindent\textcolor{softblue}{\textbf{检查点：}}#1\par}
+\newcommand{\ds}{\displaystyle}
+
+\title{\Huge CCUSDT 工程回测教材\\[6pt]
+\Large L2 第一性原理到完整 fast/Runner 系统}
+\author{面向 Python 会一点、Rust 新人的未来自己与新 Codex}
+\date{v0.2 / 2026-06-03}
+
+\begin{document}
+\frontmatter
+\maketitle
+
+\begin{center}
+\begin{minipage}{0.84\textwidth}
+本书不是 API 调用大全，也不是把简单策略包装成复杂架构的系统白皮书。
+它只解决一个朴素问题：
+\begin{center}
+\term{怎样从 L2 订单簿和成交开始，完整掌握当前这个简单策略系统？}
+\end{center}
+当前策略本身不复杂。第一章先用 L2 订单簿把策略定义全部讲清楚；第二章开始再讲
+数据如何转换成 \code{decision_frame}，以及 Python fast、Python Bot、Rust Runner
+分别怎样执行同一个状态机。
+\end{minipage}
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+\mainmatter
+\setcounter{chapter}{-1}
+
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-00-remove-mystery}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-01-l2-strategy}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-02-data-shapes}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-03-decision-frame-pipeline}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-04-fast-backtest}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-05-artifacts}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-06-python-bot}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-07-rust-runner}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-08-strict-order-life}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-09-fast-vs-runner}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-10-one-day-backtest}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-11-safe-experiment}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-12-not-implemented}
+\appendix
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-appendix-fields}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-appendix-code}
+\input{docs/books/ccusdt-engineering-textbook/chapters/v02-appendix-commands}
+
+\end{document}

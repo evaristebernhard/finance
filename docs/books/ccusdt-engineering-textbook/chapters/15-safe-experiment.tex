@@ -1,0 +1,127 @@
+\chapter{新人如何安全做一次自己的回测实验}
+
+\section{本章要解决的困惑}
+
+读懂以后，下一步通常是“我想自己跑一次”。本章给的是安全实验路线，不是长 runbook。
+
+原则：
+
+\begin{lstlisting}
+先复现已有 profile
+再改一个小参数
+再看 entries/exits/daily
+最后才写研究结论
+\end{lstlisting}
+
+\section{实验前检查}
+
+先确认你不是在修改 runtime 代码。第一轮只允许读数据、跑 diagnostic、看输出。
+
+不要动：
+
+\begin{lstlisting}
+data/
+date/
+runs/   unless you are writing your own new run output
+.env*
+rpc.txt
+\end{lstlisting}
+
+不要把研究 label 接进 Bot 或 Runner。
+
+\section{路线一：看 decision frame 是否存在}
+
+目的不是训练模型，而是确认热路径存在：
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py validate ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18
+\end{lstlisting}
+
+它验证的是：
+
+\begin{quote}
+这一天的 \code{decision_frame_v1} cache schema、manifest、row count 和字段是否可用。
+\end{quote}
+
+\section{路线二：复现一个 fast profile}
+
+跑 fast 时，明确写出：
+
+\begin{lstlisting}
+symbol
+date range
+exit profile
+admission profile
+capacity profile
+leverage cap
+threshold source
+\end{lstlisting}
+
+如果你只改一个参数，比如 \code{leverage-cap} 或 \code{gamma01}，输出目录名也要表达清楚。否则你几天后会不知道这次 run 到底是什么。
+
+\section{路线三：看输出，而不是只看收益}
+
+输出检查顺序：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \code{summary.json}：profile 是否是你以为的；
+  \item \code{daily.csv}：是不是一两天贡献了全部收益；
+  \item \code{entries.parquet}：实际 entry 数和 cell 分布；
+  \item \code{exits.parquet}：mid 和 executable 是否差很多；
+  \item \code{profile_manifest.json}：admission/capacity/exit 是否记录完整。
+\end{enumerate}
+
+\section{路线四：只在必要时 strict}
+
+如果你只是改了一个研究参数，先 fast。只有当你要验证运行路径时，才 strict：
+
+\begin{lstlisting}
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml ^
+  -p ccusdt_replay_cli -- run sparse-python ^
+  --canonical-date 2026-05-18 ^
+  --max-events 500 ^
+  --latency-us 50000
+\end{lstlisting}
+
+这条命令验证的是本地交易所路径，不是大规模收益。
+
+\section{实验记录模板}
+
+每次实验至少写：
+
+\begin{lstlisting}
+Question:
+  我想验证什么？
+
+Runtime inputs:
+  只读了哪些 runtime-safe 数据？
+
+Profile:
+  admission / capacity / exit / leverage / thresholds
+
+Main readout:
+  actual_entries, net_weighted_bps, daily_sign_rate, worst_day
+
+Execution note:
+  mid or top-of-book taker?
+
+Conclusion:
+  这只是研究证据，还是可进入下一轮 strict audit？
+\end{lstlisting}
+
+\section{常见误区}
+
+\begin{itemize}[leftmargin=2em]
+  \item 一次 run 好就说策略有效；
+  \item 把 quote-only 窗口和 trade/L2 完整窗口混比；
+  \item 只看 mid，不看 executable；
+  \item 忘记 q70 是否 prior-day；
+  \item 把研究报告里的 Delta/Energy 当成已上线逻辑。
+\end{itemize}
+
+\checkpoint{安全实验不是不探索，而是每次只改一个边界清楚的东西。}
+

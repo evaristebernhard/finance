@@ -1,0 +1,74 @@
+\chapter{字段词典}
+
+\section{L2 与 quote 字段}
+
+\begin{longtable}{p{0.30\textwidth}p{0.60\textwidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\code{bid_px} / \code{best_bid_price} & 当前最好买价，sell taker 会打这里 \\
+\code{bid_qty} / \code{best_bid_amount} & 当前最好买价挂单量 \\
+\code{ask_px} / \code{best_ask_price} & 当前最好卖价，buy taker 会打这里 \\
+\code{ask_qty} / \code{best_ask_amount} & 当前最好卖价挂单量 \\
+\code{mid_px} / \code{mid_price} & \((bid+ask)/2\) \\
+\code{spread_bps} & \((ask-bid)/mid\times10000\) \\
+\code{side} & trade 或 L2 更新方向，语境不同要区分 \\
+\code{qty} & 成交量或挂单量 \\
+\bottomrule
+\end{longtable}
+
+\section{decision frame 字段}
+
+\begin{longtable}{p{0.32\textwidth}p{0.58\textwidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\code{observed_seq} & 当前观察事件序号 \\
+\code{local_ts_us} & 本地微秒时间戳 \\
+\code{trade_window_count} & rolling trade window 内成交笔数 \\
+\code{trade_buy_amount} & buy 主动成交量 \\
+\code{trade_sell_amount} & sell 主动成交量 \\
+\code{trade_flow_imbalance} & TFI，主动成交流不平衡 \\
+\code{frames_since_mid_change} & mid 连续未变化 frame 数 \\
+\code{past_event_25_bps} & 过去约 25 个 event 的 mid 变化 \\
+\code{fwd_time_60s_bucket} & 60 秒 bucket，不是未来收益 label \\
+\bottomrule
+\end{longtable}
+
+\section{策略状态字段}
+
+\begin{longtable}{p{0.32\textwidth}p{0.58\textwidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\code{trigger_classes} & 本 frame 激活的 trigger 名称列表 \\
+\code{membership_set} & trigger 名称拼接后查 base weight 的 key \\
+\code{base_weight} & membership 对应基础仓位权重 \\
+\code{a_r5_raw} & entry 前已闭合交易记忆 R5 \\
+\code{a_r5_ready} & closed outcomes 是否足够 \\
+\code{b_frames_ge_q90} & frames 是否过策略阈值 \\
+\code{cell} & \code{00_none}、\code{10_r5_only}、\code{01_frames_only}、\code{11_r5_frames} \\
+\code{gamma} & cell 对应仓位倍率 \\
+\code{weak_overlay_weight} & base weight 加 frames overlay 后的权重 \\
+\code{target_exposure} & 策略目标 exposure \\
+\bottomrule
+\end{longtable}
+
+\section{执行与输出字段}
+
+\begin{longtable}{p{0.32\textwidth}p{0.58\textwidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\code{entry_bid/entry_ask} & 入场时 top-of-book \\
+\code{exit_bid/exit_ask} & 退出时 top-of-book \\
+\code{entry_cross_bps} & 入场半边 spread 成本近似 \\
+\code{admission_accepted} & spread gate 是否接受 \\
+\code{requested_exposure} & target exposure \\
+\code{actual_exposure} & 3x ledger 后真实 exposure \\
+\code{clipped_exposure} & 被剪掉的 exposure \\
+\code{open_exposure_before/after} & 入场前后账本 open exposure \\
+\code{exit_profile} & \code{fixed60_mid}、\code{fixed60_taker} 等 \\
+\code{net_bps} & 当前 profile 下净收益 \\
+\bottomrule
+\end{longtable}

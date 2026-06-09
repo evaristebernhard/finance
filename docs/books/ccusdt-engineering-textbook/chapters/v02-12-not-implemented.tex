@@ -1,0 +1,65 @@
+\chapter{当前没实现什么，以及为什么别误读研究报告}
+
+\section{本章要解决的困惑}
+
+历史报告里有很多内容：Delta、Energy、OFI、MLOFI、动态 L2 path、深度学习、maker、容量曲线、Pareto。它们不等于当前 runtime。
+
+\section{当前 runtime 已经使用}
+
+\begin{lstlisting}
+TFI
+trade_window_count
+past_event_25_bps
+frames_since_mid_change
+spread / entry_cross_bps / prior-day q70
+R5
+cell = 00 / 10 / 01 / 11
+membership_set / base_weight
+gamma / overlay
+3x capacity ledger
+fixed60 / simple exit
+\end{lstlisting}
+
+\section{当前 runtime 没有使用}
+
+\begin{lstlisting}
+Delta_bps / Energy_bps control
+OFI / MLOFI entry trigger
+dynamic L2 path prediction
+deep learning
+maker strategy
+L2 capacity curve
+path distribution model
+\end{lstlisting}
+
+\warningline{\code{Delta_bps} / \code{Energy_bps} 没进入 CC runtime 控制。\code{OFI} / \code{MLOFI} 不是当前 entry trigger。}
+
+\section{为什么这不是否定研究}
+
+研究报告有价值，因为它们能提出下一步问题。但工程教材必须区分：
+
+\begin{itemize}[leftmargin=2em]
+  \item 已经在 Bot/fast runtime 中执行的规则；
+  \item 只在 diagnostic 中出现的 label；
+  \item 还没进策略的候选因子；
+  \item 未来可能做的工程扩展。
+\end{itemize}
+
+否则新人会以为系统已经很复杂，结果连当前状态机都看不懂。
+
+\section{当前最大缺口}
+
+当前最大缺口不是再把文档写得更玄，而是建立更严肃的预测对象：
+
+\begin{lstlisting}
+entry state X_t
+-> maximum favorable move
+-> time to maximum
+-> time back to 0bps
+-> executable return at multiple horizons
+-> path class distribution
+\end{lstlisting}
+
+这些对象建立前，不要急着说深度学习，也不要先谈容量。
+
+\checkpoint{本书最终结论很朴素：当前系统是一个简单策略加严肃工程边界。先掌握它，再研究更复杂的东西。}

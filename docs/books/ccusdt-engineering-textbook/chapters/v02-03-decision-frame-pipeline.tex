@@ -1,0 +1,371 @@
+\chapter{数据如何转换成 decision\_frame}
+
+\section{本章要解决的困惑}
+
+第一章讲了策略需要哪些状态。第二章讲了市场事实长什么样。本章回答工程问题：这些事实怎样变成 \code{decision_frame_v1}？
+
+转换链路是：
+
+\begin{lstlisting}
+canonical trade_event_v1
+canonical l2_level_update_v1
+-> DecisionL2Book
+-> DecisionFrameBuilder
+-> decision_frame_v1 Parquet
+\end{lstlisting}
+
+\section{DecisionL2Book：内存里的订单簿}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/decision_frame.py
+\end{lstlisting}
+
+核心代码片段：
+
+\begin{lstlisting}
+class DecisionL2Book:
+    def __init__(self) -> None:
+        self.bids: dict[int, float] = {}
+        self.asks: dict[int, float] = {}
+
+    def set_level(self, side: str, price: float, qty: float) -> None:
+        key = self.price_key(price)
+        levels = self.bids if side == "buy" else self.asks
+        if qty <= 0.0:
+            levels.pop(key, None)
+        else:
+            levels[key] = float(qty)
+
+    def top(self):
+        bid_key = max(self.bids) if self.bids else None
+        ask_key = min(self.asks) if self.asks else None
+        ...
+        return bid, bid_qty, ask, ask_qty
+\end{lstlisting}
+
+这段代码的交易含义：
+
+\begin{itemize}[leftmargin=2em]
+  \item bid 价格越高越靠前，所以 best bid 是 \code{max(self.bids)}；
+  \item ask 价格越低越靠前，所以 best ask 是 \code{min(self.asks)}；
+  \item qty 小于等于 0 表示删除这个价位；
+  \item \code{top()} 返回策略最关心的 top-of-book。
+\end{itemize}
+
+\section{用 L2 更新手算 DecisionL2Book}
+
+初始 snapshot：
+
+\begin{lstlisting}
+buy  0.1120 qty 12000
+buy  0.1118 qty 16000
+sell 0.1124 qty 9000
+sell 0.1126 qty 18000
+\end{lstlisting}
+
+字典里是：
+
+\begin{lstlisting}
+bids = {0.1120: 12000, 0.1118: 16000}
+asks = {0.1124: 9000, 0.1126: 18000}
+\end{lstlisting}
+
+\code{top()}：
+
+\begin{lstlisting}
+best_bid = 0.1120
+best_ask = 0.1124
+\end{lstlisting}
+
+如果后来更新：
+
+\begin{lstlisting}
+sell 0.1124 qty 0
+\end{lstlisting}
+
+则 ask1 被删除，新的 best ask 是 0.1126。mid 和 spread 会立刻变。
+
+\section{DecisionFrameBuilder：把 trade 和 L2 合成一行}
+
+核心代码片段：
+
+\begin{lstlisting}
+class DecisionFrameBuilder:
+    def __init__(..., trade_window_us=2_000_000, bucket_us=60_000_000):
+        self.book = DecisionL2Book()
+        self.trades = collections.deque()
+        self.mid_history = collections.deque(maxlen=25)
+
+    def observe_trade(self, trade, fallback_local_ts_us=None):
+        local_ts_us = int(trade.get("local_ts_us") or fallback_local_ts_us or 0)
+        side = normalize_side(trade.get("side"))
+        price = float(trade.get("price") or 0.0)
+        qty = max(0.0, float(trade.get("qty") or trade.get("amount") or 0.0))
+        self.trades.append(DecisionTrade(local_ts_us, side, price, qty))
+\end{lstlisting}
+
+它维护三类状态：
+
+\begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
+\toprule
+状态 & 用途 \\
+\midrule
+\code{book} & 从 L2 update 取 bid/ask/mid/spread \\
+\code{trades} & 最近 2 秒成交窗口，用来算 TFI \\
+\code{mid_history} & 过去 mid，用来算 past event 和 frames \\
+\bottomrule
+\end{longtable}
+
+\section{build\_from\_l2\_updates 的交易含义}
+
+核心流程：
+
+\begin{lstlisting}
+updates -> update book
+trim old trades
+bid, bid_qty, ask, ask_qty = book.top()
+mid = (bid + ask) * 0.5
+spread_bps = (ask - bid) / mid * 10000
+trade_count, buy_qty, sell_qty = trade window stats
+tfi = (buy_qty - sell_qty) / (buy_qty + sell_qty)
+frames_since_mid_change = ...
+past_event_25_bps = ...
+return frame
+\end{lstlisting}
+
+这就是 \code{decision_frame} 的本质：它不是神秘数据集，而是“当前 L2 top + 最近 trade flow + 最近 mid path”的一行合成状态。
+
+\section{decision\_frame\_v1 字段}
+
+关键字段：
+
+\begin{lstlisting}
+best_bid_price
+best_bid_amount
+best_ask_price
+best_ask_amount
+mid_price
+spread_bps
+trade_window_count
+trade_buy_amount
+trade_sell_amount
+trade_flow_imbalance
+frames_since_mid_change
+past_event_25_bps
+fwd_time_60s_bucket
+\end{lstlisting}
+
+\code{fwd_time_60s_bucket} 这个名字容易误解。它不是未来收益，只是 60 秒桶，用来避免同一 trigger 在同一 bucket 里重复开太多。
+
+\section{一个完整的转换工作簿}
+
+现在把第二章的数据和第一章的策略状态接起来。假设一天里某个片段按时间到来：
+
+\begin{longtable}{p{0.16\textwidth}p{0.20\textwidth}p{0.52\textwidth}}
+\toprule
+seq & 类型 & payload 摘要 \\
+\midrule
+100 & L2 snapshot & buy 0.1120 qty 12000; sell 0.1124 qty 9000 \\
+101 & trade & buy 300 at 0.1124 \\
+102 & trade & buy 200 at 0.1124 \\
+103 & L2 update & sell 0.1124 qty 8500 \\
+104 & trade & buy 100 at 0.1124 \\
+105 & L2 update & buy 0.1120 qty 12500 \\
+\bottomrule
+\end{longtable}
+
+在 seq 100 之后，\code{DecisionL2Book} 有：
+
+\begin{lstlisting}
+bids = {0.1120: 12000}
+asks = {0.1124: 9000}
+top  = (0.1120, 12000, 0.1124, 9000)
+\end{lstlisting}
+
+seq 101、102、104 是 trades，它们不直接改变 \code{book}；它们进入 \code{trades} deque：
+
+\begin{lstlisting}
+[(buy, 300), (buy, 200), (buy, 100)]
+\end{lstlisting}
+
+seq 103、105 是 L2 updates，它们改变 \code{book}，然后 builder 可以输出一行 frame：
+
+\begin{lstlisting}
+best_bid_price = 0.1120
+best_bid_amount = 12500
+best_ask_price = 0.1124
+best_ask_amount = 8500
+mid_price = 0.1122
+spread_bps = 35.65
+trade_window_count = 3
+trade_buy_amount = 600
+trade_sell_amount = 0
+trade_flow_imbalance = 1.0
+\end{lstlisting}
+
+这行 frame 不是由某一个原始事件单独给出的，而是由内存状态合成出来的。
+
+\section{trade window 裁剪}
+
+\code{DecisionFrameBuilder} 初始化里默认：
+
+\begin{lstlisting}
+trade_window_us = 2_000_000
+\end{lstlisting}
+
+也就是最近 2 秒成交窗口。假设当前 frame 时间是 \(t=10.0s\)，deque 里有：
+
+\begin{longtable}{p{0.20\textwidth}p{0.18\textwidth}p{0.18\textwidth}p{0.34\textwidth}}
+\toprule
+trade time & side & qty & 是否保留 \\
+\midrule
+7.7s & buy & 500 & 丢弃，超过 2 秒 \\
+8.2s & sell & 100 & 保留 \\
+9.0s & buy & 300 & 保留 \\
+9.8s & buy & 200 & 保留 \\
+\bottomrule
+\end{longtable}
+
+裁剪后：
+
+\[
+B_t=500,\quad S_t=100,\quad TFI=\frac{400}{600}=0.667.
+\]
+
+这不会触发当前旧策略，因为 \(|TFI|<1\)。这说明 \code{trade_window_count} 高不等于 trigger，方向必须足够单边。
+
+\section{mid history 如何生成 frames 和 past event}
+
+\code{mid_history} 不是未来路径。它只保存已经看到的 mid。举一个 8 frame 的简化例子：
+
+\begin{longtable}{p{0.12\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.18\textwidth}}
+\toprule
+frame & bid & ask & mid & frames \\
+\midrule
+1 & 0.1120 & 0.1124 & 0.1122 & 0 \\
+2 & 0.1120 & 0.1124 & 0.1122 & 1 \\
+3 & 0.1120 & 0.1124 & 0.1122 & 2 \\
+4 & 0.1120 & 0.1124 & 0.1122 & 3 \\
+5 & 0.1121 & 0.1125 & 0.1123 & 0 \\
+6 & 0.1121 & 0.1125 & 0.1123 & 1 \\
+7 & 0.1121 & 0.1125 & 0.1123 & 2 \\
+8 & 0.1121 & 0.1125 & 0.1123 & 3 \\
+\bottomrule
+\end{longtable}
+
+当 mid 从 0.1122 变成 0.1123，\code{frames_since_mid_change} 归零。之后每个 frame 没变，就加一。
+
+\code{past_event_25_bps} 则看当前 mid 相对历史 mid 的变化：
+
+\[
+past25_t=10000\log\frac{mid_t}{mid_{t-25}}.
+\]
+
+如果历史长度不足，字段可能是 \code{None} 或近似不可用；策略应该保守处理，不应该把缺失字段当成强信号。
+
+\section{为什么 price key 要整数化}
+
+\code{DecisionL2Book} 里 price 没有直接用 float 当交易逻辑，而是先变成整数 key：
+
+\begin{lstlisting}
+@staticmethod
+def price_key(price: float) -> int:
+    return int(round(float(price) * PRICE_SCALE))
+\end{lstlisting}
+
+这是工程上非常朴素但必要的处理。L2 update 会反复写同一个价位，如果直接用浮点数做字典 key，可能因为 \(0.1124\) 的二进制表示误差导致“同一个价位像两个价位”。整数 key 让：
+
+\begin{lstlisting}
+set_level("sell", 0.1124, 9000)
+set_level("sell", 0.1124, 8500)
+\end{lstlisting}
+
+更新的是同一档 ask。
+
+\section{crossed book 清理}
+
+现实数据流偶尔会因为更新顺序造成短暂 crossed book，比如：
+
+\begin{lstlisting}
+best_bid = 0.1126
+best_ask = 0.1124
+\end{lstlisting}
+
+这在交易上不合理，因为最好买价高于最好卖价。代码里有 \code{cleanup_crossed}，它会在更新后清掉明显交叉的旧档位。教材层面不需要把这块神化，只要记住：
+
+\begin{quote}
+decision frame builder 的目标是给策略一行合理 top-of-book，而不是研究撮合引擎的每个异常边角。
+\end{quote}
+
+\section{从 frame 到策略输入的最小 JSON}
+
+如果把一行 \code{decision_frame} 简化成 Bot 能看的 JSON，大概是：
+
+\begin{lstlisting}
+{
+  "observed_seq": 105,
+  "local_ts_us": 10000000,
+  "best_bid_price": 0.1120,
+  "best_bid_amount": 12500,
+  "best_ask_price": 0.1124,
+  "best_ask_amount": 8500,
+  "mid_price": 0.1122,
+  "spread_bps": 35.65,
+  "trade_window_count": 3,
+  "trade_buy_amount": 600,
+  "trade_sell_amount": 0,
+  "trade_flow_imbalance": 1.0,
+  "frames_since_mid_change": 34,
+  "past_event_25_bps": 0.2,
+  "fwd_time_60s_bucket": 0
+}
+\end{lstlisting}
+
+这就足够让 \code{ShadowFourCellPolicy} 决定是否产生 shadow entry。它不需要未来 60 秒收益，也不需要 MFE/MAE。
+
+\section{工程检查：如何发现 frame 错了}
+
+如果 backtest 结果离谱，先不要急着调因子。按下面顺序检查 \code{decision_frame}：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \code{best_bid_price < best_ask_price} 是否总成立。
+  \item \code{spread_bps} 是否等于 \((ask-bid)/mid\times10000\)。
+  \item \code{trade_buy_amount + trade_sell_amount = 0} 时，TFI 是否被保守处理。
+  \item \code{frames_since_mid_change} 是否在 mid 变化时归零。
+  \item \code{past_event_25_bps} 是否只用过去 mid。
+  \item \code{fwd_time_60s_bucket} 是否只是 clock bucket。
+\end{enumerate}
+
+\checkpoint{大部分“策略玄学问题”，第一层其实是 frame 字段有没有被正确理解。}
+
+\section{decision\_frame\_cache.py 做什么}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py
+\end{lstlisting}
+
+它把一行行 frame 写成 Parquet：
+
+\begin{lstlisting}
+data/canonical_parquet/cex/bullish/CCUSDT/decision_frame_v1/dt=YYYY-MM-DD/part_000001.parquet
+\end{lstlisting}
+
+同时写 manifest，记录 builder version、schema、source hash、row count。这样 fast 回测不用每次重放原始 L2 stream。
+
+\section{手动检查点}
+
+给你一行 \code{decision_frame}，应该能反推：
+
+\begin{enumerate}[leftmargin=2em]
+  \item bid/ask/mid/spread 是否来自 top-of-book；
+  \item TFI 是否来自最近 trade window；
+  \item frames 是否来自 mid 连续未变化；
+  \item past25 是否来自过去 mid path；
+  \item 这些字段 entry 时刻是否已经可见。
+\end{enumerate}
+
+\checkpoint{读完本章，\code{decision_frame} 应该不再像黑盒。它只是把 L2 top、trade flow、mid path 合成一行。}

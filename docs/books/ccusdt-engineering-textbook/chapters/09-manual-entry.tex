@@ -1,0 +1,203 @@
+\chapter{手动复现一笔 entry：从一行数据到 entries.parquet}
+
+\section{本章要解决的困惑}
+
+这一章把前面所有东西串起来。目标不是跑命令，而是手动算一笔 entry 行。只要能手算这一笔，\code{fast_strategy_backtest.py} 就不再神秘。
+
+\section{输入：一行 decision frame}
+
+假设某一行 frame 是：
+
+\begin{lstlisting}
+observed_seq = 10001
+local_ts_us = 1770000000000000
+best_bid_price = 0.1120
+best_ask_price = 0.1124
+mid_price = 0.1122
+spread_bps = 35.65
+trade_window_count = 3
+trade_buy_amount = 600
+trade_sell_amount = 0
+trade_flow_imbalance = 1.0
+past_event_25_bps = 0.2
+frames_since_mid_change = 34
+fwd_time_60s_bucket = 10
+\end{lstlisting}
+
+再假设最近已闭合 5 笔：
+
+\begin{lstlisting}
+closed_bps = [3.0, -1.0, 2.0, 1.5, -0.5]
+\end{lstlisting}
+
+prior-day q70 admission threshold：
+
+\begin{lstlisting}
+entry_cross_threshold_bps = 20.0
+\end{lstlisting}
+
+\section{第一步：TFI trigger}
+
+\[
+TFI=1.0 \Rightarrow direction=+1,\ side=buy.
+\]
+
+因为：
+
+\[
+|past25|=0.2 \le 0.5,
+\]
+
+所以有 \code{tfi_follow_flat} 和 \code{tfi_long_flat}。
+
+因为：
+
+\[
+trade\_window\_count=3>0,\quad frames=34\ge25,
+\]
+
+所以还有 \code{tfi_event_active}。
+
+于是：
+
+\begin{lstlisting}
+membership_set = tfi_follow_flat+tfi_long_flat+tfi_event_active
+base_weight = 0.5
+\end{lstlisting}
+
+\section{第二步：R5 和 cell}
+
+闭合收益：
+
+\[
+P_5=3.0+2.0+1.5=6.5,\quad
+N_5=1.0+0.5=1.5.
+\]
+
+\[
+R5=4.33\ge1.
+\]
+
+\[
+A=1,\quad B=1\{frames\ge31\}=1.
+\]
+
+\[
+\text{cell}=\text{\ttfamily 11\_r5\_frames}.
+\]
+
+\section{第三步：gamma 和 target exposure}
+
+默认 \code{core_q70}：
+
+\[
+\gamma_{\text{\ttfamily 11\_r5\_frames}}=0.75.
+\]
+
+frames 没超过 59.8，所以：
+
+\[
+overlay\_boost=0.
+\]
+
+\[
+weak\_overlay\_weight=0.5.
+\]
+
+\[
+target\_exposure=0.5\times0.75=0.375.
+\]
+
+\section{第四步：spread admission}
+
+entry cross 近似是半个 spread：
+
+\[
+entry\_cross\_bps=\frac{35.65}{2}=17.825.
+\]
+
+因为：
+
+\[
+17.825 \le 20.0,
+\]
+
+所以 admission accepted。
+
+\section{第五步：3x ledger}
+
+假设当前：
+
+\begin{lstlisting}
+open_exposure_before = 2.80
+leverage_cap = 3.0
+\end{lstlisting}
+
+剩余 capacity：
+
+\[
+free=3.0-2.80=0.20.
+\]
+
+真实仓位：
+
+\[
+actual\_exposure=\min(0.375,0.20)=0.20.
+\]
+
+剪裁：
+
+\[
+clipped\_exposure=0.175.
+\]
+
+\section{第六步：entries.parquet 行}
+
+这笔 entry 最终写成类似：
+
+\begin{lstlisting}
+date = 2026-05-18
+shadow_position_id = ...
+entry_seq = 10001
+entry_ts_us = 1770000000000000
+due_ts_us = 1770000060000000
+side = buy
+direction = 1
+cell = 11_r5_frames
+membership_set = tfi_follow_flat+tfi_long_flat+tfi_event_active
+entry_mid = 0.1122
+entry_bid = 0.1120
+entry_ask = 0.1124
+entry_spread_bps = 35.65
+entry_cross_bps = 17.825
+admission_accepted = true
+a_r5_raw = 4.33
+b_frames_ge_q90 = true
+base_weight = 0.5
+weak_overlay_weight = 0.5
+gamma = 0.75
+requested_exposure = 0.375
+actual_exposure = 0.20
+clipped_exposure = 0.175
+open_exposure_before = 2.80
+open_exposure_after = 3.00
+\end{lstlisting}
+
+\section{这个例子说明什么}
+
+它说明当前算法其实是几条规则：
+
+\begin{lstlisting}
+if TFI trigger:
+  build membership
+  lookup base weight
+  compute R5/frame cell
+  lookup gamma
+  check spread
+  clip by 3x ledger
+  write entry row
+\end{lstlisting}
+
+没有神经网络，没有隐式优化器，没有复杂 L2 控制函数。复杂的是工程上要保证每个字段不偷看未来，并且 fast 与 strict 能对齐。
+
+\checkpoint{如果你能手算本章这笔 entry，就已经能自己读 \code{entries.parquet} 的主要字段。}

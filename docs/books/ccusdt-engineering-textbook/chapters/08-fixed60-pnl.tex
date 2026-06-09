@@ -1,0 +1,149 @@
+\chapter{fixed60：收益、成本、entry/exit 是怎么算的}
+
+\section{本章要解决的困惑}
+
+entry 以后，fast 回测怎么知道什么时候退出？当前默认最简单路径是 fixed60：
+
+\[
+exit\_ts = entry\_ts + 60s.
+\]
+
+这不是最优 exit，也不是 path prediction，只是固定持有 60 秒的读数。它把复杂问题压成一个可重复的标签。
+
+\section{mid 口径}
+
+如果用 \code{fixed60_mid}，收益是：
+
+\[
+Y^{mid}_{60}
+= direction \times 10000 \times \log\frac{mid_{t+60s}}{mid_t}.
+\]
+
+其中：
+
+\[
+direction =
+\begin{cases}
+1, & long/buy,\\
+-1, & short/sell.
+\end{cases}
+\]
+
+例如 long：
+
+\[
+mid_t=0.1122,\quad mid_{t+60}=0.1128.
+\]
+
+\[
+Y^{mid}_{60}
+=10000 \times \log(0.1128/0.1122)
+\approx 53.3\text{ bps}.
+\]
+
+如果 short，同样的价格上涨会是负收益。
+
+\section{taker 可执行口径}
+
+如果用 \code{fixed60_taker} 或 top-of-book taker 近似，不能只看 mid。因为做多入场打 ask，退出卖出打 bid：
+
+\[
+Y^{exec,long}_{60}
+= 10000 \times \log\frac{bid_{t+60s}}{ask_t}.
+\]
+
+做空入场卖 bid，退出买 ask：
+
+\[
+Y^{exec,short}_{60}
+= 10000 \times \log\frac{bid_t}{ask_{t+60s}}.
+\]
+
+这就是为什么零手续费也会有执行成本。mid 正收益可能被 entry/exit spread 吃掉。
+
+\section{小订单簿例子}
+
+入场时：
+
+\begin{lstlisting}
+bid_t = 0.1120
+ask_t = 0.1124
+mid_t = 0.1122
+\end{lstlisting}
+
+60 秒后：
+
+\begin{lstlisting}
+bid_exit = 0.1126
+ask_exit = 0.1130
+mid_exit = 0.1128
+\end{lstlisting}
+
+long mid 口径：
+
+\[
+Y^{mid,long}_{60}
+=10000\log(0.1128/0.1122)
+\approx 53.3.
+\]
+
+long executable：
+
+\[
+Y^{exec,long}_{60}
+=10000\log(0.1126/0.1124)
+\approx 17.8.
+\]
+
+同一个路径，mid 看起来赚 53.3 bps，可执行只剩 17.8 bps。差别就是 spread/cross 成本。
+
+\section{fast entries 和 exits 的对应关系}
+
+\code{fast_strategy_backtest.py} 里：
+
+\begin{itemize}[leftmargin=2em]
+  \item entry row 记录 \code{entry_mid}、\code{entry_bid}、\code{entry_ask}、\code{actual_exposure}；
+  \item exit row 记录 \code{exit_mid}、\code{exit_bid}、\code{exit_ask}、\code{raw_bps_mid_fixed60}、\code{net_bps}；
+  \item daily row 汇总每一天 entries、exits、actual exposure、weighted bps；
+  \item summary 记录总结果和 profile manifest。
+\end{itemize}
+
+注意：\code{entries.parquet} 是所有候选和 capacity 决策的记录；真正有仓位的是：
+
+\begin{lstlisting}
+actual_exposure > 0
+\end{lstlisting}
+
+\section{fixed60 的局限}
+
+用户指出的最大问题是对的：fixed60 太粗。它没有回答：
+
+\begin{itemize}[leftmargin=2em]
+  \item 最大收益是多少；
+  \item 最大值什么时候出现；
+  \item 峰值后什么时候回到 0bps；
+  \item 是否应该 5 秒、20 秒、120 秒退出；
+  \item entry 结构是否对应不同 path distribution。
+\end{itemize}
+
+所以 fixed60 只是第一版可重复读数，不是完整预测对象。
+
+\section{手动检查点}
+
+给一笔 long entry：
+
+\begin{lstlisting}
+entry_bid = 0.1120
+entry_ask = 0.1124
+exit_bid  = 0.1126
+exit_ask  = 0.1130
+\end{lstlisting}
+
+先算 mid，再算 executable。最后问：
+
+\begin{quote}
+mid 的收益是不是被 top-of-book cross 吃掉了？
+\end{quote}
+
+这比只看 \code{net_median} 更接近执行现实。
+

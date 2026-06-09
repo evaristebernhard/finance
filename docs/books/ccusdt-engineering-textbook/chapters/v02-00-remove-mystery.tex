@@ -1,0 +1,91 @@
+\chapter{读这本书前先去掉神秘感}
+
+\section{本章要解决的困惑}
+
+当前 CCUSDT 策略不是一个复杂模型。它没有深度学习，没有动态 L2 路径预测，也没有复杂的最优控制器。它的 runtime 主体是一个手写状态机：
+
+\begin{lstlisting}
+L2/trade market facts
+-> decision_frame row
+-> TFI trigger
+-> past_event / frames / spread q70 filters
+-> R5 and frames cell
+-> gamma sizing
+-> 3x capacity ledger
+-> fixed60 exit
+-> entries / exits / daily / summary
+\end{lstlisting}
+
+如果只看这个链条，代码不应该难。真正让人难受的原因，是历史文档把研究假设、工程实现、运行时边界和输出审计混在一起讲。本书的目标就是把它拆回一个新人能手算的系统。
+
+\section{全书阅读顺序}
+
+本书不按源码目录讲，而按“一个市场事实怎样变成一笔回测交易”讲：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 第一章只讲策略定义，用 L2 订单簿和成交手算，不先看工程。
+  \item 第二章讲我们拿到的数据长什么样。
+  \item 第三章讲数据怎样变成 \code{decision_frame}。
+  \item 第四章讲 Python fast backtest 怎样逐行执行状态机。
+  \item 第五章讲输出 artifacts 怎么读。
+  \item 第六章讲 Python Bot 怎样在线维护同一套状态。
+  \item 第七、八章讲 Rust Runner 怎样把意图变成交和日志。
+  \item 后面讲 fast 和 Runner 的边界，以及新人怎样安全自己回测。
+\end{enumerate}
+
+\section{当前策略的真实复杂度}
+
+先把核心逻辑写成伪代码：
+
+\begin{lstlisting}
+if abs(TFI) >= 1:
+    direction = sign(TFI)
+else:
+    no entry
+
+flat = abs(past_event_25_bps) <= 0.5
+stale = frames_since_mid_change >= threshold
+spread_ok = entry_cross_bps <= prior_day_q70
+
+membership_set = trigger classes from TFI/flat/stale
+base_weight = BASE_WEIGHTS[membership_set]
+
+R5 = positive closed pnl bps / abs(negative closed pnl bps)
+cell = _cell(R5 >= 1, frames_since_mid_change >= 31)
+target_exposure = (base_weight + overlay) * gamma[cell]
+actual_exposure = min(target_exposure, 3 - open_exposure)
+\end{lstlisting}
+
+这段没有任何神秘技巧。你真正需要理解的是每个字段从哪里来、什么时候能被策略看到、它在 L2 盘口里是什么意思。
+
+\section{本书的硬边界}
+
+为了不再把研究报告误读成 runtime 事实，全书反复使用下面几条边界：
+
+\begin{lstlisting}
+Runner 不读 label。
+Bot 不读 date/。
+Monitor 只展示，不创造事实。
+Delta_bps / Energy_bps 没进入当前 CC runtime 控制。
+OFI / MLOFI 不是当前 entry trigger。
+\end{lstlisting}
+
+这些话不是口号。它们决定一条数据能不能进入策略。如果一个字段必须等 entry 之后才知道，那么它只能是 label 或研究输出，不能是 runtime input。
+
+\section{读完本书应该会什么}
+
+读完后，你应该能做到：
+
+\begin{itemize}[leftmargin=2em]
+  \item 给一张 L2 订单簿，算 bid、ask、mid、spread、taker entry/exit 成本。
+  \item 给几笔 trade，算 TFI 和方向。
+  \item 给一行 \code{decision_frame}，判断是否触发 entry。
+  \item 给最近 5 笔 closed outcomes，算 R5 和 cell。
+  \item 给 open exposure，算 target 和 actual exposure。
+  \item 给 entry/exit quote，算 fixed60 mid 和 executable PnL。
+  \item 打开 Python 和 Rust 文件，知道先看哪段，不被无关工程细节淹没。
+  \item 用已有数据自己跑一次 fast backtest，并知道输出结果怎么检查。
+\end{itemize}
+
+\checkpoint{本章只要记住一句话：这套系统难读，不是因为策略高级，而是因为同一个简单状态机有数据、fast、Bot、Runner、日志五种形态。}
+

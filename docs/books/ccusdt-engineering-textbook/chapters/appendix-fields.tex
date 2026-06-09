@@ -1,0 +1,98 @@
+\chapter{字段词典}
+
+\section{decision frame 字段}
+
+\begin{longtable}{p{0.28\textwidth}p{0.20\textwidth}p{0.42\textwidth}}
+\toprule
+字段 & 层 & 解释 \\
+\midrule
+\code{schema_id} & cache & schema 标识 \\
+\code{runtime_safe} & cache & 是否声明为 runtime-safe \\
+\code{observed_seq} & clock & 当前观察事件序号 \\
+\code{exchange_ts_us} & clock & 交易所时间戳 \\
+\code{local_ts_us} & clock & 本地时间戳 \\
+\code{event_index} & clock & decision frame 事件索引 \\
+\code{best_bid_price} & quote/L2 & 当前最好买价 \\
+\code{best_bid_amount} & quote/L2 & 当前最好买价数量 \\
+\code{best_ask_price} & quote/L2 & 当前最好卖价 \\
+\code{best_ask_amount} & quote/L2 & 当前最好卖价数量 \\
+\code{mid_price} & quote/L2 & \((bid+ask)/2\) \\
+\code{spread_bps} & quote/L2 & \((ask-bid)/mid \times 10000\) \\
+\code{trade_window_count} & trade & 当前 rolling window 内 trade 数 \\
+\code{trade_buy_amount} & trade & buy 主动成交量 \\
+\code{trade_sell_amount} & trade & sell 主动成交量 \\
+\code{trade_flow_imbalance} & trade & \((buy-sell)/(buy+sell)\) \\
+\code{frames_since_mid_change} & path & mid 连续未变化 frame 数 \\
+\code{past_event_25_bps} & path & 过去约 25 event 的 mid log return bps \\
+\code{fwd_time_60s_bucket} & clock & 60s bucket，用于限制重复触发 \\
+\bottomrule
+\end{longtable}
+
+\section{shadow signal 字段}
+
+\begin{longtable}{p{0.30\textwidth}p{0.60\textwidth}}
+\toprule
+字段 & 解释 \\
+\midrule
+\code{event_kind} & \code{shadow_entry} 或 \code{shadow_lifecycle_close} \\
+\code{shadow_position_id} & shadow policy 内部 position id \\
+\code{entry_ts_us} & entry 观察时间 \\
+\code{entry_due_ts_us} & fixed exit 到期时间 \\
+\code{side} & \code{buy} 或 \code{sell} \\
+\code{direction} & long 为 \(+1\)，short 为 \(-1\) \\
+\code{feature_value} & 当前 TFI \\
+\code{trigger_classes} & 触发类别列表 \\
+\code{membership_set} & 触发类别拼接后的 key \\
+\code{a_r5_raw} & 当前闭合记忆 R5 \\
+\code{a_r5_ready} & 是否已有足够 closed outcomes \\
+\code{b_frames_ge_q90} & frames 是否过阈值 \\
+\code{cell} & 四象限 cell \\
+\code{base_weight} & membership 对应基础权重 \\
+\code{weak_overlay_weight} & base weight 加 overlay 后结果 \\
+\code{gamma} & cell 对应仓位倍率 \\
+\code{target_exposure} & 目标 exposure \\
+\bottomrule
+\end{longtable}
+
+\section{entry 输出字段}
+
+\begin{longtable}{p{0.30\textwidth}p{0.60\textwidth}}
+\toprule
+字段 & 解释 \\
+\midrule
+\code{entry_seq} & entry 绑定的 observed seq \\
+\code{entry_ts_us} & entry 时间 \\
+\code{due_ts_us} & fixed60 到期时间 \\
+\code{entry_mid} & entry 时 mid \\
+\code{entry_bid} & entry 时 bid \\
+\code{entry_ask} & entry 时 ask \\
+\code{entry_spread_bps} & entry 时 spread \\
+\code{entry_cross_bps} & taker 入场半边 spread 成本近似 \\
+\code{admission_accepted} & spread gate 是否接受 \\
+\code{admission_reason} & 接受/拒绝原因 \\
+\code{requested_exposure} & target exposure \\
+\code{actual_exposure} & capacity 后真实 exposure \\
+\code{clipped_exposure} & 被 3x ledger 剪掉的 exposure \\
+\code{open_exposure_before} & 入场前总 open exposure \\
+\code{open_exposure_after} & 入场后总 open exposure \\
+\code{capacity_source} & \code{core}、\code{idle01}、\code{fifo_clip}、\code{admission_reject} 等 \\
+\bottomrule
+\end{longtable}
+
+\section{exit 输出字段}
+
+\begin{longtable}{p{0.30\textwidth}p{0.60\textwidth}}
+\toprule
+字段 & 解释 \\
+\midrule
+\code{exit_ts_us} & 退出时间 \\
+\code{exit_profile} & \code{fixed60_mid}、\code{fixed60_taker}、manager path 等 \\
+\code{exit_reason} & \code{fixed_60s}、\code{release_drawdown}、\code{stopping_rule} 等 \\
+\code{exit_mid} & 退出 mid \\
+\code{exit_bid} & 退出 bid \\
+\code{exit_ask} & 退出 ask \\
+\code{raw_bps_mid_fixed60} & mid 口径 fixed60 bps \\
+\code{net_bps} & 扣 fee/pressure/slippage 或 taker 后口径 \\
+\code{weighted_bps} & 用 actual exposure 加权后的贡献 \\
+\bottomrule
+\end{longtable}

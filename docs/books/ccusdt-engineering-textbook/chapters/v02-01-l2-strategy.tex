@@ -1,0 +1,890 @@
+\chapter{用 L2 订单簿完整讲清当前策略}
+
+\section{本章要解决的困惑}
+
+这一章不讲目录，不讲 CLI，不讲 Rust。只讲策略本身。读完本章，即使你不看代码，也应该能拿一张 L2 订单簿和几笔成交，手动推导出当前策略会不会 entry、方向是什么、仓位多大、60 秒后怎么算收益。
+
+当前策略可以写成：
+
+\begin{lstlisting}
+主动成交方向足够单边
+价格刚才没有明显释放
+mid 停滞足够久或触发特定 membership
+现在 taker cross 成本不太贵
+用最近已闭合交易的 R5 和 frames 分 cell
+用 cell 查 gamma
+用 3x ledger 剪仓
+固定 60 秒退出
+\end{lstlisting}
+
+\section{L2 订单簿从哪里开始}
+
+先看一个两层 L2 订单簿：
+
+\begin{longtable}{p{0.16\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.34\textwidth}}
+\toprule
+side & price & qty & 人话 \\
+\midrule
+ask2 & 0.1126 & 18000 & 更贵一档卖单 \\
+ask1 & 0.1124 & 9000 & 当前最好卖价，买方 taker 会打这里 \\
+bid1 & 0.1120 & 12000 & 当前最好买价，卖方 taker 会打这里 \\
+bid2 & 0.1118 & 16000 & 更便宜一档买单 \\
+\bottomrule
+\end{longtable}
+
+当前策略最直接使用的是 top-of-book：
+
+\[
+bid_t = 0.1120,\quad ask_t = 0.1124.
+\]
+
+中间价：
+
+\[
+mid_t=\frac{bid_t+ask_t}{2}=0.1122.
+\]
+
+价差：
+
+\[
+spread\_bps_t
+=\frac{ask_t-bid_t}{mid_t}\times10000
+\approx35.65.
+\]
+
+这三个量不是研究 label。它们是市场当时已经给出的事实。
+
+\section{taker buy、taker sell 和可执行收益}
+
+如果策略做多，它发 market buy，入场价格近似是 ask：
+
+\[
+entry^{long}_t = ask_t.
+\]
+
+如果策略做空，它发 market sell，入场价格近似是 bid：
+
+\[
+entry^{short}_t = bid_t.
+\]
+
+这就是为什么“零手续费”不等于“零执行成本”。即使 \code{fee_bps=0}，你也要跨过 bid/ask spread。
+
+假设 60 秒后盘口变成：
+
+\begin{longtable}{p{0.16\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.34\textwidth}}
+\toprule
+side & price & qty & 人话 \\
+\midrule
+ask1 & 0.1130 & 8500 & long 退出不打这里，short 退出买回会打这里 \\
+bid1 & 0.1126 & 11000 & long 退出卖出会打这里 \\
+\bottomrule
+\end{longtable}
+
+long 的 mid 口径收益：
+
+\[
+Y^{mid,long}_{60}
+=10000\log\frac{mid_{t+60}}{mid_t}
+=10000\log\frac{0.1128}{0.1122}
+\approx53.3.
+\]
+
+long 的 executable 口径收益：
+
+\[
+Y^{exec,long}_{60}
+=10000\log\frac{bid_{t+60}}{ask_t}
+=10000\log\frac{0.1126}{0.1124}
+\approx17.8.
+\]
+
+同一个路径，mid 看起来很好，但可执行收益少很多。当前书里只要说“收益”，都要问清楚是 mid 还是 executable。
+
+\section{trade side：buyer-initiated 和 seller-initiated}
+
+TFI 的原料不是挂单量，而是主动成交。英文里 buyer-initiated 可以翻成“买方主动发起成交”，seller-initiated 是“卖方主动发起成交”。
+
+在上面的盘口里：
+
+\begin{itemize}[leftmargin=2em]
+  \item 有人用 market buy 吃 ask，trade side 记为 buy。
+  \item 有人用 market sell 打 bid，trade side 记为 sell。
+\end{itemize}
+
+例子：
+
+\begin{longtable}{p{0.16\textwidth}p{0.20\textwidth}p{0.18\textwidth}p{0.36\textwidth}}
+\toprule
+time & side & qty & 解释 \\
+\midrule
+0.2s & buy & 300 & 买方主动吃 ask1 \\
+0.9s & buy & 200 & 买方继续吃 ask1 \\
+1.4s & buy & 100 & 仍然是买方主动 \\
+\bottomrule
+\end{longtable}
+
+这三笔成交不等于 L2 深度变厚或变薄。它们只说明最近主动成交方向是买方。
+
+\section{TFI：主动成交流不平衡}
+
+设最近 rolling trade window 内：
+
+\[
+B_t=\text{buy 主动成交量},\quad S_t=\text{sell 主动成交量}.
+\]
+
+当前策略使用数量口径：
+
+\[
+TFI_t=\frac{B_t-S_t}{B_t+S_t+\epsilon}.
+\]
+
+上面三笔 trade：
+
+\[
+B_t=600,\quad S_t=0,\quad TFI_t=1.
+\]
+
+如果是：
+
+\begin{longtable}{p{0.16\textwidth}p{0.20\textwidth}p{0.18\textwidth}p{0.36\textwidth}}
+\toprule
+time & side & qty & signed qty \\
+\midrule
+0.2s & buy & 300 & +300 \\
+0.9s & sell & 200 & -200 \\
+1.4s & sell & 100 & -100 \\
+\bottomrule
+\end{longtable}
+
+则：
+
+\[
+TFI_t=\frac{300-300}{600}=0.
+\]
+
+当前旧策略的 entry 很硬：
+
+\[
+|TFI_t|\ge1.
+\]
+
+这意味着它只吃非常单边的主动流。它没有精细地区分 \(TFI=0.6\)、\(TFI=0.8\)、\(TFI=1.0\) 的连续差异。
+
+\section{trade\_window\_count：这个窗口里是否真的有成交}
+
+\code{trade_window_count} 是窗口内成交笔数。它回答的问题很低级，但很必要：
+
+\begin{quote}
+TFI 这个值是不是来自真实成交窗口？
+\end{quote}
+
+如果没有 trade：
+
+\[
+B_t+S_t=0,
+\]
+
+则 TFI 没有交易含义。当前 trigger 里要求：
+
+\[
+trade\_window\_count>0.
+\]
+
+\section{past\_event\_25\_bps：刚才价格有没有先动}
+
+TFI 单边并不自动代表还有机会。如果价格已经先涨完或先跌完，再追进去就可能是追尾。
+
+\code{past_event_25_bps} 近似表示过去 25 个 decision events 的 mid 变化：
+
+\[
+past25_t=10000\log\frac{mid_t}{mid_{t-25}}.
+\]
+
+当前 flat 条件：
+
+\[
+|past25_t|\le0.5.
+\]
+
+用 L2 表示：
+
+\begin{longtable}{p{0.18\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.28\textwidth}}
+\toprule
+时刻 & bid & ask & mid \\
+\midrule
+t-25 & 0.1120 & 0.1124 & 0.1122 \\
+t & 0.1120 & 0.1124 & 0.1122 \\
+\bottomrule
+\end{longtable}
+
+则 \(past25_t=0\)，表示价格刚才没动。策略的直觉是：主动流来了，但 mid 还没释放。
+
+如果：
+
+\begin{longtable}{p{0.18\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.28\textwidth}}
+\toprule
+时刻 & bid & ask & mid \\
+\midrule
+t-25 & 0.1120 & 0.1124 & 0.1122 \\
+t & 0.1128 & 0.1132 & 0.1130 \\
+\bottomrule
+\end{longtable}
+
+则价格已经动了很多，这就不是当前 old flat trigger 喜欢的状态。
+
+\section{frames\_since\_mid\_change：mid 停滞了多久}
+
+\code{frames_since_mid_change} 统计 mid 连续多少个 decision frames 没变。
+
+例子：
+
+\begin{longtable}{p{0.18\textwidth}p{0.22\textwidth}p{0.22\textwidth}p{0.26\textwidth}}
+\toprule
+frame & bid/ask & mid & frames \\
+\midrule
+100 & 0.1120/0.1124 & 0.1122 & 0 \\
+101 & 0.1120/0.1124 & 0.1122 & 1 \\
+102 & 0.1120/0.1124 & 0.1122 & 2 \\
+... & ... & ... & ... \\
+134 & 0.1120/0.1124 & 0.1122 & 34 \\
+\bottomrule
+\end{longtable}
+
+当前策略用两个相关阈值：
+
+\begin{lstlisting}
+stale25 = frames_since_mid_change >= 25
+b_frames = frames_since_mid_change >= 31
+overlay = frames_since_mid_change >= 59.8
+\end{lstlisting}
+
+这些阈值都在表达同一个直觉：主动成交来了，但 mid 没动，可能有潜在释放。
+
+\section{spread q70 admission：现在吃单是不是太贵}
+
+当前 admission gate 看 entry-time spread。代码规则是：
+
+\[
+entry\_cross\_bps=\frac{spread\_bps}{2}.
+\]
+
+然后：
+
+\[
+entry\_cross\_bps \le q70_{\text{prior day}}.
+\]
+
+如果当前 spread 是 35.65 bps：
+
+\[
+entry\_cross\_bps=17.825.
+\]
+
+如果 prior-day q70 threshold 是 20 bps，就允许；如果阈值是 12 bps，就拒绝。
+
+\warningline{q70 必须来自 prior-day 或预先固定配置，不能用当天未来分布。}
+
+\section{membership\_set 和 base\_weight}
+
+TFI、flat、stale 共同生成 trigger classes。当前代码的核心顺序是：
+
+\begin{lstlisting}
+tfi_follow_flat
+tfi_short_flat
+tfi_long_flat
+tfi_short_stale25
+tfi_event_active
+\end{lstlisting}
+
+若：
+
+\begin{lstlisting}
+TFI = 1
+flat = true
+trade_window_count > 0
+stale25 = true
+\end{lstlisting}
+
+可能得到：
+
+\begin{lstlisting}
+membership_set = tfi_follow_flat+tfi_long_flat+tfi_event_active
+base_weight = 0.5
+\end{lstlisting}
+
+若是 short 且 flat/stale/event active：
+
+\begin{lstlisting}
+membership_set = tfi_follow_flat+tfi_short_flat+tfi_short_stale25+tfi_event_active
+base_weight = 2.0
+\end{lstlisting}
+
+这不是模型训练结果，而是一张手写小表。
+
+\section{R5：最近已闭合交易的短记忆}
+
+R5 不是当前订单簿深度，也不是未来收益。它是最近已经闭合的 shadow entries 的结果。
+
+设最近 5 笔已闭合收益：
+
+\[
+g_1,g_2,g_3,g_4,g_5.
+\]
+
+\[
+P_5=\sum_i \max(g_i,0),\quad N_5=\sum_i \max(-g_i,0).
+\]
+
+\[
+R5=\frac{P_5}{N_5+\epsilon}.
+\]
+
+例子：
+
+\begin{longtable}{p{0.18\textwidth}p{0.20\textwidth}p{0.48\textwidth}}
+\toprule
+closed entry & pnl bps & 归类 \\
+\midrule
+1 & +3.0 & positive \\
+2 & -1.0 & negative \\
+3 & +2.0 & positive \\
+4 & +1.5 & positive \\
+5 & -0.5 & negative \\
+\bottomrule
+\end{longtable}
+
+\[
+P_5=6.5,\quad N_5=1.5,\quad R5=4.33.
+\]
+
+所以：
+
+\[
+A_t=1\{R5_t\ge1\}=1.
+\]
+
+\warningline{\code{Delta_bps} / \code{Energy_bps} 目前没有进入 CC runtime 控制。它们是研究层方向，不是当前 Bot 控制逻辑。}
+
+\section{四象限 cell}
+
+当前 cell 只有两个轴：
+
+\[
+A_t=1\{R5_t\ge1\},\quad B_t=1\{frames\_since\_mid\_change_t\ge31\}.
+\]
+
+\begin{longtable}{p{0.16\textwidth}p{0.16\textwidth}p{0.25\textwidth}p{0.33\textwidth}}
+\toprule
+\(A_t\) & \(B_t\) & cell & 人话 \\
+\midrule
+0 & 0 & \code{00_none} & R5 不好，mid 不 stale \\
+1 & 0 & \code{10_r5_only} & R5 好，但 mid 不 stale \\
+0 & 1 & \code{01_frames_only} & R5 不好，但 mid stale \\
+1 & 1 & \code{11_r5_frames} & R5 好，且 mid stale \\
+\bottomrule
+\end{longtable}
+
+四象限不决定方向。方向已经由 TFI 决定。四象限只影响 sizing。
+
+\section{gamma、overlay 和 target exposure}
+
+默认 \code{core_q70} gamma 表：
+
+\begin{longtable}{p{0.30\textwidth}p{0.20\textwidth}p{0.40\textwidth}}
+\toprule
+cell & gamma & 解释 \\
+\midrule
+\code{00_none} & 1.25 & baseline core cell \\
+\code{10_r5_only} & 0.75 & R5 好但 frames 不高 \\
+\code{01_frames_only} & 0.0 & frames 高但 R5 不好，默认不用 \\
+\code{11_r5_frames} & 0.75 & R5 好且 frames 高 \\
+\bottomrule
+\end{longtable}
+
+若 frames 很高，有 overlay：
+
+\[
+weak\_overlay\_weight=base\_weight+0.5.
+\]
+
+否则：
+
+\[
+weak\_overlay\_weight=base\_weight.
+\]
+
+目标仓位：
+
+\[
+target\_exposure=weak\_overlay\_weight\times\gamma_{cell}.
+\]
+
+\section{3x capacity ledger}
+
+交易所有 3x 杠杆限制，策略账本也按 3x 管理 open exposure：
+
+\[
+free_t=\max(0,3-open\_exposure_t).
+\]
+
+\[
+actual\_exposure_t=\min(target\_exposure_t,free_t).
+\]
+
+例子：
+
+\begin{lstlisting}
+base_weight = 2.0
+overlay = 0.0
+cell = 11_r5_frames
+gamma = 0.75
+open_exposure_before = 2.2
+\end{lstlisting}
+
+\[
+target=2.0\times0.75=1.5.
+\]
+
+\[
+free=3.0-2.2=0.8.
+\]
+
+\[
+actual=\min(1.5,0.8)=0.8.
+\]
+
+因此：
+
+\[
+clipped=1.5-0.8=0.7.
+\]
+
+\section{fixed60 exit}
+
+当前最基础 exit 是 fixed60：
+
+\[
+exit\_ts = entry\_ts+60s.
+\]
+
+它不是最优退出，只是固定读数。对 long：
+
+\[
+Y^{exec,long}_{60}=10000\log\frac{exit\_bid}{entry\_ask}.
+\]
+
+对 short：
+
+\[
+Y^{exec,short}_{60}=10000\log\frac{entry\_bid}{exit\_ask}.
+\]
+
+如果入场做空：
+
+\begin{lstlisting}
+entry_bid = 0.1120
+entry_ask = 0.1124
+exit_bid  = 0.1114
+exit_ask  = 0.1118
+\end{lstlisting}
+
+则：
+
+\[
+Y^{exec,short}_{60}
+=10000\log\frac{0.1120}{0.1118}
+\approx17.9.
+\]
+
+\section{贯穿例子：从 L2 到 entry row}
+
+把前面的对象合成一笔交易。
+
+当前 L2：
+
+\begin{lstlisting}
+bid1 = 0.1120, qty = 12000
+ask1 = 0.1124, qty = 9000
+mid = 0.1122
+spread_bps = 35.65
+\end{lstlisting}
+
+最近 trade：
+
+\begin{lstlisting}
+buy 300
+buy 200
+buy 100
+\end{lstlisting}
+
+得到：
+
+\[
+TFI=1,\quad trade\_window\_count=3.
+\]
+
+过去价格：
+
+\[
+past25=0.2,\quad frames=34.
+\]
+
+prior-day q70:
+
+\[
+q70=20.
+\]
+
+entry cross:
+
+\[
+17.825 \le 20 \Rightarrow admission accepted.
+\]
+
+closed outcomes:
+
+\[
+[3.0,-1.0,2.0,1.5,-0.5]\Rightarrow R5=4.33.
+\]
+
+cell：
+
+\[
+A=1,\quad B=1,\quad cell=\text{\ttfamily 11\_r5\_frames}.
+\]
+
+membership：
+
+\begin{lstlisting}
+tfi_follow_flat+tfi_long_flat+tfi_event_active
+base_weight = 0.5
+\end{lstlisting}
+
+gamma：
+
+\[
+target=0.5\times0.75=0.375.
+\]
+
+若 open exposure 2.9：
+
+\[
+actual=\min(0.375,0.1)=0.1.
+\]
+
+这笔 entry 写到 \code{entries.parquet} 时，关键字段就是：
+
+\begin{lstlisting}
+side = buy
+direction = 1
+cell = 11_r5_frames
+membership_set = tfi_follow_flat+tfi_long_flat+tfi_event_active
+entry_bid = 0.1120
+entry_ask = 0.1124
+entry_spread_bps = 35.65
+entry_cross_bps = 17.825
+admission_accepted = true
+a_r5_raw = 4.33
+base_weight = 0.5
+gamma = 0.75
+requested_exposure = 0.375
+actual_exposure = 0.1
+clipped_exposure = 0.275
+\end{lstlisting}
+
+\section{定义卡片：每个字段到底回答什么问题}
+
+读策略时最容易乱，是因为一个字段名同时像金融概念、工程字段和研究报告术语。
+本书后面反复使用下面这张表。新人可以先把它当成当前 runtime 的索引卡。
+
+\begin{longtable}{p{0.28\textwidth}p{0.25\textwidth}p{0.17\textwidth}p{0.20\textwidth}}
+\toprule
+定义 & 它回答的问题 & L2 或 trade 来源 & runtime 用法 \\
+\midrule
+\code{bid/ask} & 现在能立刻卖/买到什么价 & L2 top-of-book & 算 mid、spread、exec return \\
+\code{mid} & 盘口中心在哪里 & \((bid+ask)/2\) & 算 past event、frames、mid close \\
+\code{spread_bps} & 跨价差有多贵 & \((ask-bid)/mid\) & admission gate \\
+\code{TFI} & 最近主动买卖是否单边 & rolling trades & entry trigger 方向 \\
+\code{trade_window_count} & 最近窗口是否有真实成交 & rolling trades & 空窗口过滤 \\
+\code{past_event_25_bps} & 刚才价格是否已释放 & mid history & flat 过滤 \\
+\code{frames_since_mid_change} & mid 停滞多久 & mid history & stale trigger、cell、overlay \\
+\code{q70} & 当前 spread 是否处在可接受范围 & prior-day spread 分布 & admission threshold \\
+\code{R5} & 最近已闭合 shadow trades 是否顺 & closed outcomes & cell sizing \\
+\code{cell} & R5 和 frames 的二元组合状态 & R5 + frames & 查 gamma \\
+\code{membership_set} & 哪些 trigger class 被选中 & policy if 逻辑 & 查 base weight \\
+\code{gamma} & 这个 cell 放大还是压低仓位 & preset table & sizing \\
+\code{actual_exposure} & 3x 账本后真实能下多少 & capacity ledger & entry row、daily PnL \\
+\code{fixed60} & 60 秒后读数 & exit top-of-book & fast backtest exit \\
+\bottomrule
+\end{longtable}
+
+\truth{当前策略的 entry 第一性触发是 \code{TFI}，不是 \code{R5}。}
+\truth{\code{R5} 进入的是 \code{cell -> gamma -> target_exposure} 这条 sizing 链。}
+
+\section{四个不会 entry 的 L2 反例}
+
+只看正例容易误以为“有主动买就一定买”。实际不是。下面四个反例比正例更能说明策略到底简单在哪里。
+
+\subsection{反例一：主动流不够单边}
+
+盘口：
+
+\begin{lstlisting}
+bid1 = 0.1120
+ask1 = 0.1124
+\end{lstlisting}
+
+最近成交：
+
+\begin{longtable}{p{0.20\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.30\textwidth}}
+\toprule
+time & side & qty & signed qty \\
+\midrule
+0.1s & buy & 500 & +500 \\
+0.7s & sell & 200 & -200 \\
+1.4s & buy & 100 & +100 \\
+\bottomrule
+\end{longtable}
+
+\[
+TFI=\frac{600-200}{800}=0.5.
+\]
+
+这在金融直觉上也许是买方更强，但当前 runtime 不会 entry，因为代码要求：
+
+\[
+TFI \ge 1 \quad\text{or}\quad TFI \le -1.
+\]
+
+\checkpoint{如果你觉得 \(TFI=0.5\) 也应该有价值，那是新策略设计问题，不是当前策略事实。}
+
+\subsection{反例二：价格已经释放，flat 过滤失败}
+
+最近成交全是 buy：
+
+\[
+TFI=1.
+\]
+
+但是 L2 mid 已经从 \(0.1122\) 涨到 \(0.1130\)：
+
+\[
+past25=10000\log\frac{0.1130}{0.1122}\approx71.0\text{ bps}.
+\]
+
+当前 flat trigger 要求：
+
+\[
+|past25|\le0.5.
+\]
+
+所以 \code{tfi_follow_flat} 和 \code{tfi_long_flat} 不会激活。它不追已经明显涨过的一段。
+
+\subsection{反例三：spread 太宽，admission 拒绝}
+
+盘口：
+
+\begin{lstlisting}
+bid1 = 0.1120
+ask1 = 0.1130
+mid  = 0.1125
+\end{lstlisting}
+
+\[
+spread\_bps=\frac{0.1130-0.1120}{0.1125}\times10000\approx88.9.
+\]
+
+\[
+entry\_cross\_bps=44.45.
+\]
+
+若 prior-day q70 是 20 bps，则：
+
+\[
+44.45>20.
+\]
+
+这时即使 policy 给出 shadow entry，\code{EntrySpreadAdmissionGate} 也会拒绝。注意这里没有任何高深模型：只是“吃单太贵，不吃”。
+
+\subsection{反例四：target 有，但 3x capacity 没了}
+
+假设 trigger、admission 都通过：
+
+\begin{lstlisting}
+target_exposure = 0.75
+open_exposure_before = 3.0
+leverage_cap = 3.0
+\end{lstlisting}
+
+\[
+free=3.0-3.0=0.
+\]
+
+\[
+actual=\min(0.75,0)=0.
+\]
+
+这笔候选在研究上可能算 shadow signal，但真实 fast entry 里不会产生正的 \code{actual_exposure}。
+
+\section{四个 cell 的手算样例}
+
+四象限这个名字听起来玄，其实只是两个布尔变量：
+
+\[
+A=1\{R5\ge1\},\quad B=1\{frames\ge31\}.
+\]
+
+下面用同一组 L2 trigger，只改变 R5 和 frames。
+
+\begin{longtable}{p{0.18\textwidth}p{0.16\textwidth}p{0.16\textwidth}p{0.20\textwidth}p{0.20\textwidth}}
+\toprule
+case & R5 & frames & cell & gamma \\
+\midrule
+1 & 0.60 & 12 & \code{00_none} & 1.25 \\
+2 & 2.20 & 12 & \code{10_r5_only} & 0.75 \\
+3 & 0.60 & 45 & \code{01_frames_only} & 0.00 \\
+4 & 2.20 & 45 & \code{11_r5_frames} & 0.75 \\
+\bottomrule
+\end{longtable}
+
+如果 \code{base_weight=0.5} 且没有 overlay，target exposure 分别是：
+
+\begin{longtable}{p{0.22\textwidth}p{0.22\textwidth}p{0.42\textwidth}}
+\toprule
+cell & target exposure & 人话 \\
+\midrule
+\code{00_none} & \(0.5\times1.25=0.625\) & baseline 反而不小 \\
+\code{10_r5_only} & \(0.5\times0.75=0.375\) & R5 好，但默认没有放大 \\
+\code{01_frames_only} & \(0.5\times0=0\) & frames alone 在默认 core q70 不下 \\
+\code{11_r5_frames} & \(0.5\times0.75=0.375\) & R5+frames 也是 sizing，不是 entry 条件 \\
+\bottomrule
+\end{longtable}
+
+这张表很反直觉，但正是当前代码事实。它说明过去许多研究叙述容易把“四象限”讲得太神秘。
+
+\warningline{四象限不是独立 alpha 大模型。它只是 \code{R5} 与 \code{frames} 两个布尔切口对应的 gamma 表。}
+
+\section{R5、Delta、Energy 的边界}
+
+从数学上，闭合 outcome 序列可以定义很多量。若最近五笔是：
+
+\[
+g=[+3,-1,+2,+1.5,-0.5],
+\]
+
+则：
+
+\[
+P_5=3+2+1.5=6.5,\quad N_5=1+0.5=1.5.
+\]
+
+当前 runtime 用：
+
+\[
+R5=\frac{P_5}{N_5+\epsilon}=4.33.
+\]
+
+研究层还常写：
+
+\[
+\Delta_5=P_5-N_5=5.0,\quad E_5=P_5+N_5=8.0.
+\]
+
+这些量当然有金融意义：
+
+\begin{itemize}[leftmargin=2em]
+  \item \(R5\)：最近好结果相对坏结果的比例；
+  \item \(\Delta_5\)：最近净胜 bps；
+  \item \(E_5\)：最近结果幅度，不管正负；
+  \item \(Z_5=\Delta_5/\sqrt{E_5+\epsilon}\)：把净方向除以强度尺度。
+\end{itemize}
+
+但是当前 CC runtime 只拿 \(R5\) 做 cell 轴。它没有把 \(\Delta_5\)、\(E_5\)、\(Z_5\) 放进 entry 或 gamma。
+
+\truth{这不是说 Delta/Energy 没价值，而是说当前策略没有实现它们。教材必须把“可研究”与“已上线 runtime truth”分开。}
+
+\section{long 和 short 的 executable 手算}
+
+同一个 L2 订单簿下，long 和 short 成本方向相反。先看 long：
+
+\begin{lstlisting}
+entry bid/ask = 0.1120 / 0.1124
+exit  bid/ask = 0.1126 / 0.1130
+\end{lstlisting}
+
+long 入场打 ask，退出打 bid：
+
+\[
+Y^{exec,long}=10000\log\frac{0.1126}{0.1124}=17.8.
+\]
+
+short 入场打 bid，退出买回打 ask。如果 exit 盘口是：
+
+\begin{lstlisting}
+entry bid/ask = 0.1120 / 0.1124
+exit  bid/ask = 0.1112 / 0.1116
+\end{lstlisting}
+
+则：
+
+\[
+Y^{exec,short}=10000\log\frac{0.1120}{0.1116}=35.8.
+\]
+
+如果你误用 mid：
+
+\[
+Y^{mid,short}=10000\log\frac{0.1122}{0.1114}=71.5.
+\]
+
+会把 spread 成本忽略掉。这就是为什么 fast report 必须同时看 \code{fixed60_mid} 和 \code{fixed60_taker}。
+
+\section{从策略语言翻译成代码字段}
+
+下面这张表可以直接帮助你读 \code{entries.parquet}。左边是第一性语言，右边是工程字段。
+
+\begin{longtable}{p{0.30\textwidth}p{0.28\textwidth}p{0.32\textwidth}}
+\toprule
+第一性问题 & 字段 & 如何检查 \\
+\midrule
+当时观察到哪一帧 & \code{entry_seq} / \code{entry_ts_us} & 是否单调递增 \\
+方向来自哪里 & \code{side} / \code{direction} & 是否等于 TFI 符号 \\
+有没有过 spread gate & \code{admission_accepted} & rejected 不应有正 actual \\
+成本是多少 & \code{entry_spread_bps} / \code{entry_cross_bps} & cross 应约为 half spread \\
+哪个 cell & \code{cell} & 由 R5 与 frames 算出 \\
+R5 当时是多少 & \code{a_r5_raw} & 只来自已闭合 outcome \\
+基础权重 & \code{base_weight} & 由 membership set 查表 \\
+最终缩放 & \code{gamma} & 由 cell 查表 \\
+想下多少 & \code{requested_exposure} & weak overlay weight 乘 gamma \\
+实际下多少 & \code{actual_exposure} & 3x free capacity 裁剪 \\
+剪掉多少 & \code{clipped_exposure} & requested - actual \\
+\bottomrule
+\end{longtable}
+
+\section{第一章最后的手算工作流}
+
+拿到任意一行候选 frame，按照这个顺序手算：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 从 L2 top 算 \code{mid_price} 与 \code{spread_bps}。
+  \item 从最近 trade window 算 \code{TFI} 与 \code{trade_window_count}。
+  \item 从 mid history 算 \code{past_event_25_bps} 与 \code{frames_since_mid_change}。
+  \item 用 \(TFI\)、flat、stale、trade present 生成 active trigger classes。
+  \item 用 trigger class 拼出 \code{membership_set}，查 \code{base_weight}。
+  \item 用已闭合 outcome 算 \code{R5}。
+  \item 用 \(R5\) 和 frames 算 \code{cell}。
+  \item 用 cell 查 \code{gamma}，算 \code{target_exposure}。
+  \item 用 prior-day q70 检查 \code{entry_cross_bps}。
+  \item 用 3x ledger 得到 \code{actual_exposure}。
+  \item 60 秒后用 entry ask/bid 与 exit bid/ask 算 executable return。
+\end{enumerate}
+
+这就是当前策略完整链路。它简单，但每一步都必须清楚。复杂感不来自策略本身，而来自“这些字段散落在数据、fast、Bot、Runner、报告里”。
+
+\section{这一章的结论}
+
+当前策略可以完全用 L2 订单簿和成交解释。它不需要先讲工程，也不需要先讲 API。工程部分只是把这些定义稳定地、可审计地从数据流里算出来。
+
+\checkpoint{如果第一章没看懂，不要急着看 Rust。先回到 L2 表、trade 表和这条手算链。}

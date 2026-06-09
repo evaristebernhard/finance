@@ -1,0 +1,313 @@
+\chapter{Rust Runner 如何模拟本地交易所}
+
+\section{本章要解决的困惑}
+
+如果策略已经能用 Python fast 跑，为什么还要 Rust Runner？因为 fast 解决的是“策略条件在历史状态表上表现如何”，Runner 解决的是“订单在本地交易所里如何到达、成交、写日志”。
+
+Runner 不是 alpha。Runner 是交易所仿真和审计内核。
+
+\section{Rust 新人只需要先懂这些概念}
+
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+Rust 概念 & 本项目里怎么读 \\
+\midrule
+\code{struct} & 一组字段，类似 Python dataclass \\
+\code{enum} & 命令或事件类型集合 \\
+\code{Result<T>} & 可能失败的函数返回 \\
+\code{serde} & JSON/NDJSON 读写 \\
+\code{clap} & CLI 参数解析 \\
+\code{Vec} & 列表 \\
+\code{SocketAddr} & TCP 地址 \\
+\bottomrule
+\end{longtable}
+
+不要一开始学完整 Rust。先读项目里这些对象怎样承接市场、订单和事件日志。
+
+\section{CLI command tree}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/engine/crates/cli/src/main.rs
+\end{lstlisting}
+
+核心 command tree：
+
+\begin{lstlisting}
+Command
+  Serve
+  Catalog
+  Canonical
+  Run
+
+RunCommand
+  Toy
+  Python
+  SparsePython
+  Server
+\end{lstlisting}
+
+这不是策略逻辑。它只是把命令行参数变成 Runner 配置。
+
+\section{真实 Rust 片段：命令只是入口}
+
+源码里的入口大概长这样：
+
+\begin{lstlisting}
+#[derive(Debug, Parser)]
+struct Args {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    Serve(ServeArgs),
+    Catalog { command: CatalogCommand },
+    Canonical { command: CanonicalCommand },
+    Run { command: RunCommand },
+}
+
+#[derive(Debug, Subcommand)]
+enum RunCommand {
+    Toy(RunToyArgs),
+    Python(RunPythonArgs),
+    SparsePython(RunSparsePythonArgs),
+    Server(RunServerArgs),
+}
+\end{lstlisting}
+
+Rust 新人读到这里，不需要纠结宏展开。交易含义只有一句：
+
+\begin{quote}
+用户在 CLI 选择哪一种 run，Rust 就把参数解析成哪一种配置，然后调用相应的 Runner 函数。
+\end{quote}
+
+\code{Toy} 是最小玩具；\code{Python} 和 \code{SparsePython} 负责把 Python Bot 接进 replay；\code{Server} 负责启动 public/private/order/state 这些本地服务端口。
+
+\section{SparsePython 为什么重要}
+
+当前策略在线时是 Python Bot，但市场和成交由 Rust Runner 管。两边之间需要桥：
+
+\begin{lstlisting}
+Runner public stream -> Python Bot stdin / TCP
+Python Bot order intent -> Runner order ingress
+Runner private stream -> Python Bot account/order updates
+Runner events.ndjson -> offline audit
+\end{lstlisting}
+
+\code{SparsePython} 的名字容易误解。它不是“稀疏策略”，而是 Runner 只在关键市场事件或 panel frame 上给 Bot 发消息，避免全量逐 tick 灌爆 Python。
+
+\section{panel sparse fast clock 的代码含义}
+
+CLI 里有一段逻辑会读取 \code{decision_frame_v1} cache，并把它导出为 NDJSON 给 Runner：
+
+\begin{lstlisting}
+let script =
+    repo_root.join("systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py");
+let mut child = ProcessCommand::new(python)
+    .arg(&script)
+    .arg("export-ndjson")
+    .arg("--repo-root")
+    .arg(repo_root)
+    .arg("--symbol")
+    .arg(symbol)
+    .arg("--from-date")
+    .arg(day)
+    .arg("--to-date")
+    .arg(day)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::inherit())
+    .spawn()?;
+\end{lstlisting}
+
+这段不是让 Bot 读 \code{date/}。它是 Runner/CLI 在研究环境中把已构建的 \code{decision_frame_v1} cache 转成 stream。Bot 仍然只看到 Runner 发来的事件。
+
+\warningline{Bot 不读 \code{date/}。研究 CLI 可以读取 cache 来构造 replay stream，但 runtime Bot 不能绕过 Runner 去偷看文件。}
+
+\section{Runner options：交易所配置在哪里}
+
+在 sparse Python 路径里，CLI 最后会组装 options：
+
+\begin{lstlisting}
+let options = SparsePythonStreamOptions {
+    run_id: args.run_id.unwrap_or_else(|| default_run_id("sparse_python_runner")),
+    run_root: args.run_root,
+    exchange_config: ExchangeConfig {
+        symbol: args.symbol.clone(),
+        starting_cash: args.starting_cash,
+        fee_bps: args.fee_bps,
+        max_leverage: args.max_leverage,
+    },
+    max_events: args.max_events,
+    latency_us: args.latency_us,
+    fill_model: args.fill_model.into(),
+    python: args.python,
+    strategy_script: args.strategy_script,
+    strategy_args,
+};
+\end{lstlisting}
+
+这段回答了几个新人常问的问题：
+
+\begin{itemize}[leftmargin=2em]
+  \item 起始现金、手续费、最大杠杆在 Runner 配置里；
+  \item fill model 是 Runner 的交易所模型，不是 Python policy；
+  \item Python 脚本只是策略进程；
+  \item run output 写到 \code{run_root/run_id}。
+\end{itemize}
+
+\section{Server 模式为什么有 order addr}
+
+Runner Server 有 public/private/order/state 多个地址：
+
+\begin{longtable}{p{0.20\textwidth}p{0.30\textwidth}p{0.40\textwidth}}
+\toprule
+端口 & 谁用 & 作用 \\
+\midrule
+public & Bot / Monitor & 市场 quote/trade/L2 stream \\
+private & Bot / Monitor & account、ack、fill、portfolio \\
+order & Bot only & submit order / cancel order \\
+state & Monitor / debug & 只读状态 HTTP \\
+\bottomrule
+\end{longtable}
+
+这也是为什么 Monitor 必须只读。Monitor 可以接 public/private/state，但不应该知道或连接 order ingress。
+
+\section{Runner 的职责}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/engine/crates/runner/src/lib.rs
+\end{lstlisting}
+
+按责任区域读，不要逐行硬啃：
+
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+区域 & 问题 \\
+\midrule
+market loading & canonical quote/trade/L2 如何进入 replay \\
+public stream & Runner 给 Bot 发什么市场消息 \\
+order ingress & Bot 的 submit order 怎样进入交易所 \\
+latency queue & observed time 到 arrival time 怎样计算 \\
+fill model & market buy/sell 用哪个价格成交 \\
+portfolio & position、cash、equity 怎样变化 \\
+event log & 哪些事件写入 \code{events.ndjson} \\
+\bottomrule
+\end{longtable}
+
+\section{top-of-book taker fill}
+
+当前主线 fill model：
+
+\begin{lstlisting}
+top_of_book_taker_ioc_v1
+\end{lstlisting}
+
+含义：
+
+\begin{itemize}[leftmargin=2em]
+  \item market buy 到达时打 arrival ask；
+  \item market sell 到达时打 arrival bid；
+  \item 默认 fee 可以是 0，但 spread 成本仍存在；
+  \item maker 字段当前只是保留，不是 active maker 模型。
+\end{itemize}
+
+\section{observed quote、arrival quote、fill price}
+
+Runner 要把三个时刻分开：
+
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+对象 & 含义 \\
+\midrule
+observed quote & Bot 决策时看到的盘口 \\
+arrival quote & 订单延迟后到达交易所时的盘口 \\
+fill price & 根据 side 和 arrival quote 算出的成交价 \\
+\bottomrule
+\end{longtable}
+
+fast 回测常常用简化近似；Runner 则记录因果链。
+
+\section{一笔订单在 Runner 里的状态机}
+
+Runner 的订单生命周期不是为了显得复杂，而是为了把“什么时候看见、什么时候到达、按哪个盘口成交”拆开：
+
+\begin{lstlisting}
+Bot observes market event
+-> order_intent
+-> order_scheduled at observed_ts + latency
+-> order_arrived with arrival quote
+-> order_ack or order_reject
+-> fill_created
+-> portfolio_state_on_change
+\end{lstlisting}
+
+如果 observed quote 是：
+
+\begin{lstlisting}
+bid = 0.1120
+ask = 0.1124
+\end{lstlisting}
+
+延迟后 arrival quote 变成：
+
+\begin{lstlisting}
+bid = 0.1121
+ask = 0.1127
+\end{lstlisting}
+
+则 buy taker fill 用 0.1127，不是 0.1124。fast 回测如果没有 arrival 模拟，可能会高估这类路径。
+
+\section{Runner 和 fast 的共同点}
+
+两者并不是互相替代：
+
+\begin{longtable}{p{0.24\textwidth}p{0.30\textwidth}p{0.34\textwidth}}
+\toprule
+对象 & fast backtest & Rust Runner \\
+\midrule
+策略状态 & \code{decision_frame} row & public stream / panel frame \\
+entry trigger & Python policy & Python Bot policy \\
+spread cost & quote frame 近似 & arrival quote fill \\
+latency & 通常简化 & 显式 latency queue \\
+event log & entries/exits 表 & \code{events.ndjson} 因果链 \\
+用途 & 快速研究 & 成交真实性与审计 \\
+\bottomrule
+\end{longtable}
+
+如果 fast 好但 Runner 坏，常见原因不是 Rust 写错策略，而是 fast 近似忽略了 arrival quote、latency、fill model 或 order lifecycle。
+
+\section{Runner 不读 label}
+
+Runner 可以知道市场、订单、成交、账户。Runner 不能知道：
+
+\begin{lstlisting}
+future return
+MFE / MAE
+scored entries
+research label
+strategy PnL labels used as input
+\end{lstlisting}
+
+\warningline{Runner 不读 label。Runner 是交易所，不是策略研究脚本。}
+
+\section{手动检查点}
+
+读 Rust Runner 时，先在源码里找这些词：
+
+\begin{lstlisting}
+RunCommand
+SparsePython
+Server
+OrderArrivalMode
+TakerFillModel
+fill_created
+portfolio_state
+events.ndjson
+\end{lstlisting}
+
+\checkpoint{Runner 的难度不是策略难，而是它要把交易所时钟、延迟、成交和日志做成可审计过程。}

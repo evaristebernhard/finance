@@ -1,0 +1,84 @@
+\chapter{代码入口索引}
+
+\section{当前策略真相}
+
+\begin{longtable}{p{0.36\textwidth}p{0.54\textwidth}}
+\toprule
+路径 & 读它解决什么问题 \\
+\midrule
+\file{docs/markets/ccusdt/current/CURRENT_STRATEGY_PLAIN.md} & 当前 runtime 到底做了什么，没有做什么 \\
+\file{docs/markets/ccusdt/START_HERE.md} & 新 Codex 的入口和当前主线 \\
+\bottomrule
+\end{longtable}
+
+\section{fast 回测}
+
+\begin{longtable}{p{0.40\textwidth}p{0.50\textwidth}}
+\toprule
+路径 & 读法 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py} & cache schema、manifest、build/validate \\
+\file{systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py} & fast 状态机如何产生 entries/exits \\
+\file{systems/ccusdt_replay_exchange/diagnostics/audit_event_log.py} & strict event log 审计 \\
+\bottomrule
+\end{longtable}
+
+\section{Python Bot}
+
+\begin{longtable}{p{0.44\textwidth}p{0.46\textwidth}}
+\toprule
+路径 & 读法 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/online_features.py} & TFI、frames、past event、closed outcome memory \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/decision_frame.py} & decision frame builder \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/shadow_policy.py} & trigger、cell、gamma、target exposure \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/execution_runtime.py} & admission、capacity、taker helper \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/strategy.py} & stdin/stdout sparse bot 入口 \\
+\file{systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/tcp_bot.py} & independent Runner Server 的 TCP bot \\
+\bottomrule
+\end{longtable}
+
+\section{Rust Runner}
+
+\begin{longtable}{p{0.42\textwidth}p{0.48\textwidth}}
+\toprule
+路径 & 读法 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/engine/crates/cli/src/main.rs} & command tree 和参数入口 \\
+\file{systems/ccusdt_replay_exchange/engine/crates/runner/src/lib.rs} & replay loop、order ingress、latency、fill、event log \\
+\file{systems/ccusdt_replay_exchange/engine/crates/exchange_sim/src/lib.rs} & exchange/account/fill 基础逻辑 \\
+\file{systems/ccusdt_replay_exchange/engine/crates/replay_core/src/canonical.rs} & canonical 数据读取和构建 \\
+\bottomrule
+\end{longtable}
+
+\section{协议和边界}
+
+\begin{longtable}{p{0.42\textwidth}p{0.48\textwidth}}
+\toprule
+路径 & 读法 \\
+\midrule
+\file{systems/ccusdt_replay_exchange/docs/event_contracts.md} & market/order/fill/portfolio/event log 契约 \\
+\file{systems/ccusdt_replay_exchange/docs/execution_model.md} & taker/top-of-book/L2/latency 模型边界 \\
+\file{systems/ccusdt_replay_exchange/AGENTS.md} & 系统内硬边界和推荐命令 \\
+\bottomrule
+\end{longtable}
+
+\section{最后的阅读建议}
+
+不要一上来读完整 \code{runner/src/lib.rs}。先把下面这条链手算明白：
+
+\begin{lstlisting}
+decision_frame row
+-> TFI trigger
+-> membership_set
+-> base_weight
+-> R5/frames cell
+-> gamma
+-> target_exposure
+-> admission
+-> actual_exposure
+-> fixed60 exit
+\end{lstlisting}
+
+这条链看懂以后，再回去读 Rust Runner，你会发现它只是把这条链放进一个更真实、更可审计的本地交易所。
+

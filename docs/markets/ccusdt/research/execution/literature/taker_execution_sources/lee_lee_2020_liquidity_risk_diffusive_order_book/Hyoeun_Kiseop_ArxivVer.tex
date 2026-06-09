@@ -1,0 +1,2494 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym, epsfig, graphics,mathrsfs, mathpazo,dsfont,wrapfig,bbm, fixmath, bm,multirow}
+\usepackage{courier}
+\usepackage[margin=1in,vmargin=1in]{geometry}
+\usepackage{color}
+
+\usepackage[numbers]{natbib}
+\bibliographystyle{abbrvnat}
+
+%\addtolength{\hoffset}{ -1.5 cm }
+%\addtolength{\textheight}{1 cm}
+%\addtolength{\textwidth}{3.3 cm}
+\parindent=10pt
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{example}{Example}
+\newtheorem{problem}{Problem}
+\newtheorem{ass}{Assumption}
+\newcommand{\spacer}{\rule[-3mm]{0mm}{8mm}}
+\newcommand{\Lc}{Liquidity cost }
+\newcommand{\lc}{liquidity cost }
+\newcommand{\BS}{Black-Scholes }
+
+% \renewcommand{\baselinestretch}{1.0}
+
+   \theoremstyle{plain}
+    \numberwithin{equation}{section}
+    \newtheorem{thm}{Theorem}[section]
+    \newtheorem{prop}[thm]{Proposition}
+    \newtheorem{clm}[thm]{Claim}
+    \newtheorem{cor}[thm]{Corollary}
+    \newtheorem{lem}[thm]{Lemma}
+    \newtheorem{remk}{Remark}
+    % \newtheorem{remk}[thm]{Remark}
+    \newtheorem{defn}[thm]{Definition}
+    \newtheorem{exmpl}[thm]{Example}
+    \newtheorem{cond}{Conditions}[section]
+\newtheorem{remark}[theorem]{Remark}
+    \def\bbq{{\mathbb Q}}
+    \def\bbl{{\mathbb L}}
+    \def\bbk{{\mathbb K}}
+    \def\bbf{{\mathbb F}}
+    \def\bbx{{\mathbb X}}
+    \def\calB{{\mathcal B}}
+    \def\calF{{\mathcal F}}
+    \def\calM{{\mathcal M}}
+    \def\calA{{\mathcal A}}
+    \def\calC{{\mathcal C}}
+    \def\calL{{\mathcal L}}
+    \def\calH{{\mathcal H}}
+    \def\calG{{\mathcal G}}
+    \def\calI{{\mathcal I}}
+    \def\calJ{{\mathcal J}}
+    \def\calL{{\mathcal L}}
+    \def\calN{{\mathcal N}}
+    \def\calE{{\mathcal E}}
+    \def\calU{{\mathcal U}}
+    \def\calK{{\mathcal K}}
+    \def\calV{{\mathcal V}}
+    \def\calP{{\mathcal P}}
+    \def\calR{{\mathcal R}}
+    \def\calS{{\mathcal S}}
+    \def\calX{{\mathcal X}}
+    \def\bbr{{\mathbb R}}
+    \def\bbe{{\mathbb E}}
+    \def\bbp{{\mathbb P}}
+    \def\bbc{{\mathbb C}}
+    \def\bbn{{\mathbb N}}
+    \def\bbz{{\mathbb Z}}
+    \def\bfX{{\mathbf X}}
+    \def\bfY{{\mathbf Y}}
+    \def\bfx{{\mathbf x}}
+    \def\bfz{{\mathbf z}}
+    \def\bfI{{\mathbf I}}
+    \def\bff{{\mathbf f}}
+    \def\bfXt{{\mathbf{X}(t)}}
+    \renewcommand{\S}{\mathcal{S}}
+    \newcommand{\M}{\mathcal{M}}
+    \newcommand{\J}{\mathcal{J}}
+    \newcommand{\cH}{\mathcal{H}}
+
+    \newcommand{\rd}[1]{{\R}^{{#1}d}}
+
+ \newcommand{\E}{\mathbb E}
+\newcommand{\e}{\mathrm e}
+\newcommand{\Q}{\mathbb Q}
+\newcommand{\D}{\mathrm{d}}
+\newcommand{\F}{\mathcal F}
+\newcommand{\G}{\mathcal G}
+\newcommand{\I}{\mathrm i}
+\newcommand{\PP}{\mathbb P}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\argmax}{\mathrm{arg max}}
+
+    \def\bu{{\bf u}}
+
+        \def\a{{a}}
+    \def\b{{b}}
+%    \def\c{{c}}
+    \def\d{{d}}
+    \def\e{{e}}
+    \def\f{{f}}
+    \def\g{{g}}
+    \def\h{{h}}
+    \def\j{{j}}
+    \def\k{{k}}
+    \def\l{{l}}
+    \def\m{{m}}
+    \def\n{{n}}
+    \def\o{{o}}
+    \def\p{{p}}
+    \def\q{{q}}
+    \def\r{{r}}
+    \def\s{{s}}
+    \def\t{{t}}
+    \def\u{{u}}
+    \def\v{{v}}
+    \def\w{{w}}
+    \def\x{{x}}
+    \def\y{{y}}
+    \def\z{{z}}
+
+     \def\A{{A}}
+    \def\B{{B}}
+    \def\C{{C}}
+    \def\D{{D}}
+    \def\E{{E}}
+    \def\F{{F}}
+    \def\G{{G}}
+    \def\H{{H}}
+    \def\I{{I}}
+    \def\J{{J}}
+    \def\K{{K}}
+    \def\L{{L}}
+    \def\M{{M}}
+    \def\N{{N}}
+    \def\O{{O}}
+    \def\P{{P}}
+    \def\Q{{Q}}
+    \def\R{{R}}
+    \def\S{{S}}
+    \def\T{{T}}
+    \def\U{{U}}
+    \def\V{{V}}
+    \def\W{{W}}
+    \def\X{{X}}
+    \def\Y{{Y}}
+    \def\Z{{Z}}
+
+
+    \def\sT{\text{\tiny T}}
+    \def\spX{{\left\{\mathbf{X}(t)\right\}_{t\geq 0}}}
+    \def\spY{{\left\{\mathbf{Y}(t)\right\}_{t\geq 0}}}
+    \def\rspX{{\left\{X(t)\right\}_{t\geq 0}}}
+    \def\ed{{\,\stackrel{\frak {D}}{=}\,}}
+    \def\ld{\;{\stackrel{\frak {D}}{\longrightarrow}}\;}
+    \def\ms{\;{\stackrel{\bbl^{2}}{\longrightarrow}}\;}
+    \def\cp{\;{\stackrel{\bbp}{\longrightarrow}}\;}
+    \def\eop{\hfill\Box}
+%    \def\ld{{\stackrel{\frak {D}}{\longrightarrow}}}
+
+\newcommand{\JS}[1]{\textcolor{blue}{#1}}
+\linespread{1.05}
+\usepackage{xcolor}
+% \textheight 9in
+ %\textwidth 6.5in
+ %\oddsidemargin 0cm
+ %\evensidemargin 0cm
+ %\topmargin-.54in
+ \definecolor{Red}{rgb}{0,0,0}
+\newcommand{\Red}{\color{Red}}
+\definecolor{Blue}{rgb}{0,0,0}
+\newcommand{\Blue}{\color{Blue}}
+\definecolor{Green}{rgb}{0,0,0}
+\newcommand{\Green}{\color{Green}}
+\definecolor{Magenta}{rgb}{0,0,0}
+\newcommand{\Magenta}{\color{Magenta}}
+
+\begin{document}
+
+\title{Optimal execution with liquidity risk in a diffusive order book market}
+
+\author{ Hyoeun Lee\footnote{Department of Statistics, University of Illinois, Email:hyoeun@illinois.edu}
+,\,\,Kiseop Lee\footnote{Department of Statistics, Purdue University, Email: kiseop@purdue.edu}
+}
+\maketitle
+
+\begin{abstract}
+%We study an optimal order placement strategy with the presence of a liquidity cost. A trade can place both limit and market orders, and a large market order faces an adverse price movement caused by the liquidity risk. We first study a single period model, and extend it to a multi-period model. 
+
+We study the optimal order placement strategy with the presence of a liquidity cost. In this problem, a stock trader wishes to clear her large inventory by a predetermined time horizon $T$. A trader uses both limit and market orders, and a large market order faces an adverse price movement caused by the liquidity risk. First, we study a single period model where the trader places a limit order and/or a market order at the beginning. We show the behavior of optimal amount of market order, $m^*$, and optimal placement of limit order, $y^*$, under different market conditions. Next, we extend it to a multi-period model, where the trader makes sequential decisions of limit and market orders at multiple time points.
+\end{abstract}
+
+\section{Introduction}
+%
+%\begin{enumerate}
+%	\item Modern finance theory, only considered frictionless and competitive market. This state does not work now, with HF setting. 
+%	\item Liquidity risk/ Price impact (cetin-jarrow-protter: pricing theory, almgren-chriss: optimal execution with price impact)
+%	\item Optimal execution under this: most considered just market orders. [Literature review]
+%	\item Introduce: considering both MO and LO (but only consider best bid/ask for LO). Do not consider LOB features?
+%	\item Guo, previous paper: consider MO and LO with deeper level of LO placement, consider LOB features, but consider small size order and does not consider big size order- do not consider liquidity risk
+%	\item Optimal execution without liquidity risk : Mention previous work - but this don't incorporate liq. risk since only consider small size order (example of considering LOB feature but does not incorporate liq. risk)
+%	\item Our work: consider liq. risk and also incorporate necessary information regarding LOB, consider deeper levels of LO
+%	\item Summary of our results
+%\end{enumerate}
+
+\par In general, stock traders often need to handle a large order. Usually, the first step is to split a large order into multiple small orders before placing. This is to reduce the unfavorable price movements to the trader caused by a large order. Selling an asset tends to move the price downward, while buying an asset tends to move the price upward. This effect is often called as a liquidity cost, a price impact, or a market impact. In this paper, we are going to call this as a liquidity cost. 
+
+\medskip
+\par The liquidity cost affects the optimal strategy of traders, since a large initial market order may face a hefty liquidity cost. The optimal execution strategy under a liquidity cost has been studied extensively. 
+
+  \par The pioneering work of \citet{bertsimas1998optimal}  
+and  \citet{almgren2001optimal} consider a linear impact, such that the liquidity cost is proportional to the number shares of an order. \citet{bank2004hedging}, \citet{CJP:2003} , and \citet{frey2002risk} investigate deeply on the liquidity cost and additional transient impacts. 
+ \citet{obizhaeva2013optimal} consider  a transient (linear) impact additionally. A transient impact is that the impact from a market order is not permanent, but only exists for a short moment and vanishes.
+ 
+\par However, \citet{potters2003more},  \citet{eisler2012price}, and  \citet{donier2012market} empirical showed that the liquidity cost is not linear, but rather concave. \citet{alfonsi2010} ,    \citet{predoiu2011optimal},   \citet{gatheral2010no} and   \citet{gueant2015optimal}, and many others, have proposed extensions or alternatives to \citet{obizhaeva2013optimal} with a nonlinear liquidity cost.  
+
+\par Furthermore, instead of the exponential decay of the transient impact, more general decay kernels are considered by  \citet{alfonsi2012order}  and \citet{gatheral2012transient} since the exponential decay is not observed on market data. 
+
+\medskip
+
+ \par When placing orders, the second step for investors is to decide between a market order and a limit order. A market order (MO) is an order to buy/sell an asset at the best available price. Market orders are executed immediately, while the best available price might be affected adversely (liquidity cost). Most studies so far have focused on an execution problem using solely a market order. 
+ \par A limit order (LO) is an order to buy/sell an asset at a specific price. The price of a limit order is specified by the buyer/seller, but the execution is not guaranteed. A limit order can be cancelled by the buyer/seller before execution.
+
+\par A limit order book (LOB) collects all quantities and the price of limit orders. The LOB is updated upon execution of market orders, submission of limit orders, or cancellation of pre-existing limit orders. 
+\par Recently, more researchers like \citet{jacquierLiu2017}, \citet{alfonsi2010}, \citet{GuilbaudPham2013}, \citet{Manglaras2015}, \citet{ContKukanov2013} consider both market orders and limit orders, instead of focusing on the market order only. However, only the best bid or the best ask prices are considered as options.
+
+\citet{cartea2014modelling}, \citet{GDR:2017}, \citet{FLP:2018}
+have considered whether placing the limit order deeper in the book could be preferable, which is often called as an optimal placement problem. In \cite{cartea2014modelling}, the optimal placement problem is studied under a continuous-time model for the mid-price, a mean-reverting process with jumps. \cite{GDR:2017} investigate the optimal placement problem under a discrete-time model for the level I prices of a LOB. In \cite{FLP:2018}, a problem similar to \cite{GDR:2017} is studied under a continuous-time model, and shows that there exists an optimal placement policy different from the Level I-II solution of \cite{GDR:2017}.  
+%To be specific, Cartea et. al. \cite{cartea2014modelling} investigates the optimal placement control problem when the trader is continuously posting and canceling LOs to maximize expected terminal wealth while penalizing inventories until the pre-specified time limit $T$, considering placing the limit order deeper in the book than the best bid or the best ask.
+%Comment: 
+ %Specifically, {Guo et.~al.}~\cite{GDR:2017} investigates the optimal placement problem when the investor wants to buy one share of the asset by a certain specified time horizon $t$,  assuming  that the best ask price follows a symmetric correlated random walk (CRW), one of the discrete-time model.  (see \citet{renshaw1981correlated} for the definition of CRW). % {Guo et.~al.}~\cite{GDR:2017} assumes a ``static" trading strategy where the investor's limit order cannot be cancelled before $t$, and a limit order not executed by time $t$ is automatically cancelled and changed to a market order at time $t$. {It is also assumed therein} that there is a positive constant probability that the investor's order would be executed each time the order's price becomes the best bid price of the LOB. A key conclusion in \cite{GDR:2017} is that the optimal strategy that minimizes the investor's expected cost is one of three possibilities: (i) placement at the best bid; (ii) placement at the second best bid; or (iii) initial market buy order. Furthermore, the answer changes according to the respective values of the rebate, the market fee, and the transition probability. 
+
+
+%\par In \citet{FLP:2018}, under the presence of negative drift, there exists an optimal placement policy different from the Level I-II solution of \cite{GDR:2017}.  There is  critical time $t_{0}>0$ such that a nontrivial optimal solution exists for any horizon $t>t_{0}$.% Furthermore, such a time horizon $t_0$ admits the parsimonious closed-form approximation $\rho(0^{+})(r+f)/2|\mu|$ for the BM model, and $\rho(0^{+})(r+f)/2S_{0}|\mu|$ for the GBM model. Here, $r$ and $f$ are respectively the investor's rebate and fee per executed limit and market order, respectively, and $\rho(0^{+})$ measures the probability that an order placed at the initial best bid would be executed {\Blue before the best ask queue gets depleted}. In general, the optimal solution will depend on the time horizon $t$, the drift $\mu$, the volatility $\sigma$, and a function {$\rho:(0,\infty)\times(0,\infty)\to (0,1]$, such that $\rho(x,t)$ is the probability that an order placed at level $S_{0}-x$ is executed during the first {\Red time period} that this level becomes the best bid price and before the investment's time horizon $t$}. We can incorporate information about the initial state of the LOB through {$\rho(x,t)$}: the larger the initial queue size at level $x$ is, the smaller {$\rho(x,t)$} would be. We also analyze the behavior of the non-trivial optimal solution in different market regimes. Thus, for instance, under a long horizon or small volatility regime, the optimal placement solution takes the form $-\mu t\theta$, where $\theta>1$ is explicitly characterized.
+%
+% Modern finance theory has been based on the frictionless and the competitive
+%market paradigms. A frictionless market is one without transaction costs and trade restrictions, and a competitive market assumes that
+%traders act as price takers so that their trades do not have any impact on the price process. 
+%This idealized state is useful to create tractable models and clarify ideas. However, these ideal models do not work well in a high frequency market, especially where the limit order book is shallow. We can no longer ignore price movements caused by change of the limit order book. This liquidity cost, that was introduced in \c{C}etin et al.~\cite{CJP:2003} also plays an important role in the optimal order placement. 
+%
+%{\Red 3. We want to combine MO/LO problem and price impact}
+
+While  \cite{GDR:2017} and \cite{FLP:2018} studied the optimal placement behavior with a small size order without a liquidity cost, practically we cannot entirely ignore the liquidity cost. Therefore, in this paper, we solve the optimal execution problem with liquidity cost, while considering both market orders and limit orders as options. For the limit order, the optimal price level is also investigated as in \cite{FLP:2018}. For the price impact model, we borrow the  liquidity risk introduced in \cite{CJP:2003} but we add the necessary features of LOB. 
+
+\par We first investigate the optimal placement problem under the single-period setting, where the investor can place an order only at the beginning. The investor needs to clear the inventory (of size $M$) by a certain time horizon $T$. At $t=0$, the investor decides the quantity of the market order $m$ ($0\leq m \leq M$), and the rest $M-m$ will be placed using the limit order. The price level for the limit order, $y$, is also determined at $t=0$. At time $T$, any unexecuted limit order is immediately executed using a market order. 
+
+\par Next, we study an analogous problem with a multi-period setting, where the investor makes decisions at multiple time steps, $\{0,T/n, 2T/n , \dots T \}$. At each time step, the investor cancels existing un-executed limit orders and place new market and limit orders. At time $T$, similar to single-period setting, any remaining inventory is immediately executed using a market order.
+
+\par We model the asset price using the Brownian and the geometric Brownian motion, and also model the liquidity cost from the investor's market order; we use the model derived from \cite{CJP:2003}, but also include the basic feature of Limit Order book. We investigate the behavior of optimal $m^*$ and $y^*$ which maximize the expected cash flow from the order placement. 
+ 
+\par The rest of the paper is organized as follows. We briefly explain the liquidity risk introduced in \cite{CJP:2003} in section 2. In section 3, we discuss the optimal execution strategy in one period model. We extend it to a multi-period case in section 4. We conclude in section 5. 
+
+
+
+%\paragraph{General Notation.}
+%The pdf, cdf, and survival or tail distribution of a standard normal r.v. $Z$ are denoted by $\phi(z)=e^{-z^{2}/2}/\sqrt{2\pi}$, $N(z)=\int_{-\infty}^{z}\phi(x)dx$.
+
+
+\section{Liquidity Risk}
+
+We recall the concepts introduced in the
+work of \citet{CJP:2003}. We consider a market with a risky asset and
+a money market account. The risky asset, stock, pays no dividend and we assume
+that the spot rate of interest is zero, without loss of generality.
+$S(t,x,\omega)$ represents the stock price per share at time
+$t \in [0,T]$ that the trader pays/receives for an order of size $x \in \mathbf{R}$ given the state $\omega \in \Omega$.
+A positive order($x>0$) represents a buy, a negative order ($x<0$)
+represents a sale, and the zeroth order ($x=0$) corresponds to
+the marginal trade. For the detailed structure of the supply curve, we refer to Section 2 of \c{C}etin et al.~\cite{CJP:2003}.
+
+A \emph{trading strategy} (portfolio) is a triplet $((X_t,Y_t : t \in [0,T]),\tau)$ where $X_t$ represents the trader's aggregate stock holding at time $t$
+(units of the stock), $Y_t$ represents the trader's aggregate money account position at time $t$ (units of money market account), and $\tau$
+represents the liquidation time of the stock position. Here, $X_t$ and $Y_t$ are predictable and optional processes, respectively,
+with $X_{0-} \equiv Y_{0-} \equiv 0$.  A \emph{self-financing strategy} is a trading strategy $((X_t,Y_t : t \in [0,T]),\tau)$ where
+ $X_t$ is cadlag if $\frac{\partial S}{\partial x}=0$ for all $t$, and $X_t$ is cadlag with finite quadratic variation
+       ($[X,X]_T < \infty$) otherwise, and
+\begin{align}
+ Y_t &= Y_0 + X_0 S(0,X_0) + \int_0^t X_u dS(u,0)-X_t S(t,0) \notag \\
+     &- \sum_{0\leq u \leq t} \Delta X_u [S(u, \Delta X_u)-S(u,0)] - \int_0^t \frac{\partial S}{\partial x}(u,0) d[X,X]_u^c. \label{SF}
+\end{align}
+
+Therefore, it is natural to define \emph{the liquidity cost} of a self-financing trading strategy $(X, Y, \tau)$ by
+$L_t = \sum_{0\leq u \leq t} \Delta X_u [S(u, \Delta X_u)-S(u,0)] + \int_0^t \frac{\partial S}{\partial x}(u,0) d[X,X]_u^c, \quad 0<t \leq T,$
+where $L_{0-} = 0$, and $L_0 = X_0[S(0,X_0)-S(0,0)]$. 
+
+A practically important problem of a trader is how to execute a large order in the market with liquidity risk. Guo et al. \cite{GDR:2017} studied an optimal placement problem under a discrete time setting. Figueroa-Lopez et al. \cite{FLP:2018} studied an optimal placement problem in continuous time setting, but both studies did not consider the liquidity cost. We plan to study how to place an order using both market and limit orders in a market with liquidity risk.
+
+\section{A Single Period Model}
+
+\subsection{A Diffusive LOB Market}
+
+As the first step, let us consider a simple case where the marginal price $S(t,0)$ is a diffusion process. The goal is to sell $M$ orders by time horizon $T$. We consider two cases. In a single period case, we will study the optimal placement problem in a single step (decision is made once when $t=0$). The trader will use market order and limit order to minimize the utility function (expected cost), which incorporates the execution risk from limit order and liquidity cost from market order. We next extend it to a multi-period case. Then the goal is to use the previous step to build the multiple-period (decision can be made multiple times ($t=0,t_1,\dots,t_N=T$), and at each time step the trader place market/limit order.
+
+For the supply curve, we use
+\[
+S(t,x)=S(t,0)-d-\beta(K+x)^{-}, \,\, \beta>0,\,\,x<0,
+\]
+and 
+\[
+S(t,0)=S_0+\mu t+\sigma W_t,  \quad \text{or} \quad S(t,0)=S_0 e^{(\mu-\frac{\sigma^2 }{2}) t +\sigma W_t},
+\]
+where $d(>0)$ is the half of the bid and ask spread, and $K$ is the initial market depth at the best bid price. Therefore, the price does not move up to the first $K$ shares, then moves down linearly afterward.{ \cite{BP:2010}, \cite{CJP:2003} suggest linear supply curve: For liquid stocks, the supply curve is linear in $x$ and for highly illiquid commodities, \cite{BP:2010} suggests a jump-linear supply curve. In our work, we apply a linear curve, and just use one $\beta$ since we focus on only one side (sell). Also, we consider the necessary limit order book feature, the market depth $K$. 
+
+
+First, let us consider a single period case. The placement is made only once at time $0$. At time $0$, the trader makes a decision. If a trader sells $M$ orders using only a market order at time 0, the trader's cash flow becomes $M*(S(0,-M)-f )$ where $f$ is the fee per an executed market order. A more general case is when a trader sells $m$ orders using a market order at time 0, and places a $M-m$ sell limit order at the price level $S(0,0)+y$, $y\geq d$. Any remaining unexecuted orders at time $T$ are converted to a market order and  are executed immediately with paying the liquidity cost.
+
+Let $\tau$ be the first time that the trader's limit order becomes the best ask. In other word, $\tau$ is the first time $S(0,0)+y$ becomes the best ask. Let $L$ be the number of executed shares at the price level $S(0,0)+y$ and denote $L=(M-m)\rho$ where $\rho$ is the proportion of the execution. 
+
+
+Notice that even when the trader's limit order becomes the best ask, there is no guarantee of execution, since there will be orders at the exact same level from other traders too.
+The trader's cash flow from the initial market order is $m*(S(0, -m)-f)$. If $\tau>T$, no limit order will be executed and all will be put as a market order. Therefore, the expected cash flow from the remaining $M-m$ shares will be $(M-m)E(S(T,-(M-m))-f|\tau>T).$
+When $\tau<T$, the expected cash flow from the remaining $M-m$ shares becomes $E(L(S({0},0)+y+r))+E((M-m-L)(S(T,-(M-m))-f)   |\tau<T), $
+where $r$ is the rebate per an executed limit order.
+
+Our goal is to find the optimal $(m,y)$ which maximizes the expected cash flow
+\begin{align}\nonumber
+&m(S(0, -m)-f) +(M-m)E(S(T,-(M-m))-f|\tau>T)P(\tau>T) \\
+&+\{E(L (S(0,0)+y+r))+E ((M-m-L)(S(T,-(M-m-L))-f)   |\tau<T)\}P(\tau<T).
+\label{ECF_lem3}
+\end{align}
+
+
+ To do this, we need to calculate the conditional expectation $E(S(T,0)|\tau<T)$. Since $S(t,0)$ is a function of a Brownian motion, the distribution of $\tau$ is related to the hitting time of a Brownian motion. It is well known that it is obtained by the reflection property of a Brownian motion and its running maximum. That is a common problem especially in a barrier option. It is also known that when $\tau_a$ is the hitting time of $a$ for a standard Brownian motion $B_t$, $0< b \leq a$, and $M_t$ is its running maximum, we have
+\[
+P(B_T<b|\tau_a <T)= P(B_T > a +(a-b)|\tau_a <T),
+\]
+and
+\[
+P(M_T \geq a, \, B_T <b)=P(M_T \geq a, \, B_T>2a-b).
+\]
+We will apply this joint distribution to calculate the conditional expectation $E(S(T,0)|\tau<T)$. It becomes a function of $y$ only. 
+
+{
+Next two lemmas give us useful equations about expected stock prices and the probability of the limit order execution. Lemma~\ref{BM_Lem} describes the expected stock price, which follows a Brownian motion, in two different cases: when the stock price hits a certain price before $t$ and when hitting does not happen until $t$. Lemma~\ref{GBM_Lem} shows analogous expected stock prices when the stock price follows a geometric Brownian motion.
+}
+{\Red
+\begin{remk}
+For the rest of the paper, the pdf, cdf, and survival or tail distribution of a standard normal r.v. $Z$ are denoted by $\phi(z)=e^{-z^{2}/2}/\sqrt{2\pi}$, $N(z)=\int_{-\infty}^{z}\phi(x)dx$. $B_t$ is a standard Brownian motion. 
+\end{remk}
+
+}
+
+{
+\begin{lem}\label{BM_Lem}
+	Let us assume that the price process follows a Brownian motion with drift, $S(t,0)=S(0,0)+\mu t +\sigma B_t$. Let $\tau_y:=\inf_{u} \{S(u,0)+d=S(0,0)+y \}.$ Then
+	
+	\begin{align}\nonumber
+		P(\tau_y>t)=&N\left(\frac{(y-d)-\mu t}{\sigma\sqrt{t}}\right)-e^{\frac{2(y-d)\mu }{\sigma^2} } N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right),\\ \nonumber
+		E[(S(t,0)-S(0,0)) \mathcal{I}(\tau_y>t)]=&\mu t N\left(\frac{y-d-\mu t}{\sigma\sqrt{t}}\right) +e^{\frac{2(y-d)\mu }{\sigma^2} }(-2(y-d)-\mu t)  N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right),\\ \nonumber
+		E[(S(t,0)-S(0,0))\mathcal{I}(\tau_y<t)]=&\mu t N\left(\frac{-(y-d)+\mu t}{\sigma\sqrt{t}}\right) +e^{\frac{2(y-d)\mu }{\sigma^2} }(2(y-d)+\mu t)  N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right).
+	\end{align}
+
+\end{lem}
+
+\begin{proof}
+	{\Red  Let $M_t:=\max\limits_{u\leq t} S(u,0)-S(0,0)$. From the definition of $\tau_y$, $\{ \tau_y>t\}= \{ M_t \leq y-d\}$.
+	From \citet{jeanblanc2009mathematical}, note that 
+	$$P((S(t,0)-S(0,0))\in dz, M_t\leq a)= \phi\left(\frac{z-\mu t}{\sigma\sqrt{t}}\right)\frac{1}{\sigma\sqrt{t}} -e^{2\mu a}\phi\left(\frac{z-2a-\mu t}{\sigma\sqrt{t}}\right).$$
+		Then
+		\begin{align*}
+			P(\tau_y>t)= P( M_t \leq y-d) &= 
+		\int_{-\infty}^{(y-d)}
+		\phi\left(\frac{z-\mu t}{\sigma\sqrt{t}}\right)\frac{1}{\sigma\sqrt{t}} -e^{2\mu (y-d)}\phi\left(\frac{z-2(y-d)-\mu t}{\sigma\sqrt{t}}\right) dz
+		\\
+		&=N\left(\frac{(y-d)-\mu t}{\sigma\sqrt{t}}\right)-e^{\frac{2(y-d)\mu }{\sigma^2} } N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right).
+		\end{align*} 
+		
+		Next, 
+	\begin{align*}
+		E[(S(t,0)&-S(0,0))\mathcal{I}(\tau_y>t)]=E[(S(t,0)-S(0,0))\mathcal{I}(M_t\leq (y-d))]
+		\\
+		=&\int_{-\infty}^{(y-d)} z P((S(t,0)-S(0,0))\in dz, M_t\leq (y-d))\\
+		=& \int_{-\infty}^{(y-d)} z
+		\phi\left(\frac{z-\mu t}{\sigma\sqrt{t}}\right)\frac{1}{\sigma\sqrt{t}} -e^{2\mu (y-d)}\phi\left(\frac{z-2(y-d)-\mu t}{\sigma\sqrt{t}}\right) dz
+		\\
+		=&\mu t N\left(\frac{y-d-\mu t}{\sigma\sqrt{t}}\right) +e^{\frac{2(y-d)\mu }{\sigma^2} }(-2(y-d)-\mu t)  N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right). 
+	\end{align*}
+	
+	Finally, 
+	\begin{align*}
+			E[(S(t,0)-S(0,0))\mathcal{I}(\tau_y<t)]&=E[(S(t,0)-S(0,0))]-E[(S(t,0)-S(0,0))\mathcal{I}(\tau_y>t)]\\
+	&=\mu t - E[(S(t,0)-S(0,0))\mathcal{I}(\tau_y>t)]\\
+	&= \mu t N\left(\frac{-(y-d)+\mu t}{\sigma\sqrt{t}}\right) +e^{\frac{2(y-d)\mu }{\sigma^2} }(2(y-d)+\mu t)  N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right).
+	\end{align*}
+	
+	}
+	
+	
+%	
+%	Note: $P(\tau_y>t)=N\left(\frac{(y-d)-\mu t}{\sigma\sqrt{t}}\right)-e^{\frac{2(y-d)\mu }{\sigma^2} } N\left(\frac{-(y-d)-\mu t}{\sigma\sqrt{t}}\right)$
+%	{\Red Add more}
+\end{proof}
+
+%(note: This part has been checked numerically).
+
+%	\begin{remark}
+%		In Lemma 1, since we are placing the limit order at $S(0,0)+y$, $y=a+d$.
+%	\end{remark}
+
+The next lemma gives us similar results when the price process is a geometric Brownian motion.
+
+%{\color{blue}
+\begin{lem}\label{GBM_Lem}
+	Let us assume that the price process follows a geometric Brownian motion, $dS(t,0)=\mu S(t,0) dt + \sigma S(t,0) dB_t $. Also, let's denote $\tau_y:=\inf_{u} \{S(u,0)=S(0,0)+y-d \}$. Then 
+	{\Red 
+	
+	\begin{align*}
+		P(\tau_y>t)=&N\left( \frac{a-\mu t+\sigma^2 /2}{\sigma\sqrt{t}} \right)- e^{\frac{2a\mu}{\sigma^2}-a}N\left( \frac{-a-\mu t+\sigma^2 t/2}{\sigma\sqrt{t}} \right),\\
+		E[S(t,0) \mathcal{I}(\tau_y>t)]=&S(0,0) \left( e^{\mu t} N\left( \frac{a-\mu t +\sigma^2t/2 }{\sigma\sqrt{t}} \right)-e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N\left(\frac{-a-\mu t +\sigma^2 t/2}{\sigma\sqrt{t}} \right)  \right),\\
+		E[S(t,0) \mathcal{I}(\tau_y<t)]=&S(0,0) \left( e^{\mu t} N\left( \frac{-a+\mu t -\sigma^2t/2 }{\sigma\sqrt{t}} \right)+e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N\left(\frac{-a-\mu t +\sigma^2 t/2}{\sigma\sqrt{t}} \right)  \right) .
+	\end{align*}
+	
+	}
+	where
+	$$a:=\ln \left(\frac{(S(0,0)+y-d)}{S(0,0)}\right).$$
+\end{lem}
+
+\begin{proof}
+{\Red 
+	Let $X_t=\ln (S(t,0)/S(0,0))$. Then $X_t=(\mu-\sigma^2/2) t+\sigma B_t$. 
+	Let's denote $M_t:=\max\limits_{u\leq t} X_u$. From the definition of $\tau_y$, note that  $\{\tau_y>t \} =\{ {M_t} \leq \ln \left(\frac{(S(0,0)+y-d)}{S(0,0)}\right)\}$.  
+	Then, we may apply the proof of Lemma~\ref{BM_Lem} by using $a=\ln \left(\frac{(S(0,0)+y-d)}{S(0,0)}\right)$ and $P(X_{t}\in dz, M_t\leq a)=\phi\left(\frac{z-(\mu-\frac{\sigma^2}{2}) t}{\sigma\sqrt{t}}\right)\frac{1}{\sigma\sqrt{t}} -e^{2(\mu-\frac{\sigma^2}{2}) a}\phi\left(\frac{z-2a-(\mu-\frac{\sigma^2}{2})t}{\sigma\sqrt{t}}\right).$
+	
+	First, 
+	\begin{align*}
+			P(\tau_y>t)= P( M_t \leq a) &= 
+		\int_{-\infty}^{a}
+		\phi\left(\frac{z-(\mu-\frac{\sigma^2}{2}) t}{\sigma\sqrt{t}}\right)\frac{1}{\sigma\sqrt{t}} -e^{2(\mu-\frac{\sigma^2}{2}) a}\phi\left(\frac{z-2a-(\mu-\frac{\sigma^2}{2})t}{\sigma\sqrt{t}}\right) dz
+		\\
+		&=N\left( \frac{a-\mu t+\sigma^2 /2}{\sigma\sqrt{t}} \right)- e^{\frac{2a\mu}{\sigma^2}-a}N\left( \frac{-a-\mu t+\sigma^2 t/2}{\sigma\sqrt{t}} \right)
+		\end{align*} 
+
+Next, 
+\begin{align*}
+	E\left[\frac{S(t,0)}{S(0,0)} \mathcal{I}(\tau_y>t)\right]
+	&=E[e^{X_t}\mathcal{I}(M_t\leq a)]=\int_{-\infty}^{a} e^z P(X_t\in dz, M_t\leq a)\\
+	&= \left( e^{\mu t} N\left( \frac{a-\mu t +\sigma^2t/2 }{\sigma\sqrt{t}} \right)-e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N\left(\frac{-a-\mu t +\sigma^2 t/2}{\sigma\sqrt{t}} \right)  \right),\\
+	E\left[\frac{S(t,0)}{S(0,0)} \mathcal{I}(\tau_y<t)\right]
+	&=E[e^{X_t}] - E[e^{X_t}\mathcal{I}(M_t\leq a)]\\
+	&= e^{\mu t}- \left( e^{\mu t} N\left( \frac{a-\mu t +\sigma^2t/2 }{\sigma\sqrt{t}} \right)-e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N\left(\frac{-a-\mu t +\sigma^2 t/2}{\sigma\sqrt{t}} \right)  \right)\\
+	&= \left( e^{\mu t} N\left( \frac{-a+\mu t -\sigma^2t/2 }{\sigma\sqrt{t}} \right)+e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N\left(\frac{-a-\mu t +\sigma^2 t/2}{\sigma\sqrt{t}} \right)  \right).
+\end{align*}
+
+
+	
+	
+}
+\end{proof}
+
+%}
+%{
+%\begin{remark}
+%	In Lemma 2, Since we are placing the limit order at $S(0,0)+y$, $\tau$, the first time that the trader's limit order becomes the best ask is defined as $$\tau_y:=\inf_{u} \{S(u,0)+d=S(0,0)+y \}.$$
+%\end{remark}
+%}
+
+
+{
+Using Lemma~\ref{BM_Lem} , we can calculate the expected cash flow (ECF) for a Brownian motion model. Similarly, the ECF for a geometric Brownian model is explicitly shown in Lemma~\ref{ECF_GBM} using results from Lemma~\ref{GBM_Lem}. 
+}
+{\Red
+\begin{remk}\label{Remk:notation_alphas}
+	For the rest of the paper, we use the following notations:
+	\[
+\alpha_t= \frac{y-d+\mu t}{\sigma \sqrt{t}},
+\quad
+\beta_t = \frac{y-d-\mu t}{\sigma\sqrt{t}},
+\quad \tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t),
+\quad
+\epsilon_0= \left(N\left(\beta_{T} \right)-\tilde{N}\left(-\alpha_{T}\right) \right).
+\]
+\end{remk}
+}
+
+{\Red 
+\begin{lem}\label{ECF_BM}
+	 Let us assume that the price process follows a Brownian motion, $S(t,0)=S(0,0)+\mu t +\sigma B_t$. Then $ECF(y,m)$ can be summarized as follows:
+ 
+ \begin{equation}
+ 	\begin{aligned}
+ECF(y,m)&=MS(0,0)+m (-d-\beta (K-m)^{-}-f) \\
+&+(M-m)\left\{\mu T N(\beta_T) -(2(y-d)+\mu T) \tilde{N} (-\alpha_T)+\epsilon_0 (-d-\beta(K-M+m)^{-}-f)\right\} \\
+&+\left(1-\epsilon_0\right)\left(E[L](y+r)-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] \right)\\
+&+(M-m-E[L])\left(\mu T N\left(-\beta_T \right) +(2(y-d)+\mu T)\tilde{N}(-\alpha_T)\right).
+\end{aligned}
+\label{BM_ECF_eq}
+ \end{equation}
+ 
+
+	
+
+% {Add the explicit formula.}
+
+\end{lem}
+
+
+\begin{proof}
+
+By definition of $S(t,-m)$, $ECF(y,m)$ can be rewritten as follows:
+
+\begin{equation}
+	\begin{aligned}
+		ECF(y,m)&=m (S_0-d-\beta (K-m)^{-}-f) \\
+&+(M-m)\left\{E[S(T,0)\mathcal{I}(\tau>T)]+P(\tau>T) (-d-\beta(K-M+m)^{-}-f)\right\} \\
+&+E[L](S(0,0)+y+r)P(\tau<T)-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] P(\tau<T)\\
+&+E[(M-m-L)]E[(S(T,0)\mathcal{I} (\tau<T)] .
+	\end{aligned}
+	\label{BM_ECF:prf_exp1}
+\end{equation}
+
+	
+	%\textbf{case 1: Brownian motion}
+	
+	%Let us assume that we use L=(M-m)acrtan(X), X follows some normal distribution.
+
+From Lemma~\ref{BM_Lem}, note that 
+\begin{equation}
+	 \begin{aligned}
+ 	E[S(t,0) \mathcal{I}(\tau >t)] &=S(0,0) P(\tau >t)+ \mu t N\left(\beta_t \right) -(2(y-d)+\mu t)\tilde{N}(-\alpha_t), \\
+ 	E[S(t,0) \mathcal{I}(\tau < t)] &=S(0,0) P(\tau <t)+\mu t N\left(-\beta_t \right) +(2(y-d)+\mu t)\tilde{N}(-\alpha_t),\\ 
+ 	P(\tau >t) &=N(\beta_t)-\tilde{N}(-\alpha_t). %\quad P(\tau <t) =N(-\beta_t)+\tilde{N}(-\alpha_t),
+ \end{aligned}
+ 	\label{BM_ECF:prf_exp2}
+\end{equation}
+
+
+%
+Then, by plugging expressions in (\ref{BM_ECF:prf_exp2}) into (\ref{BM_ECF:prf_exp1}), we have the final expression as in (\ref{BM_ECF_eq}). 
+
+
+	
+	%\textbf{case 2: geometric Brownian motion}
+	
+\end{proof}
+}
+
+
+Similarly, using Lemma 2, we can calculate the expected cash flow for a geometric Brownian motion model. 
+
+%
+%{
+%
+%\begin{lem}\label{ECF_GBM}
+% Let us assume that the price process follows geometric Brownian motion, $dS_t=\mu S_t dt + \sigma S_t dB_t $. Then $ECF(y,m)$ can be summarized as follows:
+% 
+% \begin{equation}
+% \begin{aligned}
+%ECF(y,m)&=m (S_0-d-\beta (K-m)^{-}-f) \\
+%&+(M-m)\left\{S_0 \left( e^{\mu T} N\left( \beta_T \right)-\tilde{N}\left(-\alpha_T \right)  \right)+(N\left( \beta_T \right)- \tilde{N}\left( -\alpha_T \right)
+%) (-d-\beta(K-M+m)^{-}-f)\right\} \\
+%&+E[L](S(0,0)+y+r)\left(N\left( -\beta_T \right)+ \tilde{N}\left( -\alpha_T \right)
+%\right)\\
+%&-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] \left(N\left( -\beta_T \right)+ \tilde{N}\left( -\alpha_T \right)
+%\right)\\
+%&+E[(M-m-L)]S_0 \left( e^{\mu T} N\left( -\beta_T \right)+\tilde{N}\left(-\alpha_T \right) \right) .
+%\end{aligned}
+%\label{ECF_GBM:lem:eq}	
+% \end{equation}
+%
+% 
+%% {Add the explicit formula.}
+%
+%\end{lem}
+%
+%
+%
+%\begin{proof}
+%By definition of $S(t,-m)$, $ECF(y,m)$ can be rewritten as follows:
+%%
+%\begin{equation}
+%	\begin{aligned}
+%ECF(y,m)&=m (S_0-d-\beta (K-m)^{-}-f) \\
+%&+(M-m)\left\{E[S(T,0)\mathcal{I}(\tau>T)]+P(\tau>T) (-d-\beta(K-M+m)^{-}-f)\right\} \\
+%&+E[L](S(0,0)+y+r)P(\tau<T)-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] P(\tau<T)\\
+%&+E[(M-m-L)]E[(S(T,0)\mathcal{I} (\tau<T)] .
+%\end{aligned}
+%	\label{ECF_GBM:lem:expression1}	
+%\end{equation}
+%
+%
+%	%\textbf{case 1: Brownian motion}
+%	
+%	%Let us assume that we use L=(M-m)acrtan(X), X follows some normal distribution.
+%{\Red 
+%From} Lemma~\ref{GBM_Lem}, note that 
+%\begin{equation}
+%		\label{ECF_GBM:lem:expression2}	
+% \begin{aligned}
+% 	E[S(T,0) \mathcal{I}(\tau >T)] &=S_0 \left( e^{\mu T} N\left( \beta_T \right)-\tilde{N}\left(-\alpha_T \right)  \right), \\ 
+% 	E[S(T,0) \mathcal{I}(\tau < T)] &=S_0 \left( e^{\mu T} N\left( -\beta_T \right)+\tilde{N}\left(-\alpha_T \right) \right)  ,\\ 
+% 	P(\tau >T)&=N\left( \beta_T \right)- \tilde{N}\left( -\alpha_T \right),
+% \end{aligned}
+%\end{equation}
+%
+%where 	
+%\[
+%a:=\ln \left(\frac{(S_0+y-d)}{S_0}\right),\quad 
+%\alpha_t= \frac{a+\mu t -\sigma^2t/2 }{\sigma\sqrt{t}},
+%\quad
+%\beta_t = \frac{a-\mu t +\sigma^2t/2 }{\sigma\sqrt{t}},
+%\quad \tilde{N}(-\alpha_t)= e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N(-\alpha_t).
+%\]
+%%
+%Then
+%\begin{align*}
+%ECF(y,m)&=m (S_0-d-\beta (K-m)^{-}-f) \\
+%&+(M-m)\left\{S_0 \left( e^{\mu T} N\left( \beta_T \right)-\tilde{N}\left(-\alpha_T \right)  \right)+(N\left( \beta_T \right)- \tilde{N}\left( -\alpha_T \right)
+%) (-d-\beta(K-M+m)^{-}-f)\right\} \\
+%&+E[L](S(0,0)+y+r)\left(N\left( -\beta_T \right)+ \tilde{N}\left( -\alpha_T \right)
+%\right)\\
+%&-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] \left(N\left( -\beta_T \right)+ \tilde{N}\left( -\alpha_T \right)
+%\right)\\
+%&+E[(M-m-L)]S_0 \left( e^{\mu T} N\left( -\beta_T \right)+\tilde{N}\left(-\alpha_T \right) \right) .
+%\end{align*}
+%	
+%
+%
+%	
+%	
+%	%\textbf{case 2: geometric Brownian motion}
+%	
+%\end{proof}
+%
+%
+%}
+
+{\Red
+
+\begin{lem}\label{ECF_GBM}
+ Let us assume that the price process follows geometric Brownian motion, $dS_t=\mu S_t dt + \sigma S_t dB_t $. Then $ECF(y,m)$ can be summarized as follows:
+\begin{equation}
+ \begin{aligned}
+ECF(y,m)&=m (S_0-d-\beta (K-m)^{-}-f) \\
+&+(M-m)\left\{S_0 \left( e^{\mu T} N\left( \tilde{\beta}_T \right)-\tilde{N}\left(-\tilde{\alpha}_T \right)  \right)+(N\left( \tilde{\beta}_T \right)- \tilde{N}\left( -\tilde{\alpha}_T \right)
+) (-d-\beta(K-M+m)^{-}-f)\right\} \\
+&+E[L](S(0,0)+y+r)\left(N\left( -\tilde{\beta}_T \right)+ \tilde{N}\left( -\tilde{\alpha}_T \right)
+\right)\\
+&-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] \left(N\left( -\tilde{\beta}_T \right)+ \tilde{N}\left( -\tilde{\alpha}_T \right)
+\right)\\
+&+E[(M-m-L)]S_0 \left( e^{\mu T} N\left( -\tilde{\beta}_T \right)+\tilde{N}\left(-\tilde{\alpha}_T \right) \right),
+\end{aligned}	
+\label{ECF_GBM:lemEq}
+\end{equation}
+
+
+where 	
+\[
+a:=\ln \left(\frac{(S_0+y-d)}{S_0}\right),\quad 
+\tilde{\alpha}_t= \frac{a+\mu t -\sigma^2t/2 }{\sigma\sqrt{t}},
+\quad
+\tilde{\beta}_t = \frac{a-\mu t +\sigma^2t/2 }{\sigma\sqrt{t}},
+\quad \tilde{N}(-\tilde{\alpha}_t)= e^{\frac{2a\mu}{\sigma^2}+\mu t + a}N(-\tilde{\alpha}_t).
+\]
+ 
+% {Add the explicit formula.}
+
+\end{lem}
+
+
+
+\begin{proof}
+By definition of $S(t,-m)$, $ECF(y,m)$ can be rewritten as follows:
+%
+\begin{equation}
+	\begin{aligned}
+ECF(y,m)&=m (S_0-d-\beta (K-m)^{-}-f) \\
+&+(M-m)\left\{E[S(T,0)\mathcal{I}(\tau>T)]+P(\tau>T) (-d-\beta(K-M+m)^{-}-f)\right\} \\
+&+E[L](S(0,0)+y+r)P(\tau<T)-E[(M-m-L)(d+\beta(K-M+m+L)^{-}+f)] P(\tau<T)\\
+&+E[(M-m-L)]E[(S(T,0)\mathcal{I} (\tau<T)] .
+\end{aligned}
+\label{ECF_GBM_prf_expression1}
+\end{equation}
+
+	
+	%\textbf{case 1: Brownian motion}
+	
+	%Let us assume that we use L=(M-m)acrtan(X), X follows some normal distribution.
+
+From Lemma~\ref{GBM_Lem}, note that 
+
+\begin{equation}
+	 \begin{aligned}
+ 	E[S(T,0) \mathcal{I}(\tau >T)] &=S_0 \left( e^{\mu T} N\left( \tilde{\beta}_T \right)-\tilde{N}\left(-\tilde{\alpha}_T \right)  \right), \\ 
+ 	E[S(T,0) \mathcal{I}(\tau < T)] &=S_0 \left( e^{\mu T} N\left( -\tilde{\beta}_T \right)+\tilde{N}\left(-\tilde{\alpha}_T \right) \right)  ,\\ 
+ 	P(\tau >T)&=N\left( \tilde{\beta}_T \right)- \tilde{N}\left( -\tilde{\alpha}_T \right),
+ \end{aligned}
+ \label{ECF_GBM_prf_expression2}
+\end{equation}
+
+
+%
+Then, by plugging expressions in  (\ref{ECF_GBM_prf_expression2}) into (\ref{ECF_GBM_prf_expression1}), we have the final expression as in (\ref{ECF_GBM:lemEq}).
+
+	
+	
+	%\textbf{case 2: geometric Brownian motion}
+	
+\end{proof}
+
+}
+%
+%\subsection{Simple case analysis: $\rho=1$ with a Brownian motion Model}
+%
+%Let us recall that { $L=(M-m)\rho$ }, where $\rho$ is the proportion of the execution such that $L=(M-m)\rho$. In this section, we work on the simple case when $\rho=1$ to help the analysis. {\color{blue} Add more reason why we analyze this case, explain the meaning in the real trading}
+%
+%\begin{lemma}
+%When  { $L=(M-m)$ }, $ECF(y,m)$ in   (\ref{BM_ECF_eq}) can be expressed as follows:
+%
+%\begin{align*}
+%ECF(y,m)=&M S_0 + m(-d+\beta \min (K-m,0)-f)\\
+%+&(M-m)\bigg\{ y+r -2(y-d) \tilde{N}\left(-\alpha_t\right)
+%\\&\quad \quad \quad \quad +\left(N\left(\beta_t \right)- \tilde{N}\left(-\alpha_t\right) \right)
+%(-d+\beta \min (K-M+m,0)-y-r-f+\mu t)
+%\bigg\}
+%\end{align*}
+%\[
+%\alpha_t= \frac{y-d+\mu t}{\sigma \sqrt{t}},
+%\quad
+%\beta_t = \frac{y-d-\mu t}{\sigma\sqrt{t}}.
+%\quad \tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t)
+%%\quad \tilde{N}(-\alpha_t)= e^{2a\mu/\sigma^2}N(-\alpha_t). 
+%\]
+%\end{lemma}
+
+%
+%Let us recall that { $L=(M-m)\rho$ }, where $\rho$ is the proportion of the execution such that $L=(M-m)\rho$. In this section, we work on the simple case when $\rho=1$ to help the analysis. 
+%
+%When  { $L=(M-m)$ }, $ECF(y,m)$ in   (\ref{BM_ECF_eq}) can be expressed as follows:
+%
+%\begin{align*}
+%ECF(y,m)=&M S_0 + m(-d+\beta \min (K-m,0)-f)\\
+%+&(M-m)\bigg\{ y+r -2(y-d) \tilde{N}\left(-\alpha_t\right)
+%\\&\quad \quad \quad \quad +\left(N\left(\beta_t \right)- \tilde{N}\left(-\alpha_t\right) \right)
+%(-d+\beta \min (K-M+m,0)-y-r-f+\mu t)
+%\bigg\}
+%\end{align*}
+%
+%
+%
+%\[
+%\alpha_t= \frac{y-d+\mu t}{\sigma \sqrt{t}},
+%\quad
+%\beta_t = \frac{y-d-\mu t}{\sigma\sqrt{t}}.
+%\quad \tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t)
+%%\quad \tilde{N}(-\alpha_t)= e^{2a\mu/\sigma^2}N(-\alpha_t). 
+%%\]
+%The next theorem gives us the optimal strategy in a single period, Brownian motion model with $\rho=1$.
+%
+
+%\begin{theorem}
+%Let $(y^*, m^*)$ be defined as follows:
+%
+%$$ECF(y^*,m^*)\geq ECF(y,m) \quad \forall y>0,\quad  0\leq m\leq M. $$
+%
+%Under the cash flow model from above lemma, when $\mu<0$, $y^* =d $ and $m^*=0$. When $\mu>0$, $y^*$ exists for big enough t ( crude bound condition: $\mu t>2d+r+f-\beta\min(K-M,0)$) and $m^*=0$.
+%%\begin{itemize}
+%%\item \textbf{Part 1} $\mu<0$: $y^*=d$ 
+%%\item \textbf{Part 2} $\mu<0$: $m^*=0 $. 
+%%\item \textbf{Part 3} $\mu>0$: $y^*$ exists for big enough t ( crude bound condition: $\mu t>2d+r+f-\beta\min(K-M,0)$)
+%%\item \textbf{Part 4} $\mu>0$: $m^*=0$. (Bound condition:  $\mu t> \beta (2M-K)$)
+%%\end{itemize} 
+%
+%\end{theorem}
+
+%
+%\begin{proof}
+%\textbf{Part 1} Prove that $\mu<0$: $y^*=d$ \\
+%To prove this, we show that the partial derivative of ECF with respect to $y$ is negative.
+%The following is the partial derivative:
+%
+%\begin{align}
+%\label{ECF_rho0_der_y.1}
+%\frac{\frac{\partial ECF}{\partial y}}{ (M-m)} =
+%&\frac{2}{\sigma\sqrt{t}} (\mu t-2d +\beta \min(K-M+m,0)-r-f)  e^{\frac{2(y-d)\mu}{\sigma^2}} 
+%\left( \phi (\alpha_t ) -\alpha_t N(-\alpha_t)\right)\\ \label{ECF_rho0_der_y.2}
+%&+ (-2d +\beta \min(K-M+m,0)-r-f) \frac{2(y-d)}{\sigma^2 t}\tilde{N}(-\alpha_t)\\ \label{ECF_rho0_der_y.3}
+%&+N(-\beta_t)-\tilde{N}(-\alpha_t).
+%\end{align}
+%
+%
+%Since~(\ref{ECF_rho0_der_y.1}),~(\ref{ECF_rho0_der_y.2}),~(\ref{ECF_rho0_der_y.3}) are negative when $\mu<0$, the partial derivative of ECF w.r.t. y is negative when  $\mu<0$.
+%Because of the condition that $y\geq d$, $y^*=d$. 
+%
+% \textbf{Part 2} $\mu<0$: $m^* =0 $.
+%We've shown that when $\mu<0$, $y^*=d$. Therefore, the ECF becomes:
+%
+%
+%\begin{align}
+%\label{ecf:thm1p2:eq1}
+%ECF(y,m)=&M (S_0+d+r)-m(2d+r+f) + m\beta \min (K-m,0).
+% \end{align}
+%
+%
+%
+%
+%
+%
+%To analyze the behavior of ECF, we may divide this into separate cases:
+%
+%\begin{enumerate}
+%\item $K-m\geq 0$
+%\item[] In this case, ~(\ref{ecf:thm1p2:eq1}) becomes a linear function of $m$ with slope $-(2d+r+f)<0$. Therefore, $m^*=0$.
+%\item $K-m <0$
+%\item[] In this case,  ~(\ref{ecf:thm1p2:eq1}) becomes 
+%
+%$$M (S_0+d+r)+m(\beta K-(2d+r+f)) -\beta m^2,$$
+%which makes $m^*= \frac{K}{2}-\frac{(2d+r+f)}{2\beta}$. Since $\frac{K}{2}-\frac{(2d+r+f)}{2\beta}<K$, there is contradiction. 
+%\end{enumerate}
+%
+%
+% \textbf{Part 3} Prove $\mu>0$: $y^*$ exists for big enough t. 
+%
+%(crude bound condition: $\mu t>2d+r+f-\beta*\min(K-M,0)$)
+%
+%For $\mu>0$, Show that there exists $y^*>d$ which maximizes ECF.
+%Note that from ~(\ref{ECF_rho0_der_y.1}),~(\ref{ECF_rho0_der_y.2}),~(\ref{ECF_rho0_der_y.3}), $\frac{\partial ECF}{\partial y}\to 0^-$ (converges to 0 from the negative side as $y\to \infty$). Therefore, if we prove that  $\frac{\partial ECF}{\partial y}|_{y=d}>0$, then there exists global maximum which is different from 0 (and different from $\infty$).
+%
+%Let's denote $ h_t=\frac{\mu\sqrt{t}}{\sigma}$. 
+%
+%\begin{align}\nonumber
+%\frac{\frac{\partial ECF}{\partial y}|_{y=d}}{ (M-m)} =
+%&\left( \mu t-2d +\beta \min(K-M+m,0)-r-f \right) \frac{2}{\sigma\sqrt{t}}
+%\left(\phi (-h_t) -h_t N(-h_t)\right)\\ \nonumber
+%&+N(h_t)-N(-h_t)
+%\end{align}
+%
+%Note that $N(h_t)-N(-h_t)>0$, and $\phi (-h_t) -h_t N(-h_t)>0$. Therefore, the condition that $\left( \mu t-2d +\beta \min(K-M,0)-r-f \right) >0$ would be a sufficient condition to make $\frac{\frac{\partial ECF}{\partial y}|_{y=d}}{ (M-m)}$ positive. This proves that $y^*>0$.
+%
+%
+%\textbf{Part 4} $\mu>0$: $m^*=0$. (Bound condition:  $\mu t> \beta (2M-K)$)\\
+%ECF can be reorganized as follows:
+%\begin{align*}
+%ECF(y,m)=&M \left(S_0+y+r -2(y-d) \tilde{N}\left(-\alpha_t\right)
+%+\epsilon_0
+%(-d-y-r-f+\mu t) \right)\\
+%&+(-m)\epsilon_2+(M-m)\epsilon_0\beta \min (K-M+m,0)+m\beta \min (K-m,0)
+%\end{align*}
+%
+%
+%
+%
+%\[
+%\alpha_t= \frac{y+\mu t}{\sigma \sqrt{t}},
+%\quad
+%\beta_t = \frac{y-\mu t}{\sigma\sqrt{t}},\quad
+%\tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t), \quad
+%\epsilon_0= \left(N\left(\beta_t \right)-\tilde{N}\left(-\alpha_t\right) \right)
+%\]
+%
+%\[
+%\epsilon_2= \mu t \epsilon_0+ (d+f+r)(1-\epsilon_0)+y\left(N(-\beta_t)-\tilde{N}(-\alpha_t)\right)
+% >0
+%\]
+%
+%
+%
+%
+%\begin{enumerate}
+%\item $K-m\geq 0, K-M+m \geq 0$
+%\item[] In this case, the expression of $ECF(y,m)$ becomes a decreasing linear function w.r.t. m.
+%\item $K-m <0, K-M+m \geq 0$
+%\item[] In this case, the expression of $ECF(y,m)$ attains its global maximum at $m=\frac{K}{2}-\frac{\epsilon_2}{2\beta}$, so for $m$ in $\{K-m <0, K-M+m \geq 0 \}$,$ECF(y,m)$ becomes a decreasing function of $m$. Therefore, for $m\geq K-M$ $ECF(y,m)$ is a decreasing function of $m$. 
+%\item $K-m \geq 0, K-M+m <0$
+%\item[] In this case,  the expression of $ECF(y,m)$ attains its global maximum at 
+%$m^*=M-\frac{K}{2}-\frac{\epsilon_2}{2\epsilon_0 \beta}.$. If $\mu t > \beta (2M-K)$, 
+%%
+%$m^*=M-\frac{K}{2}-\frac{\epsilon_2}{2\epsilon_0 \beta}.$
+%%
+%With condition that $\mu t> \beta (2M-K)$, $m^*=0$. 
+%
+%\item $K-m <0, K-M+m < 0$ 
+%In this scenario,
+%\[
+%m^*=
+%K\frac{1-\epsilon_0}{2(1+\epsilon_0)}+M\frac{\epsilon_0}{1+\epsilon_0} -\frac{\epsilon_2}{2\beta(1+\epsilon_0)}
+%\]
+%which is valid when
+%\[
+%K<
+%K\frac{1-\epsilon_0}{2(1+\epsilon_0)}+M\frac{\epsilon_0}{1+\epsilon_0} -\frac{\epsilon_2}{2\beta(1+\epsilon_0)}
+%< M-K
+%\]
+%$K<
+%K\frac{1-\epsilon_0}{2(1+\epsilon_0)}+M\frac{\epsilon_0}{1+\epsilon_0} -\frac{\epsilon_2}{2\beta(1+\epsilon_0)}
+%\iff \frac{\epsilon_2}{\epsilon_0}<\beta(2M-3K-K/\epsilon_0)$
+%
+%With condition that $\mu t> \beta (2M-K)$, the  $\frac{\epsilon_2}{\epsilon_0}>\mu t> \beta (2M-K)$, which gives us contradiction. 
+%Therefore, $m^*=0$. 
+%\end{enumerate}
+%
+%\hrulefill
+%
+%\hrulefill
+
+
+%
+%
+%\begin{theorem}
+%Let $(y^*, m^*)$ be defined as follows:
+%
+%$$ECF(y^*,m^*)\geq ECF(y,m) \quad \forall y>0,\quad  0\leq m\leq M. $$
+%
+%Under the cash flow model from above lemma, 
+%
+%\begin{itemize}
+%\item \textbf{Part 1} $\mu<0$: $y^*=d$ 
+%\item \textbf{Part 2} $\mu<0$: $m^*=0 $. 
+%\item \textbf{Part 3} $\mu>0$: $y^*$ exists for big enough t ( crude bound condition: $\mu t>2d+r+f-\beta\min(K-M,0)$)
+%\item \textbf{Part 4} $\mu>0$: $m^*=0$. (Bound condition:  $\mu t> \beta (2M-K)$)
+%\end{itemize} 
+%
+%\end{theorem}
+%
+%
+%\begin{proof}
+%\textbf{Part 1} Prove that $\mu<0$: $y^*=d$ \\
+%To prove this, we show that the partial derivative of ECF with respect to $y$ is negative.
+%The following is the partial derivative:
+%
+%\begin{align}
+%\label{ECF_rho0_der_y.1}
+%\frac{\frac{\partial ECF}{\partial y}}{ (M-m)} =
+%&\frac{2}{\sigma\sqrt{t}} (\mu t-2d +\beta \min(K-M+m,0)-r-f)  e^{\frac{2(y-d)\mu}{\sigma^2}} 
+%\left( \phi (\alpha_t ) -\alpha_t N(-\alpha_t)\right)\\ \label{ECF_rho0_der_y.2}
+%&+ (-2d +\beta \min(K-M+m,0)-r-f) \frac{2(y-d)}{\sigma^2 t}\tilde{N}(-\alpha_t)\\ \label{ECF_rho0_der_y.3}
+%&+N(-\beta_t)-\tilde{N}(-\alpha_t).
+%\end{align}
+%
+%
+%Since~(\ref{ECF_rho0_der_y.1}),~(\ref{ECF_rho0_der_y.2}),~(\ref{ECF_rho0_der_y.3}) are negative when $\mu<0$, the partial derivative of ECF w.r.t. y is negative when  $\mu<0$.
+%Because of the condition that $y\geq d$, $y^*=d$. 
+%\end{proof}
+%
+%
+%
+%\begin{proof}
+% \textbf{Part 2} $\mu<0$: $m^* =0 $.
+%We've shown that when $\mu<0$, $y^*=d$. Therefore, the ECF becomes:
+%
+%
+%\begin{align}
+%\label{ecf:thm1p2:eq1}
+%ECF(y,m)=&M (S_0+d+r)-m(2d+r+f) + m\beta \min (K-m,0).
+% \end{align}
+%
+%
+%
+%
+%
+%
+%To analyze the behavior of ECF, we may divide this into separate cases:
+%
+%\begin{enumerate}
+%\item $K-m\geq 0$
+%\item[] In this case, ~(\ref{ecf:thm1p2:eq1}) becomes a linear function of $m$ with slope $-(2d+r+f)<0$. Therefore, $m^*=0$.
+%\item $K-m <0$
+%\item[] In this case,  ~(\ref{ecf:thm1p2:eq1}) becomes 
+%
+%$$M (S_0+d+r)+m(\beta K-(2d+r+f)) -\beta m^2,$$
+%which makes $m^*= \frac{K}{2}-\frac{(2d+r+f)}{2\beta}$. Since $\frac{K}{2}-\frac{(2d+r+f)}{2\beta}<K$, there is contradiction. 
+%\end{enumerate}
+%
+%\end{proof}
+%
+%
+%\begin{proof}
+% \textbf{Part 3} Prove $\mu>0$: $y^*$ exists for big enough t. 
+%
+%(crude bound condition: $\mu t>2d+r+f-\beta*\min(K-M,0)$)
+%
+%For $\mu>0$, Show that there exists $y^*>d$ which maximizes ECF.
+%Note that from ~(\ref{ECF_rho0_der_y.1}),~(\ref{ECF_rho0_der_y.2}),~(\ref{ECF_rho0_der_y.3}), $\frac{\partial ECF}{\partial y}\to 0^-$ (converges to 0 from the negative side as $y\to \infty$). Therefore, if we prove that  $\frac{\partial ECF}{\partial y}|_{y=d}>0$, then there exists global maximum which is different from 0 (and different from $\infty$).
+%
+%Let's denote $ h_t=\frac{\mu\sqrt{t}}{\sigma}$. 
+%
+%\begin{align}\nonumber
+%\frac{\frac{\partial ECF}{\partial y}|_{y=d}}{ (M-m)} =
+%&\left( \mu t-2d +\beta \min(K-M+m,0)-r-f \right) \frac{2}{\sigma\sqrt{t}}
+%\left(\phi (-h_t) -h_t N(-h_t)\right)\\ \nonumber
+%&+N(h_t)-N(-h_t)
+%\end{align}
+%
+%Note that $N(h_t)-N(-h_t)>0$, and $\phi (-h_t) -h_t N(-h_t)>0$. Therefore, the condition that $\left( \mu t-2d +\beta \min(K-M,0)-r-f \right) >0$ would be a sufficient condition to make $\frac{\frac{\partial ECF}{\partial y}|_{y=d}}{ (M-m)}$ positive. This proves that $y^*>0$.
+%
+%\end{proof}
+%
+%
+%\begin{proof}
+%\textbf{Part 4} $\mu>0$: $m^*=0$. (Bound condition:  $\mu t> \beta (2M-K)$)\\
+%ECF can be reorganized as follows:
+%\begin{align*}
+%ECF(y,m)=&M \left(S_0+y+r -2(y-d) \tilde{N}\left(-\alpha_t\right)
+%+\epsilon_0
+%(-d-y-r-f+\mu t) \right)\\
+%&+(-m)\epsilon_2+(M-m)\epsilon_0\beta \min (K-M+m,0)+m\beta \min (K-m,0)
+%\end{align*}
+%
+
+%
+%
+%
+%\[
+%\alpha_t= \frac{y+\mu t}{\sigma \sqrt{t}},
+%\quad
+%\beta_t = \frac{y-\mu t}{\sigma\sqrt{t}},\quad
+%\tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t), \quad
+%\epsilon_0= \left(N\left(\beta_t \right)-\tilde{N}\left(-\alpha_t\right) \right)
+%\]
+%
+%\[
+%\epsilon_2= \mu t \epsilon_0+ (d+f+r)(1-\epsilon_0)+y\left(N(-\beta_t)-\tilde{N}(-\alpha_t)\right)
+% >0
+%\]
+%
+%
+%
+%
+%\begin{enumerate}
+%\item $K-m\geq 0, K-M+m \geq 0$
+%\item[] In this case,$(M-m)\left(N\left(\beta_t \right)- \tilde{N}\left(-\alpha_t\right) \right)\beta \min (K-M+m,0)+m\beta \min (K-m,0)$ becomes 0, so the ECF becomes the decreasing first order linear function w.r.t. m, so $m^*=0$.
+%\item $K-m <0, K-M+m \geq 0$
+%\item[] In this case, the global maximum (critical point) is when $m=\frac{K}{2}-\frac{\epsilon_2}{2\beta}<K$, so $m^*=max(M-K,K)$, which contradicts the given condition.
+%\item $K-m \geq 0, K-M+m <0$
+%%
+%$$m^*=M-\frac{K}{2}-\frac{\epsilon_2}{2\epsilon_0 \beta}.$$
+%%
+%With condition that $\mu t> \beta (2M-K)$, $m^*=0$. 
+%
+%\item $K-m <0, K-M+m < 0$ 
+%In this scenario,
+%\[
+%m^*=
+%K\frac{1-\epsilon_0}{2(1+\epsilon_0)}+M\frac{\epsilon_0}{1+\epsilon_0} -\frac{\epsilon_2}{2\beta(1+\epsilon_0)}
+%\]
+%which is valid when
+%\[
+%K<
+%K\frac{1-\epsilon_0}{2(1+\epsilon_0)}+M\frac{\epsilon_0}{1+\epsilon_0} -\frac{\epsilon_2}{2\beta(1+\epsilon_0)}
+%< M-K
+%\]
+%$K<
+%K\frac{1-\epsilon_0}{2(1+\epsilon_0)}+M\frac{\epsilon_0}{1+\epsilon_0} -\frac{\epsilon_2}{2\beta(1+\epsilon_0)}
+%\iff \frac{\epsilon_2}{\epsilon_0}<\beta(2M-3K-K/\epsilon_0)$
+%
+%With condition that $\mu t> \beta (2M-K)$, the  $\frac{\epsilon_2}{\epsilon_0}>\mu t> \beta (2M-K)$, which gives us contradiction. 
+%Therefore, $m^*=0$. 
+%\end{enumerate}
+%
+%
+%\end{proof}
+%
+%
+%
+%
+%{\color{blue} Connection paragraph: Meaning of this result, and why now we want to consider the case when $\rho<1$. Add the graphic (separately or include in multiple rho graphic as one case)
+%}
+%
+
+\subsection{case analysis: a constant $\rho$ with a Brownian motion Model}
+Let us recall that { $L=(M-m)\rho$ }, $\rho\in [0,1]$, where $\rho$ is the proportion of the execution such that $L=(M-m)\rho$. In this subsection, we work on the simple case when $\rho$ is a constant. 
+{
+
+\begin{remk}
+	In practical situation, a constant  $\rho$ is an unrealistic assumption. A more realistic case for $\rho$ is a random model, such as $\rho=\frac{1}{2} + \frac{2}{\pi}\arctan(X)$ where $X$ follows a normal distribution, which could depend on $y$ and $m$. Or, $\rho$ could be a function of flows and time where we understand arrivals of orders as some counting process. However, for simplicity, we consider $\rho$ as a constant in this paper. \\
+\end{remk}
+
+}
+
+
+In the following Lemma, we introduce the ECF (Expected Cash Flow) function when the price process follows a Brownian motion. 
+
+\begin{lem}\label{lem:bm:ECF}
+Let us assume that the price process follows Brownian motion, $S(t,0)=S(0,0)+\mu t +\sigma B_t$, where $B_t$ is a standard Brownian motion. 
+When  { $L=(M-m)\rho$ }, $ECF(y,m)$ in   (\ref{BM_ECF_eq}) can be expressed as follows:
+
+\begin{align*}
+ECF(y,m)=
+&M \left(S_0 -2\rho(y-d)\tilde{N}(-\alpha_{T})-(d+f-\mu {T})(1-\rho+\rho\epsilon_0)+(1-\epsilon_0)\rho(y+r)\right)\\
+&-m\left( \rho(1-\epsilon_0)(d+f+y+r)-2\rho (y-d)\tilde{N}(-\alpha_{T}) +\mu {T}(1-\rho+\rho\epsilon_0) \right)\\
+&-\beta\left[m (K-m)^{-}+(M-m)\left(\epsilon_0  (K-M+m)^{-}+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))^{-}\right) \right],
+%+
+%+&(M-m)\bigg\{ \rho(y+r) -2\rho (y-d) \tilde{N}\left(-\alpha_t\right)
+%-(1-\rho)(d+f-\mu t)\\&\quad \quad \quad
+%+\beta (1-\rho) \min (K-(M-m)(1-\rho),0)
+%\\&\quad \quad \quad+\left(N\left(\beta_t \right)- \tilde{N}\left(-\alpha_t\right) \right)
+%\bigg[-\rho (d+f-\mu t+y+r)\\
+%&\quad \quad \quad\quad \quad \quad+\beta \min (K-M+m,0)-(1-\rho)\beta \min (K-(M-m)(1-\rho),0)\bigg]
+%\bigg\}
+\end{align*}
+%
+%where
+%\[ 
+%\epsilon_0= \left(N\left(\beta_{T} \right)-\tilde{N}\left(-\alpha_{T}\right) \right),
+%\]
+where the notations  $\alpha_T$, $\beta_T$, $\epsilon_0$ are from Remark~\ref{Remk:notation_alphas}.
+
+\end{lem}
+
+\begin{proof}
+	{\Red This result is from the equation (\ref{BM_ECF_eq}) of  Lemma~\ref{ECF_BM} with $L=(M-m)\rho$.
+	}
+\end{proof}
+
+%
+%{\Blue Connection Paragraph: now we want to show behavior of $y^*$ and $m^*$ when $\rho<1$, which means that the conditional execution probability (or execution proportion) is not 1. Add description of real trading and explain why this is more realistic and important. }
+%%
+%Let us recall that { $L=(M-m)\rho$ }, where $\rho$ is the proportion of the execution such that $L=(M-m)\rho$. In this section, we work on the simple case when $\rho$ is constant. 
+%
+%
+%When  { $L=(M-m)\rho$ }, $ECF(y,m)$ in   (\ref{BM_ECF_eq}) can be expressed as follows:
+%
+%\begin{align*}
+%ECF(y,m)=
+%&M \left(S_0 -2\rho(y-d)\tilde{N}(-\alpha_t)-(d+f-\mu t)(1-\rho+\rho\epsilon_0)+(1-\epsilon_0)\rho(y+r)\right)\\
+%&-m\left( \rho(1-\epsilon_0)(d+f+y+r)-2\rho (y-d)\tilde{N}(-\alpha_t) +\mu t(1-\rho+\rho\epsilon_0) \right)\\
+%&-\beta\left[m (K-m)^{-}+(M-m)\left(\epsilon_0  (K-M+m)^{-}+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))^{-}\right) \right]\\
+%%+
+%%+&(M-m)\bigg\{ \rho(y+r) -2\rho (y-d) \tilde{N}\left(-\alpha_t\right)
+%%-(1-\rho)(d+f-\mu t)\\&\quad \quad \quad
+%%+\beta (1-\rho) \min (K-(M-m)(1-\rho),0)
+%%\\&\quad \quad \quad+\left(N\left(\beta_t \right)- \tilde{N}\left(-\alpha_t\right) \right)
+%%\bigg[-\rho (d+f-\mu t+y+r)\\
+%%&\quad \quad \quad\quad \quad \quad+\beta \min (K-M+m,0)-(1-\rho)\beta \min (K-(M-m)(1-\rho),0)\bigg]
+%%\bigg\}
+%\end{align*}
+%
+%
+%
+%\[
+%\alpha_t= \frac{y-d+\mu t}{\sigma \sqrt{t}},
+%\quad
+%\beta_t = \frac{y-d-\mu t}{\sigma\sqrt{t}}.
+%\quad \tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t),\quad 
+%%\quad \tilde{N}(-\alpha_t)= e^{2a\mu/\sigma^2}N(-\alpha_t). 
+%\epsilon_0= \left(N\left(\beta_t \right)-\tilde{N}\left(-\alpha_t\right) \right)
+%\]
+
+
+{
+Using this Lemma~\ref{lem:bm:ECF}, we now study the optimal placement strategy.
+Next two theorems, Theorem~\ref{thm:single:muNeg} and Theorem~\ref{thm:single:muPos} give us optimal strategies when $\mu<0$ and $\mu>0$, respectively. We find the optimal $(y^*,m^*)$, which means that the optimal strategy at time $0$ is to place a market order of quantity $m^*$, and place remaining $M-m^*$ orders by a limit order at the price of $S(0,0)+y^*$. 
+}
+
+%The next theorem gives us the optimal strategy in a single period, Brownian motion model with $\rho<1$ and $\mu<0$.
+
+\begin{thm}\label{thm:single:muNeg}
+	Let $(y^*, m^*)$ be the optimal strategy satisfying
+
+$$ECF(y^*,m^*)\geq ECF(y,m) \quad \forall y>0,\quad  0\leq m\leq M. $$
+
+{\Red Under the cash flow model from  Lemma~\ref{lem:bm:ECF}, let $\mu<0$. Then $y^*=d$. The behavior of $m^*$ is as follows:}
+\begin{enumerate}
+	\item If $\rho=1$, $m^*=0$.
+	\item If $\rho<1$ and $K\geq M$,
+		\begin{itemize}
+			\item $m^*=0$ when $\rho(2d+r+f)+\mu t(1-\rho)>0$
+			\item $m^*=M$ when $\rho(2d+r+f)+\mu t(1-\rho)<0$
+		\end{itemize}
+	\item If $\rho<1$ and $K< M$,	
+	\item[] $m^*$ is one of $\{0,K, M-K/(1-\rho), M, m^*_1, m^*_2, m^*_3\}$ where  
+\end{enumerate}
+%
+$$ 
+m^*_1=K/2-\epsilon_3/2\beta, \quad
+m^*_2=M-\frac{K}{2(1-\rho)}-\frac{\epsilon_3}{2(1-\rho)^2\beta},
+\quad 
+m^*_3=\frac{2M\beta (1-\rho)^2 +\beta\rho K-\epsilon_3}{2\beta(1+(1-\rho)^2)},
+$$ 
+
+$$\epsilon_3:=\rho(2d+r+f)+\mu t(1-\rho).
+$$
+
+
+
+
+%if $\rho=1$, $m^*=0$. I $m^*=0$ when $\rho(2d+r+f)+\mu t(1-\rho)>0$ and 
+%
+%\begin{equation}
+%m^*=
+%	\begin{cases}
+%		0 \quad \text{if}\quad K\geq M(1-\rho),\quad \rho(2d+r+f)+\mu t(1-\rho)>0\\
+%		M \quad \text{if}\quad K\geq M(1-\rho), \quad \rho(2d+r+f)+\mu t(1-\rho)<0\\
+%		m^*_1 \quad \text{if}\quad 
+%			\frac{M(1-\rho)}{(1.5-\rho)}-\frac{\epsilon_3}{2\beta(1-\rho)(1.5-\rho)}<K<\frac{\epsilon_3}{2(1-\rho)^2\beta}
+%		\\
+%		m^*_2 \quad \text{if}\quad K< \frac{2M\beta (1-\rho)^2 +\beta\rho K-\epsilon_3}{2\beta(1+(1-\rho)^2)}<M-\frac{K}{1-\rho}\\
+%		m^*_3 \quad \text{if} \quad \frac{2(1-\rho)}{3-\rho}(M+\epsilon_3/2\beta)<K<\epsilon_3/\beta. 
+%	\end{cases}
+%\end{equation}
+%
+%If none of the condition is satisfied, $m^*$ is one of $\{0,K, M-K/(1-\rho), M\}$. 
+
+\end{thm}
+
+}
+
+\begin{proof}
+\noindent\textbf{Part 1: Behavior of $y^*$: }
+	Note that
+	
+\begin{align}
+\label{ECF_rho_der_y.1}
+\frac{\frac{\partial ECF}{\partial y}}{ (M-m)} &=
+\rho(N(-\beta_t)-\tilde{N}(-\alpha_t))\\
+\label{ECF_rho_der_y.2}
+&+\frac{2e^{\frac{2(y-d)\mu}{\sigma^2}} }{\sigma\sqrt{t}}
+\left( \phi (\alpha_t ) -\alpha_t N(-\alpha_t)\right)
+\left(-\rho (2d+f+r-\mu t)+ \beta \gamma \right) \\
+\label{ECF_rho_der_y.3}
+&+\tilde{N}(-\alpha_t)\frac{2(y-d)}{\sigma^2 t}\left(-\rho (2d+f+r)+ \beta \gamma \right) 
+%
+\end{align}
+%(\ref{ECF_rho_der_y.1}), (\ref{ECF_rho_der_y.2}), (\ref{ECF_rho_der_y.3})
+
+
+$$\gamma:=\min(K-M+m,0)-(1-\rho)\min (K-(M-m)(1-\rho),0)\quad \quad  (note: \gamma<0)
+$$
+When $\mu<0$, all three lines (\ref{ECF_rho_der_y.1}), (\ref{ECF_rho_der_y.2}), (\ref{ECF_rho_der_y.3}) are negative, so $y^*=d$.\\
+
+\noindent\textbf{Part 2: Behavior of $m^*$: }
+ We've already shown that when $\mu<0$, $y^*=d$. Therefore,  $ECF(y=y^*, m)$ can be simplified as following:
+
+\begin{gather}
+	\begin{aligned}
+	ECF(y=d,m)=&M (S_0+\rho(d+r)-(1-\rho)(d+f-\mu t))-m\epsilon_3 +m\beta \min (K-m,0)\\
+	&+\beta (M-m)(1-\rho) \min(K-(M-m)(1-\rho),0),
+\end{aligned}\label{ecf:thm1p2c2}
+\end{gather}
+
+where $\epsilon_3:=\rho(2d+r+f)+\mu t(1-\rho)$. We will divide the range of $m$ to four cases to obtain the expression of $ECF(y,m)$ and to obtain $m^*$ which maximizes $ECF$. 
+
+\begin{enumerate}
+	\item $K-(M-m)(1-\rho)\geq 0$, $K-m\geq 0$
+	\item[] In this case, (\ref{ecf:thm1p2c2}) becomes a decreasing function of $m$ if $\epsilon_3>0$ and increasing function of $m$ if $\epsilon_3>0$. Note that if $K\geq M$, for any $m$ the conditions ($K-(M-m)(1-\rho)\geq 0$, $K-m\geq 0$) are satisfied. Therefore, if $K\geq M$, $m^*=0$ if $\epsilon_3>0$ and $m^*=M$ if $\epsilon_3<0$. This includes the case when $\rho=1$: when $\rho=1$, $\epsilon_3=2d+r+f>0$, so $m^*=0$.
+	\item  $K-(M-m)(1-\rho)\geq 0$ (i.e. $m\geq M-K/(1-\rho)$), $K-m< 0$
+	\item[] In this case, maximum of (\ref{ecf:thm1p2c2}) is obtained at $m_1^*=K/2-\epsilon_3/2\beta$. %, which is valid $m^*$ when $\frac{2(1-\rho)}{3-\rho}(M+\epsilon_3/2\beta)<K<\epsilon_3/\beta$. 
+	\item $K-(M-m)(1-\rho)< 0$ (i.e. $m< M-K/(1-\rho)$), $K-m\geq 0$
+	\item[] In this case, maximum of (\ref{ecf:thm1p2c2}) is obtained at
+	$m_2^*=M-\frac{K}{2(1-\rho)}-\frac{\epsilon_3}{2(1-\rho)^2\beta}$. %, which is a valid $m^*$ 
+	%This solution is valid when  
+	%$$m^*=M-\frac{K}{2(1-\rho)}-\frac{\epsilon_3}{2(1-\rho)^2\beta}\leq \min\left(K,M-\frac{K}{1-\rho}\right).$$
+	%This condition can be rewritten as: 
+	%$$\frac{M(1-\rho)}{(1.5-\rho)}-\frac{\epsilon_3}{2\beta(1-\rho)(1.5-\rho)}<K<\frac{\epsilon_3}{2(1-\rho)^2\beta}$$
+	\item $K-(M-m)(1-\rho)< 0$ (i.e. $m< M-K/(1-\rho)$), $K-m< 0$
+	\item[] In this case, maximum of (\ref{ecf:thm1p2c2}) is obtained at
+	$m_3^*=\frac{2M\beta (1-\rho)^2 +\beta \rho K-\epsilon_3}{2\beta(1+(1-\rho)^2)}$. 
+	%which is valid when
+	%$$ K< \frac{2M\beta (1-\rho)^2 +\beta \rho K-\epsilon_3}{2\beta(1+(1-\rho)^2)}<M-\frac{K}{1-\rho}$$
+\end{enumerate}
+
+To summarize, when $K\geq M$, $m^*=0$ or $M$ depending on the sign of $\epsilon_3$. If not, the maximum will be obtained at one of $\{0, m_1^*, m_2^*, m_3^*, M, K, M-K/(1-\rho)\}$. 
+
+\end{proof}
+
+\begin{figure}
+	\includegraphics[width=0.495\textwidth]
+	{images/mstar_rho02_beta001_multiKs.pdf}
+	\includegraphics[width=0.495\textwidth]
+	{images/ystar_rho02_beta001_multiKs.pdf}
+	
+	\caption{$m^*$ (Left) and $y^*$ (Right) against $\mu$ for $K=10$ (black solid line), $K=50$ (red dashed line), $K=70$ (green dotted line), $K=150$ (blue dot-dashed line). $\rho=0.2, \beta=0.01, M=100, r=0.003, f=0.003, \epsilon=0.01, T=0.1, S_0=100, d=\epsilon/2=0.005, \sigma=0.1$. }
+	\label{mystar_againstMu_diffK}
+\end{figure}
+
+{
+\par Theorem~\ref{thm:single:muNeg} shows that when $\mu<0$, $y^*=d$, which means that the investor may put a limit order at the best bid price. This is shown in behavior of $y^*$ in the right panel of Figure~\ref{mystar_againstMu_diffK}, $y^*=d$ when $\mu<0$. The left panel of Figure~\ref{mystar_againstMu_diffK} describes behavior of $m^*$, the optimal market order size at $t=0$. As shown in Theorem~\ref{thm:single:muNeg}, when $\mu<0$    $m^*=m^*_2$ when $K=10$, and $m^*=K$ for $K=50$, $70$, and $m^*=M$ when $K=150$. The behavior of $y^*$ and $m^*$ when $\mu>0$ is described in the following Theorem~\ref{thm:single:muPos}. In this theorem, we first introduce $T_0$, the threshold for the time horizon\footnote{Note that this work is about single-step. $T$ is not the number of the time steps, but it is just the length of time for the single step. } $T$ such that if the investor's time horizon  $T$  is bigger than $T_0$, then $y^*>d$. We also provide lower bound for $T_0$ and stepwise-linear approximation of $y^*$ as a function of $T$. 
+}
+
+
+
+{
+
+\begin{thm}\label{thm:single:muPos}
+	Let $(y^*, m^*)$ be defined as in Lemma~\ref{lem:bm:ECF}. Then, when $\mu>0$,
+%	$y^*>d$  for $T>T_0$. The lower bound of $T_0$ is that $$T_0>\frac{2d+f+r}{\mu}- \frac{\beta \gamma}{\rho\mu} ,$$ where $$\gamma:=\min(K-M+m,0)-(1-\rho)\min (K-(M-m)(1-\rho),0).$$
+
+	$y^*>d$  for $T>T_0$. The lower bound of $T_0$ is that $$T_0>\frac{2d+f+r}{\mu} .$$ %where $$\gamma:=\min(K-M+m,0)-(1-\rho)\min (K-(M-m)(1-\rho),0).$$
+
+	
+	Also, for $T>T_0$, as $T\searrow T_0 $, the first-order approximation for $y^*$ is given as:
+	{
+	$$ y^*(T)= d+ \kappa (T-T_0) + o ((T-T_0)^2),$$
+	
+	where
+	
+	
+	
+	$$\kappa:=\left(- \frac{\frac{\partial^2 ECF}{\partial T \partial y } (d, T_0 )}{\frac{\partial^2 ECF}{\partial y^2 } (d, T_0 )} \right). $$
+	}
+	The details of $\kappa$ are given in (\ref{kappa}).
+	In addition, there exists $m^*$ as follows:
+	%
+%\begin{itemize}
+%\item \textbf{Part 3} $\mu>0$: $y^*$ exists for big enough t ( crude bound condition: $\mu t>2d+f+r+(-\beta \gamma)/\rho$), $\gamma:=\min(K-M+m,0)-(1-\rho)\min (K-(M-m)(1-\rho),0)\quad \quad  (note: \gamma<0)
+%$ :(done)
+%\item \textbf{Part 4} $\mu>0$: there exists $m^*>0$ when certain conditions are satisfied. 
+%\end{itemize} 
+
+\begin{enumerate}
+	\item If $K\geq M,$  $m^*=0$.
+	\item If $K< M$, $m^*$ is one of $\{0, M, m_4^*, m^*_5, m^*_6, M, |K-M|, M-K/(1-\rho) \}$
+\end{enumerate}
+
+where
+$$
+m^*_4=\frac{\epsilon_0}{(1+\epsilon_0)}M +\frac{(1-\epsilon_0)}{2(1+\epsilon_0)}K-\frac{\epsilon_4}{2(1+\epsilon_0)\beta},
+$$
+
+$$m^*_5=M-\frac{\beta(\epsilon_0+(1-\epsilon_0)(1-\rho))K+\epsilon_4}{2\beta(\epsilon_0+(1-\epsilon_0)(1-\rho)^2)}, 
+\quad 
+m^*_6=\frac{\beta (2M(\epsilon_0+(1-\rho)^2 (1-\epsilon_0)) +K(1-\epsilon_0)\rho)-\epsilon_4}{2\beta (1+\epsilon_0+(1-\rho)^2 (1-\epsilon_0))}.$$
+
+
+$$\epsilon_4:=\left( \rho(1-\epsilon_0)(d+f+y+r)-2\rho (y-d)\tilde{N}(-\alpha_{T}) +\mu {T}(1-\rho+\rho\epsilon_0) \right), \quad
+\epsilon_0= \left(N\left(\beta_{T} \right)-\tilde{N}\left(-\alpha_{T}\right) \right).$$
+\end{thm}
+
+
+
+}
+
+
+
+
+
+
+\begin{proof}
+\noindent\textbf{Part 1: Behavior of $y^*$: }First, note that as $y\to \infty$, from (\ref{ECF_rho_der_y.1}), (\ref{ECF_rho_der_y.2}), (\ref{ECF_rho_der_y.3}), $\partial ECF / \partial y\to 0^{-}$. Therefore, $y^*<\infty$.
+	Next, let's find  $\left.\partial ECF / \partial y\right|_{y=d}$. 
+	
+	
+	
+\begin{align}
+\label{ECF_rho_der_y_d.1}
+\left.\frac{\frac{\partial ECF}{\partial y}}{ (M-m)} \right|_{y=d}
+&=
+\rho\left(N\left(\frac{\mu {T}}{\sigma\sqrt{{T}}}\right)-{N}\left(-\frac{\mu {T}}{\sigma\sqrt{{T}}}\right)\right)\\
+\label{ECF_rho_der_y_d.2}
+&+\frac{2}{\sigma\sqrt{t}}
+\left( \phi \left(-\frac{\mu {T}}{\sigma\sqrt{{T}}}\right) -\frac{\mu {T}}{\sigma\sqrt{{T}}} N\left(-\frac{\mu {T}}{\sigma\sqrt{t}}\right)\right)
+\left(-\rho (2d+f+r-\mu {T})+ \beta \gamma \right) 
+%
+\end{align}
+Note that (\ref{ECF_rho_der_y_d.1})$>0$, and (\ref{ECF_rho_der_y_d.2})$>0$ when 
+\begin{equation}\label{bound:muT}
+\mu T>2d+f+r+(-\beta \gamma)/\rho.
+\end{equation}
+Note that $\left.\partial ECF / \partial y\right|_{y=d}>0$  implies that $y^*>d$. Since from the proof of Theorem~\ref{thm:single:muNeg} we've shown that $\gamma<0$, $\mu T>2d+f+r+(-\beta \gamma)/\rho>2d+f+r$, so the lower bound for $T$ to satisfy this condition is $(2d+f+r)/\mu$. (we ignore $-\beta \gamma/\rho$ term since the definition of $\gamma$ contains $m$, so it can be correctly computed after we have the value of $m^*$. )
+
+{
+
+
+\begin{align}\label{ECF_rho_der_y_d.3}
+	\frac{\partial}{\partial t} \left(\left.\frac{\frac{\partial ECF}{\partial y}}{ (M-m)} \right|_{y=d}\right)
+	&=
+	-\gamma \beta \left(  \frac{1}{\sigma {T} \sqrt{{T}}}(\phi(h_t) - h_t N(-h_{T}) )+\frac{\mu }{\sigma^2 t}N(-h_{T}) \right) \\
+	\label{ECF_rho_der_y_d.4}
+	+&\frac{\rho}{\sigma {T} \sqrt{{T}}}\bigg( {(2d+f+r) }
+		\left( (\phi(h_{T}) - h_t N(-h_{T}) )+ N(-h_{T}) \frac{\mu T}{\sigma \sqrt{T}}\right)+{2\mu T}{} (\phi(h_{T}) - h_{T} N(-h_{T}) )\bigg)
+\end{align}
+
+Note that both (\ref{ECF_rho_der_y_d.3}), (\ref{ECF_rho_der_y_d.4}) are positive. This implies that $\left.\frac{\partial ECF}{\partial y}\right|_{y=d}$ is a increasing function of $T$, which supports that for $T_0$ such that $\left.\frac{\partial ECF}{\partial y} \right|_{y=d,T=T_0}=0 $, $\left.\frac{\partial ECF}{\partial y}\right|_{y=d}>0$ for any $T>T_0$. 
+
+%Also, note that $\left.\frac{\partial ECF}{\partial y} \right|_{y=d}\to -\infty $ as $T\to 0$. Therefore, $T_0>0$.
+
+
+Now, we will use the mean value theorem to show the behavior of $y^*$ when $T$ is close to $T_0$. To this end, the following conditions are necessary: $\left|\partial_y^2 ECF\right|$ needs to be strictly positive at $y=d,T=T_0$. 
+$\partial_y^2 ECF (y=d,T=T_0)=-2\rho (M-m) \mu N(-h_t)  /\sigma^2 $, so $|\partial_y^2 ECF (y=d,T=T_0)|>0$. Next, since $y^*$ satisfies $\partial_y ECF(y^*)=0$, and thus, by the Implicit Function Theorem, there exists an open set $U$ containing $y=d$, an open set $V$ containing $T=T_0$, and a unique continuously differentiable function $y^*(T)$ such that
+$$
+\{ (y^*(t),T | T\in V \} = \left\{  (y,T)\in U\times V \left| \frac{\partial ECF}{\partial y} (y,T)=0 \right. \right\}.
+$$
+In particular, $y^*(T)\to d$ as $T\to T_0$. Furthermore, since $T_0>0$, it is clear that $\partial_y ECF$ is differentiable in a neighborhood of $(y=d,T=T_0)$, and, thus, we can apply the mean value theorem to show that there exists $\delta \in (0,1)$ such that
+
+$$
+0=\frac{\partial ECF}{\partial y } (y^*(T),T) = \frac{\partial^2 ECF}{\partial y^2 } (d+\delta (y^* (T)-d), T_0 + \delta (T-T_0) ) y^* (T) + \frac{\partial^2 ECF}{\partial T \partial y } (d+\delta (y^* (T)-d), T_0 + \delta (T-T_0) ) (T-T_0).
+$$
+Since $\partial^2 ECF / \partial y^2$, $\partial^2 ECF / \partial y \partial t $ are both continuous when $T>0$, and there is an open set containing $(d,T_0)$ such that $\partial^2 ECF / \partial y^2$ is strictly negative and, furthermore,
+
+$$
+\frac{y^*(T)-d}{T-T_0}=- \frac{\frac{\partial^2 ECF}{\partial T \partial y } (d+\delta (y^* (T)-d), T_0 + \delta (T-T_0) )}{\frac{\partial^2 ECF}{\partial y^2 } (d+\delta (y^* (T)-d), T_0 + \delta (T-T_0) )} \quad \overrightarrow{T\to T_0} \quad \left(- \frac{\frac{\partial^2 ECF}{\partial T \partial y } (d, T_0 )}{\frac{\partial^2 ECF}{\partial y^2 } (d, T_0 )} \right):=\kappa(T_0),
+$$
+%
+%$$
+%\frac{\partial^2 ECF}{\partial T \partial y } (d, {T_0} )= \frac{3\rho \phi(-h_{T_0})\mu}{\sigma \sqrt{{T_0}}}  + \frac{\rho (N(h_{T_0}) - N(-h_{T_0})) }{2{T_0}}+\frac{2 (-h_{T_0} N(-h_{T_0}))}{\sigma\sqrt{t}} \left(\left(-\rho (2d+f+r-\mu {T_0})+\beta \gamma \right)\frac{\mu}{\sigma\sqrt{{T_0}}}+\rho \mu \right)
+%$$
+%
+%$$
+%\frac{\partial^2 ECF}{\partial y^2 } (d, T_0 )=\frac{-2\mu \rho N(h_{T_0}) }{\sigma^2 }
+%$$
+
+%\begin{equation}\label{kappa11}
+%	\kappa({T_0})= \frac{\frac{3\rho \phi(-h_{T_0})\mu}{\sigma \sqrt{{T_0}}}  + \frac{\rho (N(h_{T_0}) - N(-h_{T_0})) }{2{T_0}}+\frac{2 (-h_{T_0} N(-h_{T_0}))}{\sigma\sqrt{{T_0}}} \left(\left(-\rho (2d+f+r-\mu {T_0})+\beta \gamma \right)\frac{\mu}{\sigma\sqrt{{T_0}}}+\rho \mu \right)}{\frac{2\mu \rho N(h_{T_0}) }{\sigma^2 }
+%}.
+%\end{equation}
+
+
+\begin{equation}\label{kappa}
+\kappa({T_0})= \frac{{3 \phi(-h_{T_0})}\sigma  + \frac{ \sigma^2(N(h_{T_0}) - N(-h_{T_0})) }{2\mu\sqrt{T_0}}+{2 (-h_{T_0} N(-h_{T_0}))} \left(
+	-\frac{2d+f+r}{\sqrt{T_0}}+\mu \sqrt{T_0}+\frac{\beta\gamma}{\rho\sqrt{T_0}}	
+	+ \sigma \right)}{{2 N(h_{T_0})\sqrt{T_0} }
+}.
+\end{equation}
+
+
+}
+\begin{remk}
+	
+	Note that  $\kappa$ contains $\gamma$, which depends on the value of $m$. For the fast approximation, we may use the lower bound of $\kappa$, 
+	
+	\begin{equation}\label{kappa.lb}\nonumber
+	\underline{\kappa}({T_0})= \frac{{3 \phi(-h_{T_0})}\sigma  + \frac{ \sigma^2(N(h_{T_0}) - N(-h_{T_0})) }{2\mu\sqrt{T_0}}+{2 (-h_{T_0} N(-h_{T_0}))} \left(
+		-\frac{2d+f+r}{\sqrt{T_0}}+\mu \sqrt{T_0}	
+		+ \sigma \right)}{{2 N(h_{T_0})\sqrt{T_0} }
+	}.
+	\end{equation}
+	
+\end{remk}
+
+\noindent\textbf{Part 2: Behavior of $m^*$}\\
+\par Now, to find $m^*$, let us reorganize $ECF(y,m)$ as following:
+
+\begin{gather}
+	\begin{aligned}
+ECF(y,m)=
+M \epsilon_5-m \epsilon_4 -\beta\bigg[& (M-m)\big(\epsilon_0  (K-M+m)^{-}+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))^{-}\big)\\
+&+m (K-m)^{-} \bigg],
+\end{aligned}\label{thm2:mupos:ecf}
+\end{gather}
+
+%
+%
+%\begin{align*}
+%ECF(y,m)=
+%&M \left(S_0 -2\rho(y-d)\tilde{N}(-\alpha_t)-(d+f-\mu t)(1-\rho+\rho\epsilon_0)+(1-\epsilon_0)\rho(y+r)\right)-m\epsilon_4\\
+%&-\beta\left[m (K-m)^{-}+(M-m)\left(\epsilon_0  (K-M+m)^{-}+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))^{-}\right) \right]\\
+%\end{align*}
+
+where
+
+$$\epsilon_4:=\left( \rho(1-\epsilon_0)(d+f+y+r)-2\rho (y-d)\tilde{N}(-\alpha_{T}) +\mu {T}(1-\rho+\rho\epsilon_0) \right), $$ 
+
+$$\epsilon_5:=\left(S_0 -2\rho(y-d)\tilde{N}(-\alpha_{T})-(d+f-\mu {T})(1-\rho+\rho\epsilon_0)+(1-\epsilon_0)\rho(y+r)\right).$$
+
+Note that $\epsilon_5$ does not depend on m, and $\epsilon_4>0$ since it can be reorganized as
+
+$\left( \rho(1-\epsilon_0)(d+f+r)+2\rho (d)\tilde{N}(-\alpha_{T}) +\mu {T}(1-\rho+\rho\epsilon_0) \right) +\rho y (N(-\beta_{T})-\tilde{N}(-\alpha_{T}))$, and $N(-\beta_{T})-\tilde{N}(-\alpha_{T})>0$. 
+Now, investigate the behavior of (\ref{thm2:mupos:ecf}) in different range of $m$ to find $m^*$.  
+
+\noindent\textbf{Case 1-1: $(K-m)\geq 0, (K-M+m)\geq 0, (K-(M-m)(1-\rho))\geq 0$.}
+In this case, the (\ref{thm2:mupos:ecf}) becomes a linear decreasing function of $m$. When $K\geq M$, for any $m$ this condition is satisfied so $m^*=0$.
+
+\noindent\textbf{Case 1-2: $(K-m)< 0, (K-M+m)\geq 0, (K-(M-m)(1-\rho))\geq 0$}
+In this case, (\ref{thm2:mupos:ecf}) attains its maximum at $\frac{K}{2}-\frac{\epsilon_4}{2\beta}$, which is $<K$, so in this range (\ref{thm2:mupos:ecf}) is a decreasing function of $m$. 
+
+\noindent\textbf{Case 2-1: $(K-m)\geq  0, (K-M+m)< 0, (K-(M-m)(1-\rho))\geq 0$}
+In this case, (\ref{thm2:mupos:ecf}) attains its maximum at 
+%\begin{align*}
+%ECF(y,m)=M \epsilon_5-m \epsilon_4 + \beta\left[(M-m)\epsilon_0  (K-M+m) \right]\\
+%\end{align*}
+$m^*_4=M-K/2-\epsilon_4/2\beta\epsilon_0$,
+
+%This solution is invalid when $K/(1-\rho)-K/2<\mu t \rho /2\beta$. 
+
+
+\noindent\textbf{Case 2-2: $(K-m)<  0, (K-M+m)< 0, (K-(M-m)(1-\rho))\geq 0$}
+In this case, (\ref{thm2:mupos:ecf}) attains its maximum at
+%\begin{align*}
+%ECF(y,m)=
+%&M \epsilon_5-m \epsilon_4 \\
+%&+\beta\left[m (K-m)+(M-m)\epsilon_0  (K-M+m) \right]\\
+%\end{align*}
+
+$m^*_5=\frac{\epsilon_0}{(1+\epsilon_0)}M +\frac{(1-\epsilon_0)}{2(1+\epsilon_0)}K-\frac{\epsilon_4}{2(1+\epsilon_0)\beta}
+$
+
+%This solution is invalid when $\beta(2M+K)<\mu t \rho$. 
+
+
+\noindent\textbf{Case 3: $(K-M+m)\geq 0, (K-(M-m)(1-\rho))< 0$}
+This condition is contradictory. \\
+\noindent\textbf{Case 4-1: $(K-m)\geq  0, (K-M+m)< 0, (K-(M-m)(1-\rho))< 0$}
+%\begin{align*}
+%ECF(y,m)=
+%&M \epsilon_5-m \epsilon_4 \\
+%&+\beta\left[(M-m)\left(\epsilon_0  (K-M+m)+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))\right) \right]\\
+%\end{align*}
+In this case, (\ref{thm2:mupos:ecf}) attains its maximum at
+$m^*_5=M-\frac{\beta(\epsilon_0+(1-\epsilon_0)(1-\rho))K+\epsilon_4}{2\beta(\epsilon_0+(1-\epsilon_0)(1-\rho)^2)}$
+
+%This is invalid when $\mu t > K\beta/(1-\rho)^2$
+
+\noindent\textbf{Case 4-2: $(K-m)<  0, (K-M+m)<0, (K-(M-m)(1-\rho))< 0$}
+%
+%\begin{align*}
+%ECF(y,m)=
+%&M \epsilon_5-m \epsilon_4 \\
+%&+\beta\left[m (K-m)+(M-m)\left(\epsilon_0  (K-M+m)+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))\right) \right]\\
+%\end{align*}
+In this case, (\ref{thm2:mupos:ecf}) attains its maximum at
+$m^*_6=\frac{\beta (2M(\epsilon_0+(1-\rho)^2 (1-\epsilon_0)) +K(1-\epsilon_0)\rho)-\epsilon_4}{2\beta (1+\epsilon_0+(1-\rho)^2 (1-\epsilon_0))}$
+
+
+%
+%To summarize, we have 4 valid cases:
+%
+%
+%\noindent\textbf{1. }
+%When $(K\geq M(1-\rho)$,  $m^*=0$.
+%
+%
+%\noindent\textbf{2. }
+%When
+%\[
+%K\geq\frac{2}{3} (M-\epsilon_4/2\beta\epsilon_0), \quad
+%%\left(K/2+\epsilon_4/2\beta\epsilon_0\right)(1-\rho ) \leq K < \left(K/2+\epsilon_4/2\beta\epsilon_0\right)
+%%
+%\frac{(1-\rho)\epsilon_4}{(1+\rho)\beta\epsilon_0}
+%\leq K < \frac{\epsilon_4}{\beta\epsilon_0},
+%%
+%\]
+%
+%
+%$$m^*=M-K/2-\epsilon_4/2\beta\epsilon_0.$$
+%
+%%This solution is invalid when $K/(1-\rho)-K/2<\mu t \rho /2\beta$. 
+%
+%
+%\noindent\textbf{3. }
+%When
+%\[
+%\frac{2(1-\epsilon_0)M +\epsilon_4/\beta}{1-\epsilon_0 + 2(1+\epsilon_0)(1-\rho)}  \leq  K < \frac{2(1-\epsilon_0)M +\epsilon_4/\beta}{3+\epsilon_0} , \quad
+%K<\frac{2\epsilon_0 M -\epsilon_4 /\beta}{1+3\epsilon_0},
+%\]
+%
+%
+%$$m^*=\frac{\epsilon_0}{(1+\epsilon_0)}M +\frac{(1-\epsilon_0)}{2(1+\epsilon_0)}K-\frac{\epsilon_4}{2(1+\epsilon_0)\beta}.
+%$$
+%
+%%This solution is invalid when $\beta(2M+K)<\mu t \rho$. 
+%
+%
+%\noindent\textbf{4. }
+%%$(K-m)\geq  0, (K-M+m)< 0, (K-(M-m)(1-\rho))< 0$
+%When
+%\[
+%\frac{2M(\epsilon_0+(1-\epsilon_0)(1-\rho)^2)-\epsilon_4/\beta}{3\epsilon_0+(1-\epsilon_0)(2(1-\rho)^2+(1-\rho))} \leq K <\frac{\epsilon_4(1-\rho)/\beta}{2(\epsilon_0+(1-\epsilon_0)(1-\rho)^2)-(1-\rho)(\epsilon_0+(1-\epsilon_0)(1-\rho)) }
+%\]
+%
+%$$m^*=M-\frac{\beta(\epsilon_0+(1-\epsilon_0)(1-\rho))K+\epsilon_4}{2\beta(\epsilon_0+(1-\epsilon_0)(1-\rho)^2)}.$$
+%
+%%This is invalid when $\mu t > K\beta/(1-\rho)^2$
+%
+%\noindent\textbf{5.}
+% %$(K-m)<  0, (K-M+m)<0, (K-(M-m)(1-\rho))< 0$
+% When
+%\[
+%K<\min \left( \frac{2M(\epsilon_0+(1-\rho)^2 (1-\epsilon_0))-\epsilon_4/\beta}{2(1+\epsilon_0+(1-\rho)^2 (1-\epsilon_0))-\rho(1-\epsilon_0)},\frac{(2M+\epsilon_4/\beta)(1-\rho)}{2(1+\epsilon_0+(1-\rho)^2 (1-\epsilon_0))+(\rho-\rho^2)(1-\epsilon_0)}\right),
+%\]
+%
+%
+%$$m^*=\frac{\beta (2M(\epsilon_0+(1-\rho)^2 (1-\epsilon_0)) +K(1-\epsilon_0)\rho)-\epsilon_4}{2\beta (1+\epsilon_0+(1-\rho)^2 (1-\epsilon_0))}.$$
+%
+ 
+To summarize, when $K\geq M$, $m^*=0$ . If not, the maximum will be obtained at one of $\{0, M, m_4^*, m^*_5, m^*_6, M, M-K, |M-K/(1-\rho)| \}$. 
+
+
+
+\end{proof}
+
+
+
+
+
+
+{
+
+
+
+In Theorem~\ref{thm:single:muPos}, we have shown the behavior of $y^*$ and $m^*$ when $\mu$ is positive. 
+
+\begin{figure}
+	\includegraphics[width=0.495\textwidth]{images/PaperGraph_mSt_against_T}
+	\includegraphics[width=0.495\textwidth]{images/PaperGraph_ySt_against_T1}
+	
+	\caption{Behavior of $m^*$ (Left) and $y^*$ (Right) against T. For the left graph, black solid line is when $\rho=0.1$, red dashed line is when $\rho=0.5$, green dotted dot-dashed line is when $\rho=1$. For the graph in the right panel, $y^*$ and it's first-order approximation $d+\kappa(T-T_0)$ are described in solid and dashed lines, respectively, using Black color($\rho=0.1$), red color($\rho=0.5)$, and green color ($\rho=1$). Blue dot-dashed line in Right panel is using the approximation from \cite{FLP:2018}. For both panels, $M=100, r=0.003, f=0.003, \epsilon=0.01, S_0=100, d=\epsilon/2=0.005, \sigma=0.1, \mu=0.5$ .  }
+	\label{mystar_againstT_diffRho}
+\end{figure}
+
+
+
+\begin{figure}
+	\includegraphics[width=0.495\textwidth]{images/mstar_againstMu_diffBeta}
+	\includegraphics[width=0.495\textwidth]{images/ystar_againstMu_diffBeta}
+	\caption{
+		$m^*$  (left) and $y^*$ (right) against $\mu$ for $\beta=0.001$ (black solid line), $\beta=0.005$ (red dashed line), and $\beta=0.01$ (blue dotted line). $K=10, \rho=0.2, $  $M=100, r=0.003, f=0.003, \epsilon=0.01, d=\epsilon/2=0.005, T=0.1, S_0=100, \sigma=0.1$.}
+	\label{mystar_againstMu_diffBetas}
+\end{figure}
+
+
+
+\begin{figure}
+	\includegraphics[width=0.495\textwidth]{images/mstar_againstMu_diffSig_K10}
+	\includegraphics[width=0.495\textwidth]{images/ystar_againstMu_diffSig_K10}
+	\caption{ $m^*$ (left), and $y^*$ (right) against $\mu$ for $\sigma=0.1$ (black solid line), $\sigma=0.15$ (red dashed line), $\sigma=0.2$ (blue dotted line).  $K=10$, $M=100, r=0.003, f=0.003, \epsilon=0.01, d=\epsilon/2=0.005, T=0.1, S_0=100, \rho=0.5$. 
+	}
+	\label{mystar_againstMu_diffSig_BM}
+\end{figure}
+
+
+\begin{figure}
+	
+	\includegraphics[width=0.495\textwidth]{images/mstar_againstMu_diffRho_K150}
+	\includegraphics[width=0.495\textwidth]{images/ystar_againstMu_diffRho_K150}	
+	\includegraphics[width=0.495\textwidth]{images/mstar_againstMu_diffRho_K10}
+	\includegraphics[width=0.495\textwidth]{images/ystar_againstMu_diffRho_K10}
+	\includegraphics[width=0.495\textwidth]{images/GBMmstar_againstMu_diffRho_K10}
+	\includegraphics[width=0.495\textwidth]{images/GBMystar_againstMu_diffRho_K10}
+	
+	\caption{ $m^*$ (left), $y^*$ (right) against for $K=150$, BM (top), $K_10$, BM (middle) and $K=10$, GBM (bottom). $\rho=0.2$ (black solid line), $\rho=0.4$ (red dashed line), $\rho=0.6$ (green dotted line), $\rho=0.8$ (blue dot-dashed line) and $\rho=1$ (cyan long dahsed line). $M=100, r=0.003, f=0.003, \epsilon=0.01, d=\epsilon/2=0.005, T=0.1, S_0=100, \sigma=0.1$ for BM (top, middle) and $\sigma=0.01$ for GBM(bottom).}
+	\label{mystar_againstMu_diffRhos}
+\end{figure}
+
+
+
+
+
+\par First, let us focus on the behavior of $y^*$. As shown in the right panel of Figure~\ref{mystar_againstMu_diffK}, $y^*=d$ until $\mu$ reaches a certain positive value (the lower bound is $\mu T>2d+f+r+(-\beta \gamma)/\rho$)  and then linearly increases with respect to $\mu$. 
+
+\par Also, in the right panel of Figure~\ref{mystar_againstT_diffRho} it is observed that $y^*=d$ until a certain time threshold,$T_0$, and then increases linearly with respect to $T$. 
+
+\par This complies with the result of Theorem~\ref{thm:single:muPos} that $y^*>d$ for a big enough $\mu T$. In Theorem~\ref{thm:single:muPos}, we have provided the existence of such a threshold, and named the threshold in the time horizon as $T_0$. We provided the stepwise-linear approximation of $y^*$ as a function of $T$: $y^*(T)\approx d+\kappa (T-T_0)$, the first-order approximation given in Theorem~\ref{thm:single:muPos}. These approximations are also found in the right panel of Figure~\ref{mystar_againstT_diffRho}. Each $y^*$ is described in solid lines, and the approximation is given in the dashed line using matching colors. Comparing with the result from \cite{FLP:2018}, the blue dotted line in the Right panel of Figure~\ref{mystar_againstT_diffRho} is showing first order Taylor approximation of $y^*$ using Theorem 3.6. of \cite{FLP:2018}. These approximations of $y^*$ converges close to the actual $y^*$ as $T\searrow T_0$.  } These approximation methods provide the quick computation method that the investor can use to decide the limit order placement based on their time horizon, $T$.
+
+\par Now, let us focus on the behavior of $y^*$ with various $K$s, the initial market depth. The right panel of Figure~\ref{mystar_againstMu_diffK} shows that $y^*$ increases as $K$ increases, but the difference is relatively small for $K=10, 50, 70$ and there is huge difference when $K=150$. The case of $K=150$ is special since this is only the case when $K>M$ ($M=100$ in the simulation), which represents the case when the market depth $K$ is bigger than the investor's inventory $M$. In this case, the investor would not fear to put limit orders at the higher level, since even if limit orders do not get  executed until time $T$, the market order at time $T$ still will be beneficial since there is no impact on the supply curve based on the quantity of the market order size $M$.
+ 
+ 
+ 
+\par Another interesting analysis of $y^*$ is the change of behavior for different $\beta$s. Figure~\ref{mystar_againstMu_diffBetas} shows behavior of $y^*$ int he right panel. $y^*$ increases as $\beta$ decreases. Also, recall that there is a lower bound of $\mu$ such that $y^*>d$ after a certain value of $\mu$, where the bound is $\mu T>2d+r+f+(-\beta \gamma)/\rho$ (given in  Equation (\ref{bound:muT})), where $\gamma<0$. Therefore, as $\beta$ increases, the bound also increases, which is observed in Figure ~\ref{mystar_againstMu_diffBetas}. 
+
+\par In addition, the behavior of $y^*$ for various values of $\sigma$, the volatility of price process is shown in Figure~\ref{mystar_againstMu_diffSig_BM}.  As $\sigma$ increases, after $\mu$ gets bigger than a certain (positive) threshold value, $y^*$ decreases. While for low (positive) $\mu$, bigger $\sigma$ implies a higher chance of the limit order execution. However it is not necessarily true for high $\mu$, and this explains why $y^*$ decreases as $\sigma$ increases for big enough $\mu$.
+
+\medskip
+\par  Now, let us show the behavior of $m^*$. Figure~\ref{mystar_againstT_diffRho} shows the behavior of $m^*$ against $T$ when $\mu>0$. The behavior of $m^*$ follows the result of Theorem~\ref{thm:single:muPos}, and it is decreasing as $T$ increases. This is because when $\mu>0$ and $T$ increases, the benefit from the limit order increases. When $\mu>0$, the probability of limit order execution increases as $T$ increases, and even if a limit order is not executed, the expected value of $S_T$ is higher than $S_0$, so the market order at $t=0$ is less preferred. 
+
+
+\par The left panel of Figure~\ref{mystar_againstMu_diffRhos} shows the behavior of $m^*$ against $\mu$ when $K=150$ (top) and $K=10$ (middle) for different $\rho$'s. $K=10$ represents the case when the market depth is low (the quantity of limit order on best bid queue when $t=0$ is low). In this case, $m^*$ shows a relatively smooth decreasing trend as $\mu$ increases.
+ For $K=150$, on the other hand, $m^*$ is still decreasing but there is a sudden drop from $m^*=M$ to $m^*=0$. When the market depth is high, then all the market order is covered by the current existing limit order. In this case, our inventory's size does not affect the supply curve. In other words, when $K>M$, the conclusion for $m^*$ and $y^*$ should be the same whether M=1 or M=K-1. So in this case, the investor's choice comes down to two choices: $m=0$ (just use limit order) and $m=M$ (just use market order). 
+
+
+\par The behavior of $m^*$ for different $K$s with a fixed $\rho$ is shown in the right panel of Figure~\ref{mystar_againstMu_diffK}. $m^*$,  the optimal quantity for the market order, decreases as $\mu$ increases. It is because as $\mu$ increases, there is higher chance of $LO$ execution and the market order at $T$ is more preferred than $MO$ at $0$. The slope for the decrease gets steeper when $K$, the market depth, increases. This is because the affect of market order size gets smaller as $K$ increases. 
+
+
+\par The change of $m^*$ slope as $\beta$ can be found in Figure ~\ref{mystar_againstMu_diffBetas}. When $\beta$ is smaller, the slope is sharper. This is because when $\beta$ gets bigger, the market order size is more affective to the expected cash flow, so the difference in the market order size should be smaller compared to the case of a smaller $\beta$. 
+
+\par The behavior of  $m^*$ for various values of $\sigma$ is shown in Figure~\ref{mystar_againstMu_diffSig_BM}.  As $\sigma$ increases, it is observed that $m^*$ increases. As described earlier, bigger $\sigma$ implies a higher chance of the limit order execution. However it is not necessarily true for a high $\mu$, and this explains why $y^*$ decreases and $m^*$ increases as $\sigma$ increases for a big enough $\mu$. 
+
+
+
+%Analysis organize flow:
+%
+%
+%
+%\begin{itemize}
+%	\item Compare with \cite{FLP:2018}, compare approximation of $y^*$ and Theorem 3 part 1. Bring Figure- right panels of $y^*$ and analyze how this works as parameter ($T,\beta,\mu,\dots$) changes (refer to each figures)  and add practical 
+%	\item $m^*$: summarize our work from previous two theorems, argue how convenient and fast our theorem provides, analyze how $m^*$ behaves (refer to each figures)
+%\end{itemize}
+
+}
+
+
+%
+%
+%{\Blue
+%	Features that we want to address (delete this later)
+%	\begin{itemize}
+%		\item  when $K\geq M(1-\rho)$, $m^*=0$, otherwise $m^*>0$. Connection with $m^*$, K, $\rho$. (fore all $\mu$)
+%		\item $m^*$ decreases as $\rho$ increases. (for all $\mu$): explain numerical \& real world explanation
+%		\item $\mu<0$: $y^*=d$
+%		\item $\mu>0$: $y^*>0$ as $\mu$ bigger than some threshold. This coincide with conclusion from previous paper (add explain why, also borrow result from prev. paper that $y^*t\sim \mu t \theta$ for some constant $\theta$, and add approximation line and show that this line works)
+%		\item $y^*$ increases as $\rho$ decreases and $m^*$ also increases as $\rho $ decreases.
+%	\end{itemize}
+%	
+%	As shown in Figure \ref{fig:1step_1}, when $K\geq M(1-\rho)$, $m^*=0$ and otherwise $m^*>0$. This can be explained as that $K$, the initial market depth at the best bid price is large enough, that it is beneficial for the investor to choose limit order than market order to sell. Also, when $\rho$, the proportion of executed limit order, is large, then even for small K $m^*=0$, which implies that the investor may choose to use the limit order in this case. This result coincide with Theorem 2 and Theorem 3. 
+%	
+%	Another general pattern is that $m^*$ decreases as $\mu$ increases. It follows from the fact that when $\mu$ increases, there is higher expected cash flow from the limit order than the market order
+%	
+%	
+%	Additionally, $y^*$ remains as $d$ when $\mu<0$, which complies with the conclusion of Theorem 2. This implies that when the drift $\mu$ is negative, the optimal placement for the limit sell order is to place at the best ask price, because when the drift is negative the risk of limit order not being executed is higher than the benefit from benefit from limit order execution.
+%	
+%
+%When $\mu>0$, as shown in figure \ref{fig:1step_1}, $y^*>0$ and increase as $\mu(>0)$ increases. This implies that the investor should place limit order at the higher price level as $\mu$ increase. (Borrow explanation from previous paper, compare result, show the linear approximation still works here - ongoing)
+%
+%Now, let us focus on the role of $\rho$. It can be verified from figure \ref{fig:1step_1} that as $\rho$ decreases, both $m^*$ and $y^*$ increase. This is because (Why???$m^*$ increase makes sense, because lower chance of LO execution means focus more on MO. why higher y*?  Since this $y^*>0$ happens when $\mu>0$, since our $\rho$ does not depend on placement level, place on higher LO level to have more gain, compensating for low $\rho$? )
+%
+%
+%
+%(financial explain)
+%}
+
+
+
+{
+While in this paper we didn't include theorems for the behavior of the optimal placement strategy using a geometric Brownian motion, we have checked that they're showing a similar behavior as in a Brownian motion model.  
+Bottom two panels of Figure~\ref{mystar_againstMu_diffRhos} show $m^*$, $y^*$ which maximize the ECF given in Lemma~\ref{ECF_GBM}. Since for the same price process, $\mu$ and $\sigma$ for the geometric Brownian motion model should be smaller than the those for BM, we are using $0.01$ for $\sigma$ and range of $\mu$ from $-0.1$ to $0.2$ for  the geometric Brownian motion model here. 
+Comparing Brownian motion model (middle panels  of Figure~\ref{mystar_againstMu_diffRhos}) and geometric Brownian motion model (bottom panels of Figure~\ref{mystar_againstMu_diffRhos}) using same parameters (except $\mu$ and $\sigma$), $y^*$ and $m^*$ show similar behavior but it is smoother for the geometric Brownian motion model. 
+}
+
+{\Red
+To summarize, we have investigated the  behavior of optimal ($y^*$, $m^*$) against important LOB features ($\rho$, $\beta$, $K$) and other parameters for price movement such as $\mu$ in a single period model.  In the following section, we will extend this investigation into a multiple period model. 
+}
+
+
+%
+%\begin{figure}
+%\includegraphics[width=\textwidth]{Rplot05.pdf}
+%\caption{Update the graphic}\label{fig:1step_1}
+%\end{figure}
+
+%{\Red graphic discussion
+%	
+%	\begin{itemize}
+%		\item Add $\rho=1$ case (and maybe omit $\rho=0.9$?) to the graphic.
+%		\item GBM case, add similar (or choose one of the case)
+%	\end{itemize}
+%	
+%	
+%}
+
+
+
+
+\newpage
+\section{A Multi-Period Model}
+ 
+ 
+
+
+
+
+\par In this section, we extend the single-period case to a multi-period case. In the single period case, the investor made a decision only at time $t=0$ and waited until the investor's time horizon $T$. As a natural extension, now we introduce $n$ time steps between time $0$ and time $T$. We find the optimal placement strategy at the first step. The difference is that all un-executed orders are not transferred to a market order at the end of the first period. Instead, now we solve a new optimal replacement problem using the remaining order. In other word, the remaining shares after the first period becomes a new $M$ for the second period, and so on.
+
+\par Let us denote the time steps as $\{ t_0=0, t_1=T/n, t_2=2T/n, \dots, t_n=T \}$. At each $t_i$, the investor is allowed to 
+
+\begin{itemize}
+\item cancel any remaining limit order, (this becomes new remaining inventory, $M_i$)
+\item place a market order of size $m_i$($\leq M_i$), or
+\item place the rest ($M_i-m_i$) using  limit order at the price of $S_i+y_i$. ($S_i$: mid-price at time $t_i$)
+\end{itemize}
+
+
+Then we define the Multi-period Expected cash flow (MECF) as follows:
+
+
+
+\par For $n=1$, 
+\begin{align}\label{multi:mecf1:n1}
+MECF(n=1,S_0,y,m,M,T=t)=ECF(y,m),
+\end{align}
+
+
+where the ECF (expected case flow) from the single-period case is in ~(\ref{ECF_lem3}). 
+
+
+
+\par For $n\geq 2$, we define the expected cash flow as a function of $n$, the number of time steps, $S_0$, the stock mid-price at time $t_0$, $y_0$, the initial limit order placement, $m_0$, the initial market order quantity, $M$, the inventory, and $T$, the time horizon.
+
+
+{ Note that the cash flow at a time step $t_i$ depends only on $M_i, S_i$, and the action at $t_i$. Given this Markov structure, the optimal placement problem is a Markov decision problem where the expected cost for taking each action at each step can be solved recursively.
+
+}
+
+
+\begin{align}
+\label{multi:mecf1:line1}
+MECF (n, S_0,y_0, m_0, & M,T)=m_0\left(S(0,-m_0)-f  \right) 
++ E\left[L(S(0,0)+y+r)\bigg|\tau<\frac{T}{n} \right] P\left(\tau<\frac{T}{n}\right)
+\\
+\label{multi:mecf1:line2}
+  &+MECF\bigg(n-1,E[{S_{\frac{T}{n}}\big|_{\tau<\frac{T}{n}}}],y_1,m_1,M-m_0-L, \frac{T(n-1)}{n}\bigg)P\left(\tau<\frac{T}{n}\right)\\
+  \label{multi:mecf1:line3}
+   &+
+ MECF\bigg(n-1,E[{S_{\frac{T}{n}}\big|_{\tau>\frac{T}{n}}}],y_1,m_1,M-m_0, \frac{T(n-1)}{n}\bigg)P\left(\tau>\frac{T}{n}\right)
+\end{align}
+
+
+
+The first term of (\ref{multi:mecf1:line1}) is the cash flow from the market order, and the second term of (\ref{multi:mecf1:line1})
+is the cash flow from executed limit order (recall that $L$ is the amount of executed shares at the price level $S_0+y_0$ when $\tau$, the first time the trader's limit order becomes the best ask, is less than $T/n$). Then, if $\tau<T/n$, the $M-m_0-L$ is the remaining inventory for the next time step, as described in (\ref{multi:mecf1:line2}). Otherwise, if $\tau>T/n$, then none of the limit order has been executed until $T/n$, and the remaining inventory for the next time step is $M-m_0$, as in (\ref{multi:mecf1:line3}). 
+
+
+
+
+
+\par For the dynamic placement problem, at each time step, the investor may update parameters and solve for the optimal placement. In this paper, we focus on solving for $y_0$ and $m_0$ assuming that the parameter remains the same during $[0,T]$. At each time step $t_i$, after updating the parameter, the investor can use the same technique to find the optimal  $y_i$ and $m_i$. %(Add more explain why we only find $y_0$ and $m_0$ here).
+
+
+
+
+%\subsection{Analysis for multiple period case with $\rho=1$}
+
+
+%Now, it is natural to extend the single period analysis to the multiple period. In this section, we analyze the cash flow and optimal solution when the investor is allowed to cancel/ relocate LO or place additional MOs  at $n$ time steps.
+
+\begin{prop}\label{multi:thm:rho}
+%Let us define the expected cash flow when there are $n$ time steps. $y,m$ is the location of LO and the MO size at time 0. 
+Let MECF be defined as in (\ref{multi:mecf1:n1}),  (\ref{multi:mecf1:line1}) -(\ref{multi:mecf1:line3}). Let us assume that the price process, $S_t$, follows Brownian motion as in Lemma~\ref{lem:bm:ECF} and $L=(M-m)\rho$. Then, MECF(n, S, y, m, M, T) can be summarized as follows:
+
+
+For $n=1$, 
+\begin{align*}
+MECF&(n=1,S_0,y,m,M,T=t)\\
+=
+&M \left(S_0 -2\rho(y-d)\tilde{N}(-\alpha_t)-(d+f-\mu t)(1-\rho+\rho\epsilon_0)+(1-\epsilon_0)\rho(y+r)\right)\\
+&-m\left( \rho(1-\epsilon_0)(d+f+y+r)-2\rho (y-d)\tilde{N}(-\alpha_t) +\mu t(1-\rho+\rho\epsilon_0) \right)\\
+&-\beta\left[m (K-m)^{-}+(M-m)\left(\epsilon_0  (K-M+m)^{-}+(1-\epsilon_0)(1-\rho)(K-(M-m)(1-\rho))^{-}\right) \right],\\
+%+
+%+&(M-m)\bigg\{ \rho(y+r) -2\rho (y-d) \tilde{N}\left(-\alpha_t\right)
+%-(1-\rho)(d+f-\mu t)\\&\quad \quad \quad
+%+\beta (1-\rho) \min (K-(M-m)(1-\rho),0)
+%\\&\quad \quad \quad+\left(N\left(\beta_t \right)- \tilde{N}\left(-\alpha_t\right) \right)
+%\bigg[-\rho (d+f-\mu t+y+r)\\
+%&\quad \quad \quad\quad \quad \quad+\beta \min (K-M+m,0)-(1-\rho)\beta \min (K-(M-m)(1-\rho),0)\bigg]
+%\bigg\}
+\end{align*}
+
+\[
+\alpha_t= \frac{y-d+\mu t}{\sigma \sqrt{t}},
+\quad
+\beta_t = \frac{y-d-\mu t}{\sigma\sqrt{t}}.
+\quad \tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t),\quad 
+%\quad \tilde{N}(-\alpha_t)= e^{2a\mu/\sigma^2}N(-\alpha_t). 
+\epsilon_0= \left(N\left(\beta_t \right)-\tilde{N}\left(-\alpha_t\right) \right)
+\]
+
+
+For $n\geq 2$,
+
+\begin{gather}
+	\begin{aligned}
+MECF &(n, S_0,y_0^{n}, m_0^{n},M,T)\\
+=&m_0^{n}(S_0-d+\beta \min (K-m_0^{n},0)-f)\\
++&(M-m_0^{n})\rho \left\{ (S_0+y_0^{n}+r) \left(N\left(-\beta_{\frac{T}{n}} \right)+ \tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\right\}\\
++&MECF(n-1,E[{S_{\frac{T}{n}}|_{\tau<T/n}}],y_1^{n},m_1^{n},(M-m_0^{n})(1-\rho)
+, \frac{T(n-1)}{n} ) \left(N\left(-\beta_{\frac{T}{n}} \right)+\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\\
++&MECF(n-1,E[{S_{\frac{T}{n}}|_{\tau>T/n}}],y_1^{n},m_1^{n},M-m_0^{n}, \frac{T(n-1)}{n}) \left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)
+\end{aligned}\label{multi:rho1:n}
+\end{gather}
+
+
+
+
+\[
+\alpha_t= \frac{y-d+\mu t}{\sigma \sqrt{t}},
+\quad
+\beta_t = \frac{y-d-\mu t}{\sigma\sqrt{t}}.
+\quad \tilde{N}(-\alpha_t)= e^{2(y-d)\mu/\sigma^2}N(-\alpha_t).
+%\quad \tilde{N}(-\alpha_t)= e^{2a\mu/\sigma^2}N(-\alpha_t). 
+%\epsilon_0= \left(N\left(\beta_t \right)-\tilde{N}\left(-\alpha_t\right) \right)
+\]
+\end{prop}
+
+\begin{proof}
+The result of this theorem is directly using the definition in  (\ref{multi:mecf1:n1}),  (\ref{multi:mecf1:line1}) -(\ref{multi:mecf1:line3}) and Lemma~\ref{BM_Lem}. 
+\end{proof}
+
+In this theorem we introduced the expression of the Expected Cash flow for the multiple period. Now, let us define the optimal placement for the first time step, $y_0^{*n}, m_0^{*n}$,
+
+
+\begin{equation}\label{opt:ym:multi}
+y_0^{*n}, m_0^{*n} := \underset{y\geq d,0\leq m\leq M}{\arg\max} MECF(n,S_0,y,m,T),
+\end{equation}
+
+
+
+
+ the optimal price level for the limit order placement (the limit order will be placed at $S_0+y_0^{*n}$) and the market order quantity $m_0^{*n}(\leq M)$, when there are $n$ time steps and $T$ is the total investment horizon.
+ 
+ 
+ {
+ Note that the action at each time step $t_i$, $y_i^{n}$ and $m_i^{n}$ depends on the state of $t_i$ (remaining inventory and the mid-price at $t_i$), so the optimal policy at time $t_i$, $(y_i^{*n}, m_i^{*n})$, could be degenerated into $\left((y_i^{*n}, m_i^{*n}), (y_{i+1}^{*n}, m_{i+1}^{*n}), \dots (y_{n-1}^{*n}, m_{n-1}^{*n})\right)$. Then, the Dynamic Programming Principle leads to the following backward recursion for the MECF:
+ }
+%
+%The optimal solution can be solved by the following:
+
+\begin{align*}
+(y_0^{*n},& m_0^{*n})\\
+=&\underset{y\geq d,0\leq m\leq M}{\arg\max} \bigg[ m(S_0-d+\beta \min (K-m,0)-f)+ (M-m)\rho  (S_0+y+r) \left(N\left(-\beta_{\frac{T}{n}} \right)+\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\\
+\quad &+\max_{y_1,m_1} MECF(n-1,E[{S_{\frac{T}{n}}|_{\tau<T/n}}],y_1,m_1,(M-m)(1-\rho)
+, \frac{T(n-1)}{n} ) \left(N\left(-\beta_{\frac{T}{n}} \right)+\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\\
+&+ \max_{y_1, m_1}MECF(n-1,E[{S_{\frac{T}{n}}|_{\tau>T/n}}],y_1,m_1,M-m, \frac{T(n-1)}{n} ) \left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\bigg].
+\end{align*}
+
+
+
+%{\Magenta Erase later: change to connection paragraph
+%Analysis:
+%
+%\begin{itemize}
+%\item $\mu<0$: $y^*=d$ for all $n$, done
+%\item $\mu<0$ $m^*$ increase as $n$ increases 
+%\item $\mu>0$: $y^*$ exists for all $n$. 
+%\item $\mu>0$: $y^*$Trend as $n$ increases.  
+%\item $\mu>0$: $m^*=0$ for all $n$. 
+%\end{itemize}
+%}
+\par Using this Proposition~\ref{multi:thm:rho}, we are now going to solve the optimal placement decision at time $0$. Because of the recursive nature of the multiple period, we are interested in analyzing the solution of the first period. Optimal behaviors for the remaining period are updated at next time steps with updated information (parameters), using the same method, sequentially. We now provide analytical results for the optimal behavior. The following theorem gives analytical result for the case when $\rho=1$.
+
+\begin{thm}\label{Multi:rho1:optimalym}
+For $y_0^{*n}, m_0^{*n}$ defined as in Proposition~\ref{multi:thm:rho} and (\ref{opt:ym:multi}) and when $\rho=1$,  $y_0^{*n}=d, m_0^{*n}=0$ for all $n$ when $\mu<0$. 
+\end{thm}
+
+\begin{proof}
+
+For $n=1$, proof is done in Proposition~\ref{thm:single:muNeg}.
+Note that $y_0^{*1}=d$, $m_0^{*1}=0$,  $\max MECF= MECF(n=1, S_0, y=d,m=0,M,T)=M(S_0+d+r)$. 
+
+Now, let us prove that for $n\geq 2$, if
+$y_0^{*(n-1)}=d, m_0^{*(n-1)}=0$ and  $\max MECF(n-1,S_0,y,m,M,T)=M (S_0 + d + r)$, then
+$y_0^{*n}=d, m_0^{*n}=0$ and  $\max MECF(n,S_0,y,m,M,T)=M (S_0 + d + r)$. 
+%This will prove the theorem.
+
+%
+%
+%
+%From (\ref{multi:rho1:n}), $\max_{y,m} MECF (n, S_0,y, m,M,T)=\max_{y,m} {}\bigg(m(S_0-d+\beta \min (K-m,0)-f)+(M-m)(S_0+y+r) P(\tau<T/n)
+%+(M-m) E[{S_{\frac{T}{n}}I({\tau>T/n})}] + (d+r) P ({\tau>T/n})\bigg)$. 
+To prove this, let us denote 
+\begin{align*}
+	f(y,m):=&m(S_0-d+\beta \min (K-m,0)-f)+(M-m)(S_0+y+r) P(\tau<T/n)\\
+&+(M-m) E[{S_{\frac{T}{n}}I({\tau>T/n})}] + (M-m)(d+r) P ({\tau>T/n}).
+\end{align*}
+
+ Then, from Eq.~(\ref{multi:rho1:n}), $\max_{y,m} MECF (n, S_0,y, m,M,T)=\max_{y,m} f(y,m)$. We now need to find $y,m$ which maximize $f(y,m)$. 
+%
+%\begin{gather}
+%	\begin{aligned}
+%\max_{y,m} MECF (n, S_0,y, m,M,T)=\max_{y,m} {}\bigg(&m(S_0-d+\beta \min (K-m,0)-f)\\
+%+&(M-m)(S_0+y+r) P(\tau<T/n)\\
+%+&(M-m) E[{S_{\frac{T}{n}}I({\tau>T/n})}] + (d+r) P ({\tau>T/n})\bigg)
+%\end{aligned}\label{multi:rho1:n:pf1}
+%\end{gather}
+
+Let us recall that $t_1:=T/n$. Using Lemma~\ref{BM_Lem}, $f(y,m)$ can be written as 
+\begin{align*}
+	 f(y,m)=&MS_0+m(-d+\beta \min (K-m,0)-f) +(M-m)(d+r)\\
+&+(M-m)(y-d) (N(-\beta_{t_1})+\tilde{N}(-\alpha_{t_1} ))
++(M-m) \left(\mu {t_1} N(\beta_{t_1}) + (-2(y-d)-\mu {t_1} ) \tilde{N} (-\alpha_{t_1}) \right), 
+\end{align*}
+
+And when we take a derivative with respect to $y$, 
+$
+	{\partial f(y,m)}/{\partial y} =(M-m) \big( N(-\beta_{t_1})-\tilde{N}(-\alpha_{t_1}) -\frac{2\mu^2 t}{\sigma^2} N(-\alpha_{t_1}) \big) <0,
+$
+so $y^*=d$. 
+
+Now, $f(y=d,m)= M(S_0+d+r) +m(-2d+\beta \min (K-m,0)-f-r) $, which is linearly decreasing when $m\leq K$, and when $m>K$, $f(y=d, m)$ becomes a second order concave polynomial of $m$ which takes its maximum at $K/2-(2d+f+r)/\beta<K$, so for $m>K$, $f(y=d, m)$ is also a decreasing function of $m$. Therefore, $f(y=d, m)$ is a decreasing function of $m$ for $0\leq m \leq M$, so $m^*=0$. Also, $\max MECF(n,S_0,y,m,M,T)=MECF(n,S_0,y=d,m=0,M,T)= M(S_0+d+r).$
+
+We have proved that that if $y_0^{*(n-1)}=d, m_0^{*(n-1)}=0$ and  $\max MECF(n-1,S_0,y,m,M,T)=M (S_0 + d + r)$, then
+$y_0^{*n}=d, m_0^{*n}=0$ and  $\max MECF(n,S_0,y,m,M,T)=M (S_0 + d + r)$. 
+By induction, this proves the theorem.
+\end{proof}
+
+{
+In Theorem~\ref{Multi:rho1:optimalym}, we've shown the analysis for the case when $\rho=1$ and $\mu<0$, which means that the limit order execution is guaranteed when the price process reaches the price level of the limit order, and the drift is negative. This could represent the liquid market condition. In this case, the optimal strategy is to place all using the limit order at the best ask, and this does not change for the number of time steps. 
+
+\par Now, let us show that $y^{*2}=d$ for any $\rho \in [0,1]$ for the negative drift. Due to the complexity, we've proved for the case when $n=2$.
+}
+
+
+\begin{thm}\label{Multi:rho:optimaly}
+For $y_0^{*n}$ defined as in Proposition~\ref{multi:thm:rho} and (\ref{opt:ym:multi}),  $y_0^{*2}=d$  when $\mu<0$. 
+\end{thm}
+
+\begin{proof}
+For $n=1$, recall that
+
+
+\begin{gather}\nonumber
+	\begin{aligned}
+	ECF(y=d,m,M)=&M (S_0+\rho(d+r)-(1-\rho)(d+f-\mu t))-m\epsilon_3 +m\beta \min (K-m,0)\\
+	&+\beta (M-m)(1-\rho) \min(K-(M-m)(1-\rho),0),
+\end{aligned}
+\end{gather}
+
+Let us denote 
+
+$$ 
+F(M,m):=ECF(y=d,m,M)-M S_0 .
+$$
+
+where $\epsilon_3:=\rho(2d+r+f)+\mu t(1-\rho)$.
+
+For $n=2$, let $M_A:=(M-m_0)(1-\rho)$ and $M_B:= (M-m_0)$. 
+MECF can be written as 
+
+
+\begin{gather}
+	\begin{aligned}
+MECF &(n=2, S_0,y, m_0,M,T)\\
+=&M S_0 +  m_0(-d+\beta \min (K-m_0,0)-f)\\
+&+(M-m_0)\rho \left\{ (y+r) \left(N\left(-\beta_{\frac{T}{2}} \right)+ \tilde{N}\left(-\alpha_{\frac{T}{2}}\right) \right)\right\}\\
+&+
+E[{S_{\frac{T}{2}}\mathcal{I}({\tau<T/2})}](M-m_0)(1-\rho) + \max_{0\leq m\leq M_A}F( M_A,m)\left(N\left(-\beta_{\frac{T}{2}} \right)+\tilde{N}\left(-\alpha_{\frac{T}{2}}\right) \right)\\
+&+E[{S_{\frac{T}{2}}\mathcal{I}({\tau>T/2})}](M-m_0) + \max_{0\leq m\leq M_B}F( M_B,m)\left(N\left(\beta_{\frac{T}{2}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{2}}\right) \right).\\
+\end{aligned}\label{multi:rho1:n}
+\end{gather}
+
+By taking derivative with respect to $y$, 
+
+
+\begin{align*}
+	\frac{\partial }{\partial y}& MECF (n=2, S_0,y, m_0,M,T) \\ 
+	=&\rho (M-m_0) \left(N\left(-\beta_{\frac{T}{2}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{2}}\right) \right)\\
+	&+\frac{2e^{\frac{2(y-d)\mu}{\sigma^2}}}{\sigma\sqrt{{\frac{T}{2}}}}\left( \phi (\alpha_{\frac{T}{2}} ) -\alpha_{\frac{T}{2}} N(-\alpha_{\frac{T}{2}})\right)\left(-\rho(r+d-\mu{\frac{T}{2}})(M-m_0)+ \max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m)\right)\\
+	&+\frac{2(y-d)\tilde{N}\left(-\alpha_{\frac{T}{n}}\right)}{\sigma^2 {\frac{T}{2}}}\left(-\rho(r+d)(M-m_0)+ \max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m)\right)
+\end{align*}
+
+Since first line is negative, if we show that $\left(\max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m)\right)<\rho(r+d)(M-m_0)$, we can show that the entire expression is negative. The proof follows:
+
+\begin{gather}
+	\begin{aligned}
+			&\max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m)\\
+	=& \rho M_B (\rho (d+r)-(1-\rho) (d+f-\mu {\frac{T}{2}}))\\
+	&+ \max_{0\leq m\leq M_B}\left[
+	-m\epsilon_3 +m\beta \min (K-m,0)+\beta (M_B-m)(1-\rho) \min(K-(M_B-m)(1-\rho),0)
+	\right]
+	\\
+	&- \max_{0\leq m\leq M_A}\left[
+	-m\epsilon_3 +m\beta \min (K-m,0)+\beta (M_A-m)(1-\rho) \min(K-(M_A-m)(1-\rho),0)
+	\right]
+	\end{aligned}\label{thm5:proof:eq1}
+\end{gather}
+
+Let's denote $m^{b}:=\arg\max F( M_B,m)$. Let's divide into two cases:  $m^{b}\leq M_A=M_B(1-\rho)$ and $ M_A=M_B(1-\rho)<m^{b}<M_B$.
+
+\noindent\textbf{Case 1,  $m^{b}\leq M_A=M_B(1-\rho)$:}
+In this case, $\max_{0\leq m\leq M_A}F( M_A,m)\geq F(M_A,m=m^b)$, so
+$\max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m) \leq 
+F(M_B,m=m^b)-F(M_A,m=m^b)$, therefore
+
+%(\ref{thm5:proof:eq1}) is less than
+
+\begin{align*}
+	&(\ref{thm5:proof:eq1})\leq \rho M_B (\rho (d+r)-(1-\rho) (d+f-\mu {\frac{T}{2}}))\\
+	&+ \left[
+	-m^{b}\epsilon_3 +m^{b}\beta \min (K-m^{b},0)+\beta (M_B-m^{b})(1-\rho) \min(K-(M_B-m^{b})(1-\rho),0)
+	\right]
+	\\
+	&+ \left[
+	-m^{b}\epsilon_3 +m^{b}\beta \min (K-m^{b},0)+\beta (M_A-m^{b})(1-\rho) \min(K-(M_A-m^{b})(1-\rho),0)
+	\right]\\
+&= \rho^2 M_B(d+r) - \rho (1-\rho) (d+f-\mu {\frac{T}{2}}) M_B\\
+&+\beta (M_B-m^{b})(1-\rho) \min(K-(M_B-m^{b})(1-\rho),0)-\beta (M_A-m^{b})(1-\rho) \min(K-(M_A-m^{b})(1-\rho),0)
+\\&< \rho^2 M_B(d+r)\leq (M-m_0)\rho(d+r).
+\end{align*}
+ 
+%
+%
+%+\frac{2e^{\frac{2(y-d)\mu}{\sigma^2}} }{\sigma\sqrt{t}}
+%\left( \phi (\alpha_t ) -\alpha_t N(-\alpha_t)\right)
+%\left(-\rho (2d+f+r-\mu t)+ \beta \gamma \right) \\
+
+
+\noindent\textbf{Case 2, $ M_A=M_B(1-\rho)<m^{b}<M_B$:}
+
+In this case, $\max_{0\leq m\leq M_A}F( M_A,m)\geq F(M_A,m=M_A)$, so
+$\max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m) \leq 
+F(M_B,m=m^b)-F(M_A,m=m_A)$, therefore
+%
+%
+\begin{align*}
+	&(\ref{thm5:proof:eq1})\leq \rho M_B (\rho (d+r)-(1-\rho) (d+f-\mu{\frac{T}{2}}))\\
+	&+ \left[
+	-m^{b}\epsilon_3 +m^{b}\beta \min (K-m^{b},0)+\beta (M_B-m^{b})(1-\rho) \min(K-(M_B-m^{b})(1-\rho),0)
+	\right]
+	\\
+	&- \left[
+	-M_A\epsilon_3 +M_A\beta \min (K-M_A,0)
+	\right]\\
+&= \rho^2 M_B(d+r) - \rho (1-\rho) (d+f-\mu {\frac{T}{2}}) M_B\\
+&+ \bigg[
+	-m^{b}\left( \rho(2d+r+f) + \mu {\frac{T}{2}} (1-\rho) -\beta \min (K-m^{b},0) \right)\\
+	 &\quad +\beta (M_B-m^{b})(1-\rho) \min(K-(M_B-m^{b})(1-\rho),0)
+	\bigg]
+	\\
+	&- \left[-M_A\rho(2d+r+f) -M_A \mu {\frac{T}{2}} (1-\rho) +M_A\beta \min (K-M_A,0)
+	\right]\\
+	&<\rho^2 M_B(d+r)+\rho(-1\rho)\mu {\frac{T}{2}} M_B -m^{b} \mu t (1-\rho) +M_A\mu {\frac{T}{2}}(1-\rho)<\rho^2 M_B(d+r)\leq \rho (M-m_0)(d+r). 
+\end{align*}
+
+So we proved that  $\left(\max_{0\leq m\leq M_B}F( M_B,m)- \max_{0\leq m\leq M_A}F( M_A,m)\right)<\rho(r+d)(M-m_0)$, which implies  $\frac{\partial }{\partial y} MECF (n, S_0,y, m_0,M,T)<0$. Therefore,  $y^*=d$. 
+
+
+\end{proof}
+
+
+\begin{remk}
+While we've only proved for the case for two-period case, $y_0^{*n}=d$ appears to be true for all $n$. 
+\end{remk}
+
+
+Now, let us study what happens to $m_{0}^{*n}$. Let us show the behavior of $m_0^{*2}$. 
+
+\begin{thm}
+	For $m_0^{*n}$ defined as in Proposition~\ref{multi:thm:rho},  $m_0^{*2}\leq m_0^{*1}$  when $\mu<0$.
+	For $m_0^{*2}$, 
+
+
+\begin{enumerate}
+	\item If $\rho=1$, $m_0^{*2}=0$.
+	\item If $\rho<1$ and $K\geq M^{`}$,
+		\begin{itemize}
+			\item $m_0^{*2}=0$ when $\rho(3d+2r+f)+\mu t(1-\rho)>0$
+			\item $m_0^{*2}=M^{`}$ when $\rho(3d+2r+f)+\mu t(1-\rho)<0$
+		\end{itemize}
+	\item If $\rho<1$ and $K< M^{`}$,	
+	\item[] $m_0^{*2}$ is one of $\{0,K, M^{`}-K/(1-\rho), M^{`}, m^{*2}_1, m^{*2}_2, m^{*3}_3\}$ where  
+\end{enumerate}
+
+$$ 
+m^{*2}_1=K/2-\epsilon_3^{`}/2\beta, \quad
+m^{*2}_2=M^{`}-\frac{K}{2(1-\rho)}-\frac{\epsilon_3^{`}}{2(1-\rho)^2\beta},
+\quad 
+m^{*2}_3=\frac{2M^{`}\beta (1-\rho)^2 +\beta\rho K-\epsilon_3^{`}}{2\beta(1+(1-\rho)^2)},
+$$ 
+
+where
+ $\epsilon_3^{`}:=\rho(3d+2r+f)+(1-\rho)\mu T$ and $M^{`}:=M-m_1$, 
+
+$m_1:=\arg\max_{0\leq m\leq M} ECF(n=1,S_0,y=d,m, M, T/2)$, which can be computed using Theorem~\ref{thm:single:muNeg}. 
+	
+	
+	
+\end{thm}
+
+\begin{proof}
+Note that the MECF for $n=2$ can be written as following, where the notations are borrowed from the proof of Theorem~\ref{Multi:rho1:optimalym}.
+\begin{gather}
+	\begin{aligned}
+MECF &(n=2, S_0,y=d, m_0,M,T)\\
+%=&M S_0 +  m_0(-d+\beta \min (K-m_0,0)-f)\\
+%+&(M-m_0)\rho \left\{ (d+r)\right\}\\
+%+&\mu \frac{T}{2}(M-m_0)(1-\rho) + \max_{0\leq m\leq M_A}F( M_A,m)\\
+=&M S_0 +  m_0(-d+\beta \min (K-m_0,0)-f)
++(M-m_0)\rho \left\{ (d+r)\right\}\\
++&\mu \frac{T}{2}(M-m_0)(1-\rho) + (M-m_0)(\rho(d+r)-(1-\rho)(d+f-\mu T/2))\\
+ + &\max_{0\leq {m_1}\leq M_A}[-{m_1}\epsilon_3 +{m_1}\beta \min (K-m,0)
+	+\beta (M_A-{m_1})(1-\rho) \min(K-(M_A-{m_1})(1-\rho),0)],
+\end{aligned}
+\end{gather}
+
+$M_A=(M-m_0)(1-\rho)$.
+
+$m^{}$ which minimizes $MECF (n=2, S_0,y=d, m,M,T)$ actually minimizes the following with respect to $m_0$:
+
+\begin{align}\nonumber
+&-m_0 \beta min(K-m_0,0) -m_0 \epsilon_3^{`} + \beta (M^{`}-m_0 )(1-\rho) min (K- (M^{'}-m_0  )(1-\rho),0), \nonumber
+\end{align}
+
+
+
+while the solution for $n=1$ minimizes 
+$$
+-m \beta min(K-m,0) -m \epsilon_3 + \beta (M-m)(1-\rho) min (K- (M-m)(1-\rho),0),
+$$
+with respect to m. Note that $\epsilon_3:=\rho(2d+r+f)+\mu t(1-\rho)$, $\epsilon_3^{`}:=\rho(3d+2r+f)+(1-\rho)\mu T$ and $M^{`}:=M-m_1$.
+
+Using the proof of Theorem~\ref{thm:single:muNeg}. we have 
+
+
+\begin{enumerate}
+	\item If $\rho=1$, $m_0^{*2}=0$.
+	\item If $\rho<1$ and $K\geq M^{`}$,
+		\begin{itemize}
+			\item $m_0^{*2}=0$ when $\rho(3d+2r+f)+\mu t(1-\rho)>0$
+			\item $m_0^{*2}=M^{`}$ when $\rho(3d+2r+f)+\mu t(1-\rho)<0$
+		\end{itemize}
+	\item If $\rho<1$ and $K< M^{`}$,	
+	\item[] $m_0^{*2}$ is one of $\{0,K, M^{`}-K/(1-\rho), M, m^{*2}_1, m^{*2}_2, m^{*3}_3\}$ where  
+\end{enumerate}
+
+$$ 
+m^{*2}_1=K/2-\epsilon_3^{`}/2\beta, \quad
+m^{*2}_2=M^{`}-\frac{K}{2(1-\rho)}-\frac{\epsilon_3^{`}}{2(1-\rho)^2\beta},
+\quad 
+m^{*2}_3=\frac{2M^{`}\beta (1-\rho)^2 +\beta\rho K-\epsilon_3^{`}}{2\beta(1+(1-\rho)^2)}.
+$$ 
+
+\begin{remk}
+Note that $\epsilon_3<\epsilon_3^{`}$, and $M^{`}<M$, which makes $m^{*2}_1\leq m_1^*$,  $m^{*2}_2 \leq m_2^*$,  $m^{*2}_3\leq m_3^*$. From this inequality, it is observed that $m^{*2}_0$, the optimal Market Order quantity at time $0$ for the two-step case is less than (or equal to ) $m^*_0$, the optimal Market Order quantity at time $0$ for the one-step case. 
+
+\end{remk}
+
+\end{proof}
+
+
+
+
+
+
+\begin{figure}
+	\includegraphics[width=0.495\textwidth]{images/multigraph_draft_mst}
+	\includegraphics[width=0.495\textwidth]{images/multigraph_draft_yst}
+	%\includegraphics[width=0.495\textwidth]{max_single}
+	\caption{$m^*$ (left) and $y^*$ (right) for multi-period (dots) and single period (lines).  $M=100, r=0.003, f=0.003, \epsilon=0.01, d=\epsilon/2=0.005, T=0.1, S_0=100, \sigma=0.1$. 
+	%bottom graph: $ECF(y^*, m^*)$ for single period with different $\rho$s. 
+	}
+	\label{multigraph}
+\end{figure}
+
+
+
+
+{
+
+Behaviors of $y_0^{*1}$ (line) and $y_0^{*2}$ (points) for different $\rho$ values (black: $\rho=0.4$, red: $\rho=0.8$, blue: $\rho=1$ are described in  the right panel of Figure~\ref{multigraph}. We observe that when $\mu<0$, $y_0^{*2}=d$ as described in Theorem~\ref{Multi:rho:optimaly}. 
+ For $\mu>0$, it appears that it still increases in a linear (step-wise linear) way, but its slope against $\rho$ is more sensitive to the value of $\rho$ for $n=2$. More specifically, when $\rho=0.4$, $y^{*2}<y^{*1}$, but when $\rho=0.8, 1$, $y^{*2}>y^{*1}$. This is explained by the chance of the $\max ECF$ for the single period. 
+
+For the single period, when limit orders are not executed, the investor use a market order at time $T$. Then, the expected stock price does not change with respect to $\rho$, and the change of $y^*$ w.r.t. $\rho$ in the single period is minimal. 
+
+However,  the $\max ECF$ (for the single period) changes when $\rho$ changes. 
+When $n=2$, if the limit order placed at $t=0$ is not executed, then the remaining orders are placed following the algorithm to maximize the ECF of the single period, and that maximum changes with respect to $\rho$. Therefore,  $y^{*2}$ changes more sensitively to the change of $\rho$ than $y^*$ . We observe that when the number of time step increases, the slope change will more various.
+
+
+The left panel of Figure~\ref{multigraph} shows behaviors of $m_0^{*1}$ and $m_0^{*2}$ against $\mu$ for different $\rho$s. 
+It appears that $m_0^{*2}\leq m_0^{*1}$, which implies that the optimal quantity for the market order at time $0$ decreases when $n$, number of time step, increases. This is because as n increases, it is better to divide the market order into multiple chunks to reduce the negative impact from the size of the market order. Existence of $K$ suggests that placing a  smaller amount of a market order twice is better than placing a big amount of at once even though the total MO amount is same. 
+
+
+
+%
+%
+% 
+%  
+%Now, let us prove for general $n\geq 2$.
+%Note that for $n=1$, MECF can be summarized as 
+%$MS_0  + f_1(y,m,M,T)$ for some function $f_1$. 
+%
+%Also, note that for $n=2$, 
+%\begin{align*}
+%	MECF(n=2,S_0,y,m,M,T)=& mS_0 + (M-m) S_0\left(N\left(-\beta_{\frac{T}{n}} \right) +\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)+g(y,m,M,T)\\
+%	&+MECF(n=1,{S_{\frac{T}{n}}|_{\tau>T/n}},y_1,m_1,M-m) \left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\\
+%	=& mS_0 + (M-m) S_0\left(N\left(-\beta_{\frac{T}{n}} \right) +\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)+g(y,m,M,T)\\
+%	&+(M-m) E\left[S_{\frac{T}{n}}\bigg|{\tau>\frac{T}{n}} \right]\left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)+ f_1(y,m,M,T)
+%\end{align*}
+%for some function $g$, and by Lemma~\ref{BM_Lem}, 
+%
+%$E\left[S_{\frac{T}{n}}\bigg|{\tau>\frac{T}{n}} \right] \left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)= S_0\left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right) + g_1(y,t) $ for some function $g_1$. Therefore, 
+%$MECF(n=2,S_0,y,m,M,T)= MS_0 + f_2(y,m,M,T)$, and by recursive steps, for any $n$, 
+%
+%$$MECF(n,S_0,y,m,M,T)=M S_0  + f(n,y,m,M,T).$$
+%
+%for some function $f$. 
+%
+%Therefore, for any $n$, the partial derivative of MECF  with respect to $y$ is:
+%
+%
+%\begin{align}
+%\frac{\partial MECF}{\partial y}=
+%%
+%\frac{\partial }{\partial y }\bigg\{(&M-m)\left[ (S_0+y+r) \left(N\left(-\beta_{\frac{T}{n}} \right)+\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)\right]\\
+%+&E\left[S_{\frac{T}{n}}\bigg|{\tau>\frac{T}{n}} \right] \left(N\left(\beta_{\frac{T}{n}} \right)-\tilde{N}\left(-\alpha_{\frac{T}{n}}\right) \right)(M-m)
+%\bigg\},
+%\end{align}
+%
+%
+%which can be re-organized as:
+%
+%
+%\begin{align}
+%\frac{\frac{\partial MECF}{\partial y}}{ (M-m)} =
+%&\frac{2}{\sigma\sqrt{t}} (\mu t-2d +\beta \min(K-M+m,0)-r-f)  e^{\frac{2(y-d)\mu}{\sigma^2}} 
+%\left( \phi (\alpha_t ) -\alpha_t N(-\alpha_t)\right)\\ \label{ECF_rho0_der_y.2}
+%&+ (-2d +\beta \min(K-M+m,0)-r-f) \frac{2(y-d)}{\sigma^2 t}\tilde{N}(-\alpha_t)\\ \label{ECF_rho0_der_y.3}
+%&+N(-\beta_t)-\tilde{N}(-\alpha_t), \quad t=T/n.
+%\end{align}
+%
+%Therefore, it is clear that ${\frac{\partial MECF}{\partial y}}$ remains same for all $n$, but with $t=T/n$. 
+%
+%Using the proof of part 1 of Theorem~\ref{thm:single:muNeg}, when $\mu<0$, $y^*=d$. Also, using the proof of part 3 of Theorem~\ref{thm:single:muNeg}, when $\mu>0$, $y^*$ exists for big enough $t$. However, note that $t=T/n$ for the multi-period case. Therefore, for fixed $T$, $y^*$ could not be existing for big enough $n$. 
+%
+%
+
+
+}
+
+%
+%\begin{theorem}
+%Let us define the expected cash flow when there are $n$ time steps. $y,m$ is the location of LO and the MO size at time 0. 
+%
+%For $n=1$, 
+%\begin{align*}
+%MECF(n=1,S_0,y,m,M,T=t)=&m(S_0-d+\beta \min (K-m,0)-f)\\
+%+&(M-m)\bigg\{ S_0+y+r+\mu t N\left(\beta_t \right) +e^{\frac{2y\mu}{\sigma^2}}(-2y-\mu t) N\left(-\alpha_t\right)
+%\\\quad &+\left(N\left(\beta_t \right)-e^{\frac{2y\mu}{\sigma^2}} N\left(-\alpha_t\right) \right)
+%(-d+\beta \min (K-M+m,0)-y-r-f)
+%\bigg\}
+%\end{align*}
+%
+%
+%For $n\geq 2$,
+%
+%
+%\begin{align*}
+%MECF (n, S_0,y, m,M,T)=&m(S_0-d+\beta \min (K-m,0)-f)\\
+%+&(M-m)\left\{ (S_0+y+r) \left(N\left(-\beta_{\frac{T}{n}} \right)+e^{\frac{2y\mu}{\sigma^2}} N\left(-\alpha_{\frac{T}{n}}\right) \right)\right\}\\
+%+&MECF(n-1,{S_{\frac{T}{n}}|_{\tau>T/n}},y_1,m_1,M-m) \left(N\left(\beta_{\frac{T}{n}} \right)-e^{\frac{2y\mu}{\sigma^2}} N\left(-\alpha_{\frac{T}{n}}\right) \right)
+%\end{align*}
+%
+%\[
+%\alpha_t= \frac{y+\mu t}{\sigma \sqrt{t}},
+%\quad
+%\beta_t = \frac{y-\mu t}{\sigma\sqrt{t}}
+%\]
+%
+%
+%$y^*, m^* := \arg\max_{y>0,0\leq m\leq M} MECF(n,S_0,y,m,T)$ can be solved by the following:
+%
+%\begin{align*}
+%(y^*, m^*)=\arg\max& \bigg[ m(S_0-d+\beta \min (K-m,0)-f)+ (M-m) (S_0+y+r) \left(N\left(-\beta_{\frac{T}{n}} \right)+e^{\frac{2y\mu}{\sigma^2}} N\left(-\alpha_{\frac{T}{n}}\right) \right)\\
+%&+ \max_{y_1, m_1}MECF(n-1,S_{\frac{T}{n}},y_1,m_1) \bigg]
+%\end{align*}
+%
+%(we are interested in solving $y$,$m$, which is the placement decision at time $0$. $y_1, m_1, y_2, m_2, \dots$ can be updated at next time steps with updated information (parameter), using the same equation above)
+%
+%\end{theorem}
+%
+%
+%Analysis:
+%
+%\begin{itemize}
+%\item $\mu<0$: $y^*=\epsilon$ for all $n$, {\color{red} done}
+%\item $\mu<0$ $m^*$ increase as $n$ increase 
+%\item $\mu>0$: $y^*$ exists for all $n$. 
+%\item $\mu>0$: $y^*$Trend as $n$ increases.  
+%\item $\mu>0$: $m^*=0$ for all $n$. 
+%\end{itemize}
+%
+%
+%\begin{theorem}
+% $\mu<0$: $y^*=\epsilon$ for all $n$
+%\end{theorem}
+%
+%\begin{proof}
+%For $n=1$, proof is done in Lemma (?).  Also, note that for any $n$, 
+%$$MECF(n,S_0,y,m,M,T)=S_0 * M + f(n,y,m,M,T).$$
+%
+%Therefore, for any n, the partial derivative of MECF  with respect to $y$ is:
+%
+%
+%\begin{align}
+%\frac{\partial MECF}{\partial y}=
+%%
+%\frac{\partial }{\partial y }\bigg\{(&M-m)\left[ (S_0+y+r) \left(N\left(-\beta_{\frac{T}{n}} \right)+e^{\frac{2y\mu}{\sigma^2}} N\left(-\alpha_{\frac{T}{n}}\right) \right)\right]\\
+%+&{S_{\frac{T}{n}}|_{\tau>T/n}} \left(N\left(\beta_{\frac{T}{n}} \right)-e^{\frac{2y\mu}{\sigma^2}} N\left(-\alpha_{\frac{T}{n}}\right) \right)(M-m)
+%\bigg\}
+%\end{align}
+%
+%
+%
+%Then
+%
+%
+%\begin{align}
+%\frac{\frac{\partial MECF}{\partial y} }{ (M-m)} =
+%&\left( \mu t-d +\beta \min(K-M+m,0)-r-f \right)
+%\left( \frac{2}{\sigma\sqrt{t}}\phi (\beta_t) -\frac{2\mu}{\sigma^2}e^{\frac{2y\mu}{\sigma^2}}N(-\alpha_t)\right)\\
+%&-\frac{2\mu y }{\sigma^2}e^{\frac{2y\mu}{\sigma^2}}N(-\alpha_t)
+%+N(-\beta_t)-e^{\frac{2y\mu}{\sigma^2}}N(-\alpha_t), \quad t=T/n
+%\end{align}
+%
+%
+%Note that the right hand side of the equation can be reorganized as:
+%\begin{align}
+%&\frac{2}{\sigma\sqrt{t}} (\mu t-d +\beta \min(K-M+m,0)-r-f)  e^{\frac{2y\mu}{\sigma^2}} 
+%\left( \phi (\alpha_t ) -\alpha_t N(-\alpha_t)\right)\\
+%&+ (-d +\beta \min(K-M+m,0)-r-f) \frac{2y}{\sigma^2 t}e^{\frac{2y\mu}{\sigma^2}}N(-\alpha_t)\\
+%&+N(-\beta_t)-e^{\frac{2y\mu}{\sigma^2}}N(-\alpha_t).
+%\end{align}
+%Since each line is negative when $\mu<0$, the partial derivative of ECF w.r.t. y is negative when  $\mu<0$.
+%Because of the condition that $y>0$, $y^*=\epsilon$ for any $n$. 
+%\end{proof}
+
+%
+%\subsection{two period case without $\rho=1$ condition}
+%
+%In the two-period case, the time interval is divided into two as follows, $[t_0=0,t_1,t_2=T]$. The investor place the market orders and/or limit orders at $t_0,t_1$, and any remaining orders at $T$ will be executed as market order.
+%
+%The investor's trading strategy is as follows:
+%%
+%\begin{enumerate}
+%	\item At $t=0$,
+%		\begin{itemize}
+%			\item Place $m_0$ market order.\\ {\color{red} (Cash Flow: $m_{0}*(S(0,-m_0)-f)$)}
+%			\item Place rest orders ($M-m_0$) as Limit orders at price level $S_0+y_0$.
+%		\end{itemize}
+%	\item During $[t_0, t_1]$, $L_0$ orders get executed ({\color{blue} at $\tau_1$, if  $\tau_1<t_1$}). ($0\leq L_0\leq M-m_0$) 
+%	\\ {\color{red} (Cash Flow: $L_{0}*(S_0+y_0+r)$ )}
+%	\item[] {\color{blue} $\tau_1:=\inf \{ u \geq 0 | S_u\geq S_0+y_0\}$}
+%	\item At $t=t_1$,
+%			\begin{itemize}
+%				\item {\color{blue} Cancel all unexecuted Limit orders. So $\tau_1$ does not matter after this.}
+%				\item Place $m_1^{`}=\min(m_1,M-m_0-L_0)$ market order. \\ {\color{red} (Cash Flow: $m_{1}^{`}*(S(t_1,-m_{1}^{`})-f)$)}
+%				\item Place rest orders ($M-m_0-L_0-m_1'$) as Limit orders at price level $S_{t_1}+y_1$.
+%			\end{itemize}
+%	\item During $[t_1,T]$, $L_1$ orders get executed ({\color{blue} at $\tau_2$, if $\tau_2<T$}). ($0\leq L_1\leq M-m_0-L_0-m_1^{'} $)	
+%	\\ {\color{red} (Cash Flow:$L_{1}*(S_{t_1}+y_1+r)$ )}
+%	\item[] {\color{blue} $\tau_2:=\inf \{ u \geq t_1 | S_u\geq S_{t_1}+y_1\}$ }
+%	\item At $t=T$, Place rest ($M-m_0-L_0-m_1^{`}-L_1:=M_2)$ market orders.	\\ {\color{red} (Cash Flow: $M_2*(S(T,-M_2)-f)$)}
+%\end{enumerate}
+%
+%
+%\begin{align}
+%	Cash Flow=&m_{0}*(S(0,-m_0)-f)\\
+%	&+L_{0}*(S_0+y_0+r)+m_{1}^{`}*(S(t_1,-m_{1}^{`})-f)\\
+%	&+L_{1}*(S_{t_1}+y_1+r)+M_2*(S(T,-M_2)-f)
+%\end{align}
+%
+%Note that in the second line $L_0,m_1^{`},S_{t_1}\in \mathcal{F}_{t_1}$, and in the third line $L_1,M_2,S_{T}\in \mathcal{F}_{T}$.
+%
+%Expected cash flow:
+%
+%\begin{align}
+%	Expected Cash Flow (ECF)=&m_{0}*(S(0,-m_0)-f)\\
+%	&+E[L_{0}]*(S_0+y_0+r)+E[m_{1}^{`}*(S(t_1,-m_{1}^{`})-f)]\\
+%	&+E[L_{1}*(S_{t_1}+y_1+r)]+E[M_2*(S(T,-M_2)-f)]
+%\end{align}
+%
+%\begin{itemize}
+%	\item Second line: Divide cases into $\tau_1<t_1$ (execution possible) or $\tau_1\geq t_1$ (execution impossible)
+%	\item Toy example: If $\tau_1<t_1$ happens, (the price process hits our LO price level), then the execution happens with probability $\rho$, which could depend on $y_0$.
+%	\begin{enumerate}
+%		\item $E[L_{0}]=E[L_{0}\mathcal{I}(\tau_1<t_1)]=P(\tau_1<t_1)(M-m_0)\rho,\quad \rho\in [0,1]$ 
+%		\item $E[m_{1}^{`}*(S(t_1,-m_{1}^{`})-f)]\\=E[m_{1}^{`}*(S(t_1,-m_{1}^{`})-f)\mathcal{I}(\tau_1<t_1)]+E[m_{1}^{`}*(S(t_1,-m_{1}^{`})-f)\mathcal{I}(\tau_1\geq t_1)]$
+%	\item[] where $m_{1}^{`}=min(m_1,M-m_0)=m_1$ when $\tau_1\geq t_1$, 
+%	\item[] and $m_{1}^{`}=min(m_1,M-m_0-(M-m_0)\rho)$ when $\tau_1<t_1$.
+%	\end{enumerate}
+%\end{itemize}
+%
+%
+%\begin{itemize}
+%	\item $E[S_{t_1}*m_{1}^{`}|\tau\leq t_1]=E[S_{t_1}|\tau\leq t_1]*E[m_{1}^{`}|\tau\leq t_1]$
+%	\item For the third line, % divide the case based on  $\tau_2<T$
+%	\item Toy example-continued: $E[L_1] =\rho_1(M-m_0-L_0-m_1')P(\tau_2<T)$, $\rho_1\in[0,1]$, $\rho_1$ could depend on $y_1$.
+%\end{itemize}
+%
+%
+%
+%
+%\begin{align*}
+%	&ECF=\\
+%	&m_{0}*(S_{0}-d-\beta(K-m_0)^{-}-f)\\
+%	&+P(\tau_1<t_1)\rho(M-m_0)*(S_0+y_0+r)\\
+%	&+E[m_{1}^{`}*(S_{t_1}-d-\beta(K-m_1')^{-}-f) |\tau_1<t_1,m_{1}^{`}=min(m_1,(M-m_0)(1-\rho))]P(\tau_1<t_1)\\
+%	&+E[m_{1}^{`}*(S_{t_1}-d-\beta(K-m_1')^{-}-f) |\tau_1\geq t_1,m_{1}^{`}=m_1]P(\tau_1\geq t_1) \\
+%	&+E[\rho_1((M-m_0)(1-\rho)-m_1')*(S_{t_1}+y_1+r)|\tau_1<t_1,m_{1}^{`}=min(m_1,(M-m_0)(1-\rho))]P(\tau_1<t_1,\tau_2<T)\\
+%	&+E[\rho_1(M-m_0-m_1')*(S_{t_1}+y_1+r)|\tau_1 \geq t_1,m_{1}^{`}=m_1]P(\tau_1\geq t_1,\tau_2 <T)\\
+%	&+E[\left((M-m_0)(1-\rho)-m_1'\right)(1-\rho_1)*(S(T,-\left((M-m_0)(1-\rho)-m_1'\right)(1-\rho_1))-f)\\
+%	&\quad \quad \quad |\tau_1<t_1,m_{1}^{`}=min(m_1,(M-m_0)(1-\rho))]P(\tau_1<t_1,\tau_2<T)\\
+%	&+E[\left(M-m_0-m_1'\right)(1-\rho_1)*(S(T,-\left(M-m_0-m_1'\right)(1-\rho_1))-f)\\
+%	&\quad \quad \quad |\tau_1 \geq t_1,m_{1}^{`}=m_1]P(\tau_1\geq t_1,\tau_2 <T)\\
+%	&+E[((M-m_0)(1-\rho)-m_1')*(S(T,-((M-m_0)(1-\rho)-m_1')-f)\\
+%	&\quad \quad \quad|\tau_1<t_1,m_{1}^{`}=min(m_1,(M-m_0)(1-\rho))]P(\tau_1< t_1,\tau_2 \geq T)\\
+%	&+E[\left(M-m_0-m_1'\right)*(S(T,-\left(M-m_0-m_1'\right))-f)\\
+%	&\quad \quad \quad| \tau_1 \geq t_1,m_{1}^{`}=m_1]P(\tau_1\geq t_1,\tau_2 \geq T)
+%\end{align*}
+
+\section{Conclusion}
+\par Throughout this paper, we have obtained explicit solutions and approximations for the optimal execution problem under the liquidity cost. First, we have derived the explicit solution for the optimal size of the market order, $m^*$, for the single order. In addition, the approximation of the optimal price level for the limit order, $y^*$, has been calculated. The behavior of $y^*$ and $m^*$ have been investigated under various market conditions.  Finally, we have extended this problem into multiple-period problem where investors can change their decision at multiple time steps. We have shown the change of the optimal behavior for different number of time steps.
+
+\par {\Red
+To summarize, we have investigated the  behavior of optimal ($y^*$, $m^*$) against important LOB features and other parameters for price movement in single and multiple period models. Instead of modeling the whole LOB movement, we have taken essential features of LOB to simplify the optimization without losing the important traits of LOB. 
+}
+
+
+
+\par There are other important features in the Limit Order Book closely related to this paper which have not been studied yet. For instance, the consideration of movement of bid-ask spread, the estimation and the update of parameters, the effect from correlated assets, the realistic diffusive models with jumps, are all worth further development. The models in this study could enlighten such developments.
+
+
+%\bibliographystyle{plainnat}
+\bibliography{thebib_LiqRisk_19}
+
+
+\end{document}
+
+
+At the heart of much investment risk management is diversification.  Not surprisingly, one of the core components in the recent financial regulatory reforms has been to maintain a sufficient level of diversification in financial conglomerates' investment portfolios (see, e.g., Bassel II, Solvency III).
+Nevertheless, even for well designed investment portfolios, we have witnessed ample of empirical evidence in the financial literature that the effectiveness of diversification vanishes rapidly during market disruptions, which highlights the need for us to be more aware of the limitation of diversification, and to understand the mechanisms that hamper it.
+
+In opposition to the diversifiability of an investment portfolio is the risk that a shock will adversely affect all market assets, which is best referred to as the systemic risk.  What makes the study of systemic risk challenging is the market dependency induced by the expanding and intricate business network. Intensified research have been spurred, attempting to understand assorted types of market dependency and quantify systemic risk, yet there is no unified model that can fully account for all possible problems.
+
+With the class of full-range tail dependence copulas in place, we follow the line of time-varying copulas research in the literature and dynamize the parameters according to the evolution of market dependency over time.  The estimation of the model parameters will provide the real-time information about the changing degree and structure of market dependency, reflected by different portions of the copula functions. 

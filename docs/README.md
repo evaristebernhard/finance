@@ -1,46 +1,38 @@
 # Finance Chain Docs
 
-Human-readable docs entry point. In a fresh Codex session, read [AGENTS.md](../AGENTS.md) first, then use this page to choose the right lane.
+This repo now uses CCUSDT as the default active line. In a fresh Codex session,
+read the root `AGENTS.md`, then start here:
 
-## Frontend / Backend
+```text
+markets/ccusdt/START_HERE.md
+```
 
-- [Engineering docs](engineering/README.md): generic market replay backend, frontend, endpoints, local AI proxy, and data inputs.
-- [CCUSDT local paper exchange MVP](systems/ccusdt-replay-exchange-mvp.md): standalone replay-clock paper exchange under `systems/ccusdt_replay_exchange/`.
-- [CCUSDT replay workbench](markets/ccusdt/v1-replay-workbench.md): default product/runbook doc for the local replay UI and Rust API.
-- [BONK replay workbench](markets/bonk/v1-replay-workbench.md): older BONK market wiring kept as a selectable replay surface.
+## Current Active Line
 
-## Factor Analysis
+- [CCUSDT start page](markets/ccusdt/START_HERE.md)
+- [CCUSDT docs index](markets/ccusdt/README.md)
+- [CCUSDT replay exchange system](../systems/ccusdt_replay_exchange/README.md)
+- [CCUSDT books and reading map](books/README.md)
 
-- [Research docs](research/README.md): factor-analysis index split across BONK, MON/USDC, and CHOG.
-- [BONK research index](markets/bonk/README.md): current BONK docs grouped by engineering, factor analysis, and historical research.
-- [MON/USDC research index](markets/mon-usdc/README.md): prior Monad DEX/on-chain factor and enrichment line.
+## Background Lines
 
-## Historical Research
+These are preserved as historical or background material. Use them only when the
+user explicitly redirects.
 
-- [BONK legacy V1/V6/V7/V8/V9 docs](markets/bonk/archive/2026-05-13-to-14-legacy-cex-v1-v9/README.md)
-- [BONK archived V3/V4/V5 research waves](markets/bonk/archive/2026-05-13-research-waves/README.md)
-- [CHOG early research archive](research/README.md#historical-research)
-- [Workspace archive index](../archive/README.md)
-
-## Data Collection Runbooks
-
-- [Live collection status](handoff/live-collection.md): older CHOG/MON handoff and collector status.
-- [Memecoin strategy handoff](handoff/memecoin-strategy.md): CHOG strategy-first path and implementation notes.
-- [CHOG memecoin collection](runbooks/chog-memecoin-collection.md): event-driven `logs -> event_block_headers -> tx_receipts -> memecoin features -> quality check`.
-- [CHOG v1 backfill](runbooks/chog-v1-backfill.md): day-window operating runbook and full-header escape path.
-
-## Market Indexes
-
+- [CHOG / live collection handoff](handoff/live-collection.md)
+- [CHOG memecoin strategy handoff](handoff/memecoin-strategy.md)
+- [MON/USDC research index](markets/mon-usdc/README.md)
+- [BONK research index](markets/bonk/README.md)
 - [Market research index](markets/README.md)
-- [CCUSDT](markets/ccusdt/README.md)
-- [BONK](markets/bonk/README.md)
-- [MON/USDC](markets/mon-usdc/README.md)
-- [BTC/ETH options sample](markets/btc/v1-options-regime-report.md)
+
+## Engineering And Runbooks
+
+- [General engineering docs](engineering/README.md)
+- [CHOG memecoin collection runbook](runbooks/chog-memecoin-collection.md)
+- [CHOG v1 backfill runbook](runbooks/chog-v1-backfill.md)
 
 ## Reference
 
-- [Workspace cleanup map](handoff/workspace-cleanup-20260519.md): current dirty-worktree domain map and suggested checkpoint buckets.
-- [CHOG data inventory](reference/chog-data-inventory.md)
-- [Monad RPC probe](reference/monad-rpc-probe.md)
+- [Legacy root AGENTS handoff](handoff/archive/AGENTS-legacy-20260601.md)
+- [Workspace cleanup map](handoff/workspace-cleanup-20260519.md)
 - [date output policy](../date/README.md)
-- [Generated-output cleanup manifest](../archive/archive_manifest_2026-05-15_cleanup.csv)

@@ -1,0 +1,152 @@
+\chapter{TFI：entry 的第一个触发从哪里来}
+
+\section{本章要解决的困惑}
+
+当前策略的 entry 起点不是 R5，不是 Delta，不是 Energy，也不是 OFI。第一枪来自
+\code{TFI}，也就是主动成交流不平衡。
+
+它的作用非常直接：给方向，告诉策略最近成交是不是单边。
+
+\section{数学定义}
+
+在一个滚动成交窗口内，记 buy 主动成交量为 \(B_t\)，sell 主动成交量为 \(S_t\)。
+当前代码用数量口径：
+
+\[
+TFI_t = \frac{B_t - S_t}{B_t + S_t + \epsilon}.
+\]
+
+其中：
+
+\begin{itemize}[leftmargin=2em]
+  \item \(TFI_t > 0\)：买方主动成交占优，方向是 long/buy；
+  \item \(TFI_t < 0\)：卖方主动成交占优，方向是 short/sell；
+  \item \(|TFI_t| = 1\)：窗口内几乎全是同一方向成交；
+  \item \(B_t+S_t=0\)：没有成交，TFI 记作 0。
+\end{itemize}
+
+\section{L2 订单簿角度的直觉}
+
+看一个简单盘口：
+
+\begin{longtable}{p{0.18\textwidth}p{0.18\textwidth}p{0.22\textwidth}p{0.32\textwidth}}
+\toprule
+side & price & qty & 含义 \\
+\midrule
+bid & 0.1120 & 12000 & 卖方 market sell 会打这里 \\
+ask & 0.1124 & 9000 & 买方 market buy 会打这里 \\
+\bottomrule
+\end{longtable}
+
+如果连续有 market buy 吃 ask，trade 里会看到 \code{side=buy}。TFI 不直接看挂单量，它看已经发生的主动成交方向。
+
+例子 A：
+
+\begin{longtable}{p{0.18\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.30\textwidth}}
+\toprule
+trade & side & qty & signed qty \\
+\midrule
+1 & buy & 100 & +100 \\
+2 & buy & 200 & +200 \\
+3 & buy & 300 & +300 \\
+\bottomrule
+\end{longtable}
+
+\[
+TFI = \frac{600}{600} = 1.
+\]
+
+例子 B：
+
+\begin{longtable}{p{0.18\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.30\textwidth}}
+\toprule
+trade & side & qty & signed qty \\
+\midrule
+1 & buy & 300 & +300 \\
+2 & sell & 200 & -200 \\
+3 & sell & 100 & -100 \\
+\bottomrule
+\end{longtable}
+
+\[
+TFI = \frac{300-300}{600}=0.
+\]
+
+当前旧策略只对接近例子 A 的极端情况敏感。这就是它简单甚至有点粗的地方。
+
+\section{当前 trigger 的真实代码逻辑}
+
+\code{shadow_policy.py} 中的触发函数可以翻译成：
+
+\begin{lstlisting}
+if TFI >= 1:
+    direction = long
+elif TFI <= -1:
+    direction = short
+else:
+    no entry
+
+flat = past_event_25_bps is not None and abs(past_event_25_bps) <= 0.5
+stale25 = frames_since_mid_change is not None and frames_since_mid_change >= 25
+trade_present = trade_window_count > 0
+
+if flat:
+    add tfi_follow_flat
+    add tfi_long_flat or tfi_short_flat
+
+if low and stale25:
+    add tfi_short_stale25
+
+if trade_present and stale25:
+    add tfi_event_active
+\end{lstlisting}
+
+这段逻辑说明三件事：
+
+\begin{enumerate}[leftmargin=2em]
+  \item TFI 先决定方向；
+  \item \code{past_event_25_bps} 和 \code{frames} 只是附加触发类别；
+  \item 触发类别组合决定 \code{membership_set}，再查 \code{BASE_WEIGHTS}。
+\end{enumerate}
+
+\section{BASE\_WEIGHTS 的含义}
+
+当前代码里只有少数组合有非零 base weight。精确 key 是：
+
+\begin{lstlisting}
+tfi_follow_flat+tfi_long_flat
+tfi_follow_flat+tfi_long_flat+tfi_event_active
+tfi_follow_flat+tfi_short_flat
+tfi_follow_flat+tfi_short_flat+tfi_short_stale25+tfi_event_active
+tfi_long_flat
+\end{lstlisting}
+
+为了排版清楚，表里用 M1 到 M5 指代这些 key：
+
+\begin{longtable}{p{0.16\textwidth}p{0.18\textwidth}p{0.56\textwidth}}
+\toprule
+id & base weight & 人话解释 \\
+\midrule
+M1 & 0.5 & long，价格刚才没动 \\
+M2 & 0.5 & long，flat 且 stale/event active \\
+M3 & 0.5 & short，价格刚才没动 \\
+M4 & 2.0 & short，flat 且 stale，权重大 \\
+M5 & 0.5 & long flat 的简化形态 \\
+\bottomrule
+\end{longtable}
+
+这张表也说明当前策略很手工：不是模型学出来的函数，而是有限几个 trigger membership 对应有限几个 base weight。
+
+\section{常见误解}
+
+\begin{itemize}[leftmargin=2em]
+  \item \term{误解一：TFI 是订单簿挂单不平衡。}不是。TFI 来自主动成交，不是 bid/ask depth。
+  \item \term{误解二：TFI 大小已经充分建模。}也不是。当前 entry 主要看 \(|TFI|\ge 1\)，没有细致使用 0.6、0.8、1.0 的差别。
+  \item \term{误解三：R5 触发 entry。}不是。R5 在当前 runtime 里主要进入 cell sizing，不是 entry 的第一个开关。
+\end{itemize}
+
+\checkpoint{读完本章，你应该能从 buy/sell 成交量手算 TFI，并知道它怎样进入下面这个触发函数。}
+
+\begin{lstlisting}
+_active_trigger_directions_from_values
+\end{lstlisting}

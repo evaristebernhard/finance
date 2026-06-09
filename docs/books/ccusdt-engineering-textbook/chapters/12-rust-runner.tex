@@ -1,0 +1,138 @@
+\chapter{Rust Runner：为什么需要本地交易所仿真}
+
+\section{本章要解决的困惑}
+
+如果策略这么简单，为什么还要 Rust Runner？答案是：Runner 不是为了让策略更高级，而是为了让成交更可信。
+
+fast backtest 直接在表格上计算 entry/exit。Runner 则扮演本地交易所：
+
+\begin{lstlisting}
+market truth
+-> replay clock
+-> public stream to Bot
+-> order ingress from Bot
+-> latency schedule
+-> order arrival
+-> fill
+-> private stream
+-> event log
+\end{lstlisting}
+
+它解决的是“策略意图在一个可审计交易所里会发生什么”，不是“策略因子怎么设计”。
+
+\section{Rust 新人先理解哪些概念}
+
+不用先学完整 Rust 教材。读本项目的 Runner，只需要几个局部概念：
+
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+概念 & 本项目里怎么理解 \\
+\midrule
+\code{struct} & 一组字段，类似 Python dataclass \\
+\code{enum} & 多种事件/命令类型中的一种 \\
+\code{Result<T, E>} & 可能成功也可能失败的返回 \\
+\code{serde} & JSON/NDJSON 序列化和反序列化 \\
+\code{clap} & CLI 参数定义 \\
+\code{socket} & TCP public/private/order stream \\
+\code{stream loop} & 按 replay clock 顺序处理市场和订单 \\
+\bottomrule
+\end{longtable}
+
+\section{CLI 不是策略}
+
+入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/engine/crates/cli/src/main.rs
+\end{lstlisting}
+
+\code{main.rs} 的主要作用是把命令行参数解析成 Runner 能执行的配置。它告诉系统跑哪种命令：
+
+\begin{lstlisting}
+catalog scan
+canonical build
+run sparse-python
+run server
+serve
+\end{lstlisting}
+
+不要在 CLI 里找策略 alpha。策略在 Python Bot；CLI 只是启动和配置。
+
+\section{Runner 的责任区域}
+
+入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/engine/crates/runner/src/lib.rs
+\end{lstlisting}
+
+不要逐行从头读。按责任区域读：
+
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+责任 & 你要理解的问题 \\
+\midrule
+market loading & canonical quote/trade/L2 如何进入 replay \\
+public stream & Runner 给 Bot 发送哪些 market events \\
+order ingress & Bot 的 submit order 怎么进入 Runner \\
+latency queue & observed time 到 arrival time 如何计算 \\
+fill model & market buy/sell 用哪个 bid/ask 成交 \\
+portfolio & position、cash、equity 如何更新 \\
+event log & 哪些事件写进 \code{events.ndjson} \\
+\bottomrule
+\end{longtable}
+
+\section{top-of-book taker fill}
+
+当前默认成交模型：
+
+\begin{lstlisting}
+top_of_book_taker_ioc_v1
+\end{lstlisting}
+
+人话：
+
+\begin{itemize}[leftmargin=2em]
+  \item market buy 到达时打 arrival ask；
+  \item market sell 到达时打 arrival bid；
+  \item 默认 \code{fee_bps=0}，但 spread 仍然存在；
+  \item maker 字段是保留，不是当前 active maker 模型。
+\end{itemize}
+
+\section{observed quote、arrival quote、fill price}
+
+Runner 的价值之一，是把这三个时刻分开：
+
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+对象 & 含义 \\
+\midrule
+observed quote & Bot 决策时看到的 quote \\
+arrival quote & order 延迟后到达交易所时的 quote \\
+fill price & 根据 side 和 arrival quote 选出的成交价 \\
+\bottomrule
+\end{longtable}
+
+如果 latency 为 0 且 deterministic timer 没问题，observed 和 arrival 应该对齐；如果有延迟或 next-event stress，它们可能不同。
+
+\section{Runner 不读 label}
+
+Runner 只应该知道市场事实、订单、成交、账户。它不能知道这个 entry 未来赚不赚钱。
+
+\warningline{Runner 不读 label。未来收益、MFE、MAE、scored entries 都不能进入 Runner 决策路径。}
+
+\section{手动检查点}
+
+读 strict run 时，找一笔订单：
+
+\begin{lstlisting}
+order_intent
+order_scheduled
+order_arrived
+order_ack / order_reject
+fill_created
+portfolio_state_on_change
+\end{lstlisting}
+
+如果这些事件能连起来，你就理解了 Runner 在做什么。
+

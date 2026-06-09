@@ -1,0 +1,99 @@
+\chapter{fast vs strict：研究速度和成交真实性的边界}
+
+\section{本章要解决的困惑}
+
+为什么既有 fast backtest，又有 strict replay？因为它们回答的问题不同。
+
+\begin{longtable}{p{0.20\textwidth}p{0.34\textwidth}p{0.36\textwidth}}
+\toprule
+模式 & 回答什么 & 不回答什么 \\
+\midrule
+fast & 因子/参数/entry/cell/capacity 的快速研究 & Bot 响应、真实 order arrival、event log 因果链 \\
+strict & 本地交易所里订单如何到达和成交 & 大批量扫因子、快速参数探索 \\
+\bottomrule
+\end{longtable}
+
+\section{fast 是研究显微镜}
+
+fast 线适合：
+
+\begin{itemize}[leftmargin=2em]
+  \item 快速比较 profile；
+  \item 检查 spread gate；
+  \item 看 daily split；
+  \item 看 cell/gamma/capacity；
+  \item 研究 fixed60 mid/taker 的差异。
+\end{itemize}
+
+fast 线不适合：
+
+\begin{itemize}[leftmargin=2em]
+  \item 验证 TCP bridge；
+  \item 验证 latency；
+  \item 验证 event log；
+  \item 验证 Bot 的实时处理是否等价。
+\end{itemize}
+
+\section{strict 是本地交易所}
+
+strict replay 适合：
+
+\begin{itemize}[leftmargin=2em]
+  \item 检查 order intent 到 fill 的因果链；
+  \item 验证 observed quote 和 arrival quote；
+  \item 检查 fill price 是否符合模型；
+  \item 记录 portfolio state；
+  \item 让 Monitor 读真实 run artifact。
+\end{itemize}
+
+strict 不是为了扫 1000 个参数。那会慢，而且容易把工程验证当成研究优化。
+
+\section{两个模式怎样对齐}
+
+最小对齐问题是：
+
+\begin{lstlisting}
+same market date
+same policy profile
+same entry clock
+same admission threshold
+same capacity profile
+same fill approximation
+\end{lstlisting}
+
+如果 fast 用 \code{fixed60_mid}，strict 用 top-of-book taker fill，两者就不能直接比较净收益。至少要说明 execution approximation。
+
+\section{什么时候必须 strict}
+
+以下情况必须用 strict 或 audit：
+
+\begin{itemize}[leftmargin=2em]
+  \item 改了 Bot 事件处理；
+  \item 改了 Runner fill/latency/order code；
+  \item 改了 event contract；
+  \item 要证明 Monitor 显示的是事实；
+  \item 研究从 top-of-book taker 切到 L2-depth 或 maker。
+\end{itemize}
+
+\section{什么时候 fast 就够}
+
+以下情况先用 fast：
+
+\begin{itemize}[leftmargin=2em]
+  \item 只是看某个 entry gate 有没有基本信号；
+  \item 比较 q70/q80 admission；
+  \item 比较 gamma profile；
+  \item 检查 cell 分布；
+  \item 生成下一步研究假设。
+\end{itemize}
+
+\section{常见误解}
+
+\begin{itemize}[leftmargin=2em]
+  \item \term{误解一：strict 一定更真实，所以所有研究都 strict。}不对。strict 慢，适合验收，不适合大范围探索。
+  \item \term{误解二：fast 赚了就能上线。}不对。fast 只是近似，必须看 taker executable、daily split 和 strict audit。
+  \item \term{误解三：两者收益差就是 bug。}不一定。先检查 profile、clock、fill model 是否一致。
+\end{itemize}
+
+\checkpoint{fast 负责快，strict 负责真。把两者混成一个东西，代码就会越来越难读。}
+

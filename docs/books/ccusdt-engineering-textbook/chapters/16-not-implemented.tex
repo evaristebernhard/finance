@@ -1,0 +1,109 @@
+\chapter{当前没有实现什么：研究报告不是 runtime truth}
+
+\section{本章要解决的困惑}
+
+历史文档很多，里面有 Delta、Energy、OFI、MLOFI、路径分布、Pareto、maker、深度学习、容量曲线。
+这些讨论并非都没价值，但它们不能被误读成当前 runtime 已经实现。
+
+这一章只做边界清理。
+
+\section{当前 runtime 已用}
+
+当前 CC runtime 已用的核心对象：
+
+\begin{lstlisting}
+TFI
+past_event_25_bps
+trade_window_count
+spread / entry_cross_bps / prior-day q70
+frames_since_mid_change
+R5
+cell = 00 / 10 / 01 / 11
+gamma
+capacity ledger
+fixed60 / simple exit
+\end{lstlisting}
+
+把它说成一句话：
+
+\begin{quote}
+看到单边主动流，确认价格没明显释放，确认 spread 不太贵，按 R5/frames 给仓位，3x 账本剪仓，固定或简单退出。
+\end{quote}
+
+\section{当前 runtime 没用}
+
+下面这些没有进入当前 CC runtime 控制：
+
+\begin{longtable}{p{0.30\textwidth}p{0.60\textwidth}}
+\toprule
+对象 & 当前状态 \\
+\midrule
+\code{Delta_bps / Energy_bps} & 研究层有讨论，没有进入 Bot sizing/admission 控制 \\
+\code{OFI / MLOFI} & 不是当前 entry trigger \\
+动态 L2 path prediction & 没有建立 \\
+深度学习模型 & 没有进入策略 \\
+maker 策略 & 当前 maker 字段是保留，不是 active maker PnL \\
+L2 容量曲线 & 没有进入当前 capacity ledger \\
+path distribution model & 没有完整建立 \\
+\bottomrule
+\end{longtable}
+
+\warningline{不要从研究报告倒推出 Bot 已经实现这些控制。}
+
+\section{为什么这件事重要}
+
+如果误以为 Delta/Energy 已经在 runtime 中，就会错误解释结果：
+
+\begin{quote}
+“R5 加 Delta/Energy 后收益如何？”
+\end{quote}
+
+但当前真实问题是：
+
+\begin{quote}
+“只用 R5/frames cell 的状态机表现如何？Delta/Energy 仍只是后续可能进入控制的研究对象。”
+\end{quote}
+
+如果误以为 OFI/MLOFI 是 entry trigger，就会错误地在订单簿结构上解释当前 entry。当前 entry 方向来自 TFI，OFI/MLOFI 不是开关。
+
+\section{当前最大缺口}
+
+当前最大缺口不是再给 gamma 扫一点参数，也不是先谈容量，而是建立预测对象和路径分布。
+
+更合理的后续问题是：
+
+\begin{lstlisting}
+entry state X_t
+-> maximum favorable move
+-> time to maximum
+-> time back to 0bps
+-> terminal return at multiple horizons
+-> executable return after spread
+\end{lstlisting}
+
+这些对象建立以后，才值得讨论：
+
+\begin{itemize}[leftmargin=2em]
+  \item Delta/Energy 怎样进入控制；
+  \item 是否需要普通机器学习；
+  \item 是否需要深度学习；
+  \item exit 是否比 entry 更重要；
+  \item L2 动态是否有稳定解释力。
+\end{itemize}
+
+\section{本书的结论}
+
+当前代码不应该难到读不懂。它难，是因为历史文档把研究想法、runtime 真相、工程验证、未来方向混在一起。
+
+把它还原后，就是：
+
+\[
+\text{simple state machine}
+\quad + \quad
+\text{runtime-safe data boundary}
+\quad + \quad
+\text{fast/strict two-layer verification}.
+\]
+
+这已经足够让新人自己回测，也足够暴露当前策略的真实不足。
+

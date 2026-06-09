@@ -1,0 +1,1151 @@
+\documentclass[11pt,a4paper]{ctexart}
+
+\usepackage[a4paper,left=22mm,right=22mm,top=20mm,bottom=22mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black,
+  citecolor=blue!55!black,
+  pdftitle={CCUSDT 数据结构传递小册子 v0.1},
+  pdfauthor={Jiang / Codex}
+}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.35em}
+\setlength{\headheight}{14pt}
+\linespread{1.12}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{CCUSDT 数据结构传递小册子}
+\fancyhead[R]{v0.1}
+\fancyfoot[C]{\thepage}
+
+\definecolor{codebg}{RGB}{247,248,247}
+\definecolor{rulegray}{RGB}{210,215,210}
+\definecolor{deepgreen}{RGB}{18,88,62}
+\definecolor{softblue}{RGB}{36,84,128}
+
+\lstdefinestyle{code}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{rulegray},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=2
+}
+\lstset{style=code}
+
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\term}[1]{\textbf{#1}}
+\newcommand{\file}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\ds}{\displaystyle}
+
+\title{\Huge CCUSDT 数据结构传递小册子\\[6pt]
+\large 从市场事件到 Monitor 因果链的手动推导}
+\author{面向未来自己与新 Codex}
+\date{v0.1 / 2026-06-01}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\begin{minipage}{0.82\textwidth}
+本册不是系统白皮书，也不是 API 手册。它只解决一个具体问题：
+\begin{center}
+\term{一条市场事实，为什么会在 Runner、Bot、事件日志和 Monitor 页面中变成不同的数据结构？}
+\end{center}
+读完以后，读者应该能拿起一条 \code{events.ndjson} 记录，手动执行
+\code{pickIntentId}、\code{ensureChain}、\code{mergeSignal}、\code{mergeCapacity}
+和 \code{updateChainFromEvent}，最后填出 Monitor 表格中的一行。
+\end{minipage}
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{第 0 章：为什么数据结构会不断变形}
+
+\subsection{本章要解决的困惑}
+
+初看 \file{systems/ccusdt_replay_exchange} 时，最容易困惑的地方不是代码语言，而是同一件事在不同位置叫法不同。
+
+例如，策略想做空 CCUSDT。人在口头上会说：
+
+\begin{quote}
+这里有一个 short entry。
+\end{quote}
+
+但系统不会把这句话原样传到底。它会变成一串不同对象：
+
+\begin{lstlisting}
+market event
+-> online feature state
+-> decision frame
+-> shadow signal
+-> capacity decision
+-> order intent
+-> scheduled order
+-> arrived order
+-> ack / reject
+-> fill
+-> portfolio state
+-> compact event log
+-> monitor chain
+\end{lstlisting}
+
+这不是工程上的啰嗦，而是信息边界。每一层都只回答它应该回答的问题。
+
+\subsection{第一性原理：结构变形来自所有权变化}
+
+把系统拆成三类所有权：
+
+\begin{longtable}{p{0.18\textwidth}p{0.35\textwidth}p{0.37\textwidth}}
+\toprule
+所有者 & 它拥有的事实 & 它不能越界做的事 \\
+\midrule
+Runner & 市场真相、虚拟时钟、订单到达、成交、账户 & 不能读取研究 label，不能决定策略因子 \\
+Bot & 在线特征、策略状态、下单意图 & 不能控制 replay clock，不能读取 \code{date/} 或未来 PnL/MFE/MAE \\
+Monitor & 事件日志和只读状态的可视化解释 & 不能创造事实，不能下单或撤单 \\
+\bottomrule
+\end{longtable}
+
+用一句更硬的工程边界说：Runner 不读 label；Bot 不读 \code{date/}；Monitor 不创造事实。任何把这三条边界打穿的实现，都会让数据结构看起来更方便，但会让回测失去可审计性。
+
+因此，数据结构的变形可以写成：
+
+\[
+\text{Fact}
+\xrightarrow{\text{state update}}
+\text{State}
+\xrightarrow{\text{policy}}
+\text{Intent}
+\xrightarrow{\text{exchange simulation}}
+\text{Execution}
+\xrightarrow{\text{audit}}
+\text{Chain}.
+\]
+
+这里的每一个箭头都是一个边界。边界越清楚，回测越不容易偷看未来。
+
+\subsection{贯穿全书的真实样例}
+
+本册采用已有 run：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/runs/det_barrier_full_span60s_20260521
+\end{lstlisting}
+
+这个 run 的关键摘要：
+
+\begin{lstlisting}
+run_id: det_barrier_full_span60s_20260521
+source_label: canonical_sparse_exchange_stream_v1:CCUSDT:2026-05-18
+determinism_mode: deterministic_replay_v1
+public_stream_mode: batched_public_barrier_v1
+fill_model: top_of_book_taker_ioc_v1
+orders_submitted: 606
+fills_created: 606
+arrival_quote_lag_count: 0
+\end{lstlisting}
+
+后面会取最早的一组 intent：
+
+\begin{lstlisting}
+intent_id = 1  entry sell
+intent_id = 2  exit buy
+\end{lstlisting}
+
+它们构成一笔 short round trip。我们会手动演示日志如何变成 Monitor 表格行。
+
+\section{第 1 章：全链路数据结构地图}
+
+\subsection{一张总图}
+
+用文本图表示全链路：
+
+\begin{lstlisting}
+canonical market truth
+  market_quote / market_trade / market_l2_update
+        |
+        v
+Bot online state
+  feature_snapshot
+  decision_frame
+        |
+        v
+strategy decision
+  shadow_signal
+  capacity_decision
+        |
+        v
+order ingress
+  submit_orders / order_intent
+        |
+        v
+Runner execution
+  order_scheduled
+  order_arrived
+  order_ack / order_reject
+  fill
+  portfolio_state_on_change
+        |
+        v
+compact event log
+  events.ndjson
+  summary.json
+        |
+        v
+Monitor read model
+  Chain[intent_id]
+  eventTypeCounts
+  warnings
+\end{lstlisting}
+
+\subsection{每个结构回答的问题}
+
+\begin{longtable}{p{0.22\textwidth}p{0.36\textwidth}p{0.32\textwidth}}
+\toprule
+数据结构 & 回答什么问题 & 不应该包含什么 \\
+\midrule
+\code{market_quote} & 交易所当前最优买卖价是什么 & 策略判断、未来收益 \\
+\code{feature_snapshot} & Bot 截止当前能安全知道什么 & future label、\code{date/} 结果 \\
+\code{shadow_signal} & 策略为什么想 entry 或 exit & 真实成交价 \\
+\code{capacity_decision} & 杠杆约束下实际能给多少仓位 & 未来是否盈利 \\
+\code{order_intent} & Bot 想向交易所提交什么订单 & 成交结果 \\
+\code{order_arrived} & 订单到达时盘口是什么 & 策略重新解释 \\
+\code{fill} & 交易所模拟成交了什么 & 未发生的订单 \\
+\code{portfolio_state} & 成交后账户状态如何 & 研究标签 \\
+\code{monitor chain} & 这笔订单的因果链是什么 & 新事实、新成交 \\
+\bottomrule
+\end{longtable}
+
+\subsection{变换公式}
+
+事件日志进入 Monitor 后，核心不是“读 JSON”，而是一个聚合变换：
+
+\[
+E_i \longmapsto k_i=\operatorname{pickIntentId}(E_i)
+\]
+
+\[
+C_{k_i}^{(i+1)}
+=\operatorname{updateChainFromEvent}\bigl(C_{k_i}^{(i)}, E_i\bigr).
+\]
+
+其中 \(E_i\) 是第 \(i\) 条 \code{events.ndjson} 事件，\(k_i\) 是 \code{intent_id}，\(C_k\) 是 Monitor 中按 \code{intent_id} 聚合出的订单链。
+
+如果一条事件没有 \code{intent_id}，它仍然可能影响总统计，例如 \code{eventTypeCounts}，但不会进入某条订单链。
+
+\section{第 2 章：市场事件到 Bot 在线状态}
+
+\subsection{public stream 的最小含义}
+
+Runner 对 Bot 推送的 public stream 只代表交易所公开可见信息。常见事件包括：
+
+\begin{lstlisting}
+market_quote
+market_trade
+market_l2_update
+market_decision_frame
+\end{lstlisting}
+
+这里最重要的公共字段是：
+
+\begin{longtable}{p{0.24\textwidth}p{0.64\textwidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\code{seq} & Runner 内部公共事件序号，常用于重新定位观察点 \\
+\code{local_ts_us} & 本地接收或 canonical 记录的微秒时间戳 \\
+\code{quote_seq} & quote frame 序号 \\
+\code{payload.quote} & bid、ask、mid 等盘口一档字段 \\
+\bottomrule
+\end{longtable}
+
+这些字段只说“市场发生了什么”。它们还不是策略。
+
+\subsection{从事件到状态}
+
+Bot 不应该对每条事件都直接下判断。它先维护在线状态：
+
+\[
+S_t = U(S_{t-1}, E_t),
+\]
+
+其中 \(E_t\) 是当前市场事件，\(S_t\) 是 Bot 截止当前时刻的状态。
+
+在当前策略里，\(S_t\) 至少包含：
+
+\begin{itemize}[leftmargin=2em]
+\item quote 状态：bid、ask、mid、spread、\code{frames_since_mid_change}；
+\item trade flow 状态：rolling TFI、成交数量、买卖方向；
+\item L2 摘要状态：bid/ask levels、best bid/ask；
+\item private state：当前仓位、pending order、订单数量；
+\item closed outcome state：只由已经关闭的历史 entry 生成 R5。
+\end{itemize}
+
+\subsection{feature snapshot 回答的问题}
+
+\code{feature_snapshot} 是 Bot 把在线状态打包成一个可审计对象。它回答：
+
+\begin{quote}
+在 \code{observed_seq} 这个观察点，策略能安全知道什么？
+\end{quote}
+
+一个缩略例子：
+
+\begin{lstlisting}
+{
+  "schema_id": "ccusdt_online_feature_snapshot_v1",
+  "runtime_safe": true,
+  "observed_seq": 1144,
+  "local_ts_us": 1779062636310942,
+  "quote": {
+    "bid": 0.15406,
+    "ask": 0.15408,
+    "mid": 0.15407,
+    "spread_bps": 1.2981
+  },
+  "trade_flow": {
+    "tfi": -1.0,
+    "rolling_trades": 1
+  },
+  "closed_outcomes": {
+    "r5_ready": true,
+    "r5": 0.0
+  }
+}
+\end{lstlisting}
+
+\code{runtime_safe=true} 是本章的核心。它不是装饰字段，而是边界声明：这个 snapshot 不能使用未来收益、未来路径、\code{date/} 研究标签、scored entries、MFE、MAE 或 PnL label。
+
+\section{第 3 章：Bot 状态到订单意图}
+
+\subsection{从状态到策略信号}
+
+策略不是直接输出订单。它先输出 \code{shadow_signal}。这个结构回答：
+
+\begin{quote}
+为什么此刻应该 entry 或 exit？
+\end{quote}
+
+对四象限策略来说，核心字段包括：
+
+\begin{longtable}{p{0.28\textwidth}p{0.58\textwidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\code{event_kind} & \code{shadow_entry} 或 \code{shadow_lifecycle_close} \\
+\code{cell} & 四象限单元，例如 \code{00_none}、\code{10_r5_only} \\
+\code{side} & Bot 想提交的方向，\code{buy} 或 \code{sell} \\
+\code{observed_seq} & 这个判断绑定的市场观察点 \\
+\code{entry_ts_us} & entry 触发时间 \\
+\code{requested_exposure} & 策略想要的敞口 \\
+\code{actual_exposure} & 容量约束后实际敞口 \\
+\bottomrule
+\end{longtable}
+
+\subsection{容量约束为什么是单独结构}
+
+策略想要下单，不代表账户能承载这笔风险。于是有 \code{capacity_decision}：
+
+\begin{lstlisting}
+{
+  "schema_id": "ccusdt_capacity_decision_v1",
+  "capacity_profile": "core_idle01",
+  "capacity_source": "core",
+  "leverage_cap": 3.0,
+  "requested_exposure": 0.625,
+  "actual_exposure": 0.625,
+  "clipped_exposure": 0.0,
+  "open_exposure_before": 0.0,
+  "open_exposure_after": 0.625,
+  "shadow_position_id": 3372,
+  "skipped": false
+}
+\end{lstlisting}
+
+这个结构回答：
+
+\begin{quote}
+在当前打开仓位和 3x cap 下，这个信号实际能给多少仓位？
+\end{quote}
+
+如果没有这层结构，策略结果就会把 alpha、杠杆、并发、clipping 混在一起。
+
+\subsection{从信号到订单意图}
+
+Bot 最后输出的是 \code{submit_orders}。它不能决定成交价，只能告诉 Runner：
+
+\begin{quote}
+我在 \code{observed_seq} 看到信号，现在想提交一个订单。
+\end{quote}
+
+缩略结构：
+
+\begin{lstlisting}
+{
+  "type": "submit_orders",
+  "observed_seq": 1144,
+  "observed_local_ts_us": 1779062636310942,
+  "orders": [
+    {
+      "client_order_id": "shadow-entry-3372",
+      "side": "sell",
+      "kind": "market",
+      "qty": 4.056729302567098,
+      "tif": "ioc"
+    }
+  ]
+}
+\end{lstlisting}
+
+注意这里没有 \code{fill_price}。成交价格属于 Runner。
+
+\section{第 4 章：Runner 如何把意图变成成交}
+
+\subsection{Runner 的职责}
+
+Runner 是本地交易所。它拥有：
+
+\begin{itemize}[leftmargin=2em]
+\item virtual clock；
+\item public/private stream；
+\item order ingress；
+\item latency；
+\item fill model；
+\item portfolio；
+\item compact event log。
+\end{itemize}
+
+它不拥有策略 alpha，也不读取 label。
+
+\subsection{order scheduled}
+
+当 Runner 收到 intent 后，第一步是安排订单到达：
+
+\begin{lstlisting}
+{
+  "event_type": "order_scheduled",
+  "payload": {
+    "intent_id": 1,
+    "observed_seq": 1144,
+    "observed_local_ts_us": 1779062636310942,
+    "arrival_local_ts_us": 1779062636310942,
+    "latency_us": 0,
+    "arrival_mode": "timer"
+  }
+}
+\end{lstlisting}
+
+数学上：
+
+\[
+t_{\mathrm{arrival}}
+= t_{\mathrm{observed}} + \ell,
+\]
+
+其中 \(\ell\) 是 latency profile 给出的延迟。样例里 \(\ell=0\)，所以 observed 和 arrival 的目标时间相同。
+
+\subsection{order arrived}
+
+\code{order_arrived} 是最关键的执行结构。它回答：
+
+\begin{quote}
+订单真正到达交易所时，盘口是什么？
+\end{quote}
+
+样例 intent 1：
+
+\begin{lstlisting}
+{
+  "event_type": "order_arrived",
+  "payload": {
+    "intent_id": 1,
+    "observed_seq": 1144,
+    "arrival_seq": 1144,
+    "arrival_quote_lag": 0,
+    "observed_quote": {
+      "bid": 0.15406,
+      "ask": 0.15408,
+      "mid": 0.15407,
+      "seq": 535
+    },
+    "arrival_quote": {
+      "bid": 0.15406,
+      "ask": 0.15408,
+      "mid": 0.15407,
+      "seq": 535
+    },
+    "spread_bps_at_arrival": 1.2981,
+    "latency_slippage_bps": 0.0,
+    "order": {
+      "client_order_id": "shadow-entry-3372",
+      "side": "sell",
+      "kind": "market",
+      "qty": 4.056729302567098
+    }
+  }
+}
+\end{lstlisting}
+
+这里要区分三件事：
+
+\begin{longtable}{p{0.26\textwidth}p{0.58\textwidth}}
+\toprule
+对象 & 含义 \\
+\midrule
+\code{observed_quote} & Bot 生成 intent 时绑定的盘口 \\
+\code{arrival_quote} & Runner 判定订单到达时使用的盘口 \\
+\code{fill_price} & fill model 根据 arrival quote 算出的成交价 \\
+\bottomrule
+\end{longtable}
+
+\subsection{top-of-book taker IOC 成交公式}
+
+当前默认模型是 \code{top_of_book_taker_ioc_v1}：
+
+\[
+\operatorname{fill\_price} =
+\begin{cases}
+\operatorname{arrival.ask}, & \text{market buy},\\
+\operatorname{arrival.bid}, & \text{market sell}.
+\end{cases}
+\]
+
+因此 intent 1 是 sell，成交价是 arrival bid：
+
+\[
+\operatorname{fill\_price}_1 = 0.15406.
+\]
+
+intent 2 是 buy，成交价是 arrival ask：
+
+\[
+\operatorname{fill\_price}_2 = 0.15397.
+\]
+
+这也解释了一个常见问题：\code{fee_bps=0} 不等于零执行成本。主动买卖会 crossing spread；手续费和 spread cost 是两类成本。
+
+\subsection{fill 与 portfolio state on change}
+
+\code{fill} 记录成交事实：
+
+\begin{lstlisting}
+{
+  "event_type": "fill",
+  "payload": {
+    "payload": {
+      "intent_id": 1,
+      "execution_model": "top_of_book_taker_ioc_v1",
+      "fill_price": 0.15406,
+      "fee_bps": 0.0,
+      "fill": {
+        "side": "sell",
+        "price": 0.15406,
+        "qty": 4.056729302567098,
+        "liquidity": "taker"
+      }
+    }
+  }
+}
+\end{lstlisting}
+
+portfolio 事件则回答：
+
+\begin{quote}
+这次成交如何改变账户和 position lot？
+\end{quote}
+
+Monitor 可以展示 portfolio，但不能重新计算真实账户状态。账户状态仍以 Runner 事件为准。
+
+\section{第 5 章：事件日志为什么是 NDJSON}
+
+\subsection{一行一个事件}
+
+\code{events.ndjson} 的含义是 newline-delimited JSON：每一行是一条完整 JSON 事件。
+
+它适合 replay exchange 的原因：
+
+\begin{itemize}[leftmargin=2em]
+\item 可以边跑边写，不需要等整个 run 结束；
+\item 可以 streaming parse，不必一次性读入几十 MB 或几百 MB；
+\item 每一行都是独立审计单位；
+\item compact log 可以只保存因果关键事件。
+\end{itemize}
+
+\subsection{compact log 不记录每帧 hold}
+
+Bot 在大多数时刻不下单。如果每帧都写一条 hold，日志会膨胀成市场事件数量级：
+
+\[
+O(\text{market events}).
+\]
+
+compact log 只保留：
+
+\[
+O(\text{orders} + \text{fills} + \text{state changes} + \text{summary}).
+\]
+
+这不是丢信息，而是把“无动作状态机内部事实”和“外部可审计因果事件”分开。Monitor 第一版也沿用这个原则：它不展示每个 hold，只展示能解释订单的因果链。
+
+\subsection{为什么按 intent id 审计}
+
+一个 order lifecycle 会跨多条事件：
+
+\begin{lstlisting}
+capacity_decision
+order_intent
+order_scheduled
+order_arrived
+order_ack
+fill
+position_opened / position_closed
+portfolio_state_on_change
+\end{lstlisting}
+
+这些事件可能在日志中相邻，也可能夹杂着 public batch barrier、feature checkpoint、progress 等事件。Monitor 不能靠行号理解订单，只能靠 \code{intent_id} 聚合。
+
+聚合公式是：
+
+\[
+\mathcal{C}_k = \{E_i: \operatorname{pickIntentId}(E_i)=k\}.
+\]
+
+\section{第 6 章：手动执行 monitor parser}
+
+本章对应当前文件：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/monitor/src/monitor_server.mjs
+\end{lstlisting}
+
+目标是从代码理解 Monitor 的读模型，而不是泛泛解释 JavaScript。
+
+\subsection{pickIntentId：先找到订单链的 key}
+
+函数逻辑可写成：
+
+\begin{lstlisting}
+function pickIntentId(event) {
+  const p = event.payload ?? {};
+  const inner = p.payload ?? {};
+  const intent = p.intent ?? inner.intent ?? {};
+  return p.intent_id ?? inner.intent_id ?? intent.intent_id
+      ?? p.order?.intent_id ?? inner.order?.intent_id ?? null;
+}
+\end{lstlisting}
+
+为什么要找这么多位置？因为事件结构有嵌套：
+
+\begin{itemize}[leftmargin=2em]
+\item \code{order_scheduled} 的 \code{intent_id} 在 \code{event.payload.intent_id}；
+\item \code{fill} 的核心字段在 \code{event.payload.payload.intent_id}；
+\item 某些策略响应可能把 intent 放在 \code{payload.intent} 里。
+\end{itemize}
+
+手算检查点：
+
+\begin{lstlisting}
+E = order_arrived event for intent 1
+p = E.payload
+p.intent_id = 1
+pickIntentId(E) = 1
+\end{lstlisting}
+
+\subsection{ensureChain：没有链就创建空链}
+
+Monitor 的 read model 是一个 map：
+
+\[
+\operatorname{chains}: \operatorname{intent\_id} \mapsto \operatorname{Chain}.
+\]
+
+如果第一次看到 \code{intent_id=1}，就创建：
+
+\begin{lstlisting}
+{
+  intent_id: 1,
+  event_ids: [],
+  events: [],
+  status: "pending",
+  side: null,
+  cell: null,
+  capacity_source: null,
+  requested_exposure: null,
+  actual_exposure: null,
+  observed_seq: null,
+  arrival_seq: null,
+  observed_quote: null,
+  arrival_quote: null,
+  fill_price: null,
+  raw: {}
+}
+\end{lstlisting}
+
+这个空链就是 Monitor 表格行的初始状态。
+
+\subsection{mergeSignal：把策略解释合进链}
+
+\code{shadow_signal} 不是成交事实，它是策略解释。Monitor 读取它来填：
+
+\begin{lstlisting}
+side
+cell
+shadow_position_id
+observed_seq
+requested_exposure
+actual_exposure
+capacity_source
+\end{lstlisting}
+
+对应规则：
+
+\[
+C.\operatorname{side} \leftarrow
+C.\operatorname{side}\ \text{if exists, otherwise}\ signal.\operatorname{side}.
+\]
+
+代码里用的是 JavaScript 的空值合并思想：
+
+\begin{lstlisting}
+chain.side = chain.side ?? signal.side ?? signal.direction_label ?? null;
+\end{lstlisting}
+
+含义是：已有值优先，不用后来的事件随意覆盖前面已经确定的事实。
+
+\subsection{mergeCapacity：把容量决策合进链}
+
+\code{capacity_decision} 填的是容量字段：
+
+\begin{lstlisting}
+capacity_source
+requested_exposure
+actual_exposure
+clipped_exposure
+shadow_position_id
+skipped
+\end{lstlisting}
+
+手算 intent 1：
+
+\begin{lstlisting}
+capacity_source = "core"
+requested_exposure = 0.625
+actual_exposure = 0.625
+clipped_exposure = 0.0
+skipped = false
+\end{lstlisting}
+
+所以 Monitor 表格里 intent 1 的 capacity 列是 \code{core}，requested 和 actual 都是 \(0.625\)。
+
+\subsection{updateChainFromEvent：按事件类型更新链}
+
+主函数的结构是：
+
+\begin{lstlisting}
+intentId = pickIntentId(event)
+chain = ensureChain(chains, intentId)
+mergeSignal(chain, signal)
+mergeCapacity(chain, capacity)
+
+if event_type == "order_scheduled":
+    fill arrival_local_ts_us and bridge latency
+elif event_type == "order_arrived":
+    fill arrival_seq, observed_quote, arrival_quote, spread
+elif event_type == "order_ack":
+    fill status, order id, fill price if present
+elif event_type == "fill":
+    status = "filled"; fill fill_price and fill_qty
+elif event_type == "portfolio_state_on_change":
+    attach account
+\end{lstlisting}
+
+这不是创造新信息，只是把不同事件里的字段投影到同一个 \code{Chain} 对象上。
+
+\subsection{parseEvents：streaming 读取大日志}
+
+\code{events.ndjson} 可能很大。Monitor 不应该：
+
+\begin{lstlisting}
+readFileSync(events.ndjson)
+JSON.parse(wholeFile)
+\end{lstlisting}
+
+而是逐行：
+
+\begin{lstlisting}
+for each line:
+    event = JSON.parse(line)
+    eventTypeCounts[event.event_type] += 1
+    updateChainFromEvent(chains, event)
+\end{lstlisting}
+
+最终输出：
+
+\begin{lstlisting}
+{
+  event_count,
+  bad_json,
+  chains: sorted Chain rows,
+  eventTypeCounts,
+  has_events
+}
+\end{lstlisting}
+
+\subsection{normalizeSummary：把 run 摘要变成页面头部}
+
+\code{summary.json} 和 \code{profile_manifest.json} 的字段不完全重复。Monitor 需要把它们合成页面头部的统一对象：
+
+\begin{lstlisting}
+transport_profile = summary.public_stream_mode
+                 ?? profileManifest.transport_profile.name
+fill_profile = summary.fill_model
+            ?? profileManifest.fill_profile.name
+orders_submitted = summary.orders_submitted
+fills_created = summary.fills_created
+arrival_quote_lag_count = summary.arrival_quote_lag_count
+\end{lstlisting}
+
+这一步回答的是页面问题：
+
+\begin{quote}
+这个 run 是什么 profile？订单和成交是否对齐？是否有 arrival quote lag？
+\end{quote}
+
+\section{第 7 章：一个真实订单链的手算案例}
+
+\subsection{样例目标}
+
+我们手动构造 intent 1 的 Monitor 行。真实 run 中 intent 1 是 entry sell：
+
+\begin{lstlisting}
+client_order_id = shadow-entry-3372
+side = sell
+cell = 00_none
+capacity_source = core
+requested_exposure = 0.625
+actual_exposure = 0.625
+observed_seq = 1144
+arrival_seq = 1144
+fill_price = 0.15406
+spread_bps_at_arrival = 1.2981
+latency_slippage_bps = 0.0
+\end{lstlisting}
+
+\subsection{第 1 步：读 capacity decision}
+
+事件 4 的关键字段：
+
+\begin{lstlisting}
+event_type = "capacity_decision"
+intent_id = 1
+capacity_decision.capacity_source = "core"
+capacity_decision.requested_exposure = 0.625
+capacity_decision.actual_exposure = 0.625
+capacity_decision.clipped_exposure = 0.0
+shadow_signal.cell = "00_none"
+shadow_signal.side = "sell"
+shadow_signal.observed_seq = 1144
+\end{lstlisting}
+
+手动执行：
+
+\begin{lstlisting}
+k = pickIntentId(E4) = 1
+C1 = ensureChain(chains, 1)
+mergeSignal(C1, E4.payload.shadow_signal)
+mergeCapacity(C1, E4.payload.capacity_decision)
+\end{lstlisting}
+
+此时：
+
+\begin{lstlisting}
+C1.status = "pending"
+C1.side = "sell"
+C1.cell = "00_none"
+C1.capacity_source = "core"
+C1.requested_exposure = 0.625
+C1.actual_exposure = 0.625
+C1.observed_seq = 1144
+\end{lstlisting}
+
+\subsection{第 2 步：读 order scheduled}
+
+事件 6：
+
+\begin{lstlisting}
+event_type = "order_scheduled"
+payload.intent_id = 1
+payload.observed_seq = 1144
+payload.observed_local_ts_us = 1779062636310942
+payload.arrival_local_ts_us = 1779062636310942
+payload.latency_us = 0
+\end{lstlisting}
+
+执行后：
+
+\begin{lstlisting}
+C1.events += ["order_scheduled"]
+C1.arrival_local_ts_us = 1779062636310942
+C1.status = "scheduled"
+\end{lstlisting}
+
+这里没有成交价，因为订单还没有到达交易所。
+
+\subsection{第 3 步：读 order arrived}
+
+事件 8：
+
+\begin{lstlisting}
+event_type = "order_arrived"
+payload.intent_id = 1
+payload.arrival_seq = 1144
+payload.observed_quote.bid = 0.15406
+payload.observed_quote.ask = 0.15408
+payload.arrival_quote.bid = 0.15406
+payload.arrival_quote.ask = 0.15408
+payload.spread_bps_at_arrival = 1.2981
+payload.latency_slippage_bps = 0.0
+\end{lstlisting}
+
+执行后：
+
+\begin{lstlisting}
+C1.arrival_seq = 1144
+C1.observed_quote = {bid: 0.15406, ask: 0.15408, mid: 0.15407}
+C1.arrival_quote = {bid: 0.15406, ask: 0.15408, mid: 0.15407}
+C1.spread_bps_at_arrival = 1.2981
+C1.latency_slippage_bps = 0.0
+C1.status = "arrived"
+\end{lstlisting}
+
+因为 \code{arrival_quote_lag=0}，observed 和 arrival 使用同一盘口。真实有延迟时，这两个对象可能不同。
+
+\subsection{第 4 步：读 fill}
+
+事件 10：
+
+\begin{lstlisting}
+event_type = "fill"
+payload.payload.intent_id = 1
+payload.payload.fill_price = 0.15406
+payload.payload.fill.side = "sell"
+payload.payload.fill.qty = 4.056729302567098
+payload.payload.fee_bps = 0.0
+\end{lstlisting}
+
+执行后：
+
+\begin{lstlisting}
+C1.status = "filled"
+C1.fill_price = 0.15406
+C1.fill_qty = 4.056729302567098
+C1.side = "sell"
+\end{lstlisting}
+
+根据成交公式，sell market IOC 打 bid：
+
+\[
+\operatorname{fill\_price}_1
+=\operatorname{arrival.bid}
+=0.15406.
+\]
+
+\subsection{第 5 步：填 Monitor 表格}
+
+最终 Monitor 行：
+
+\begin{longtable}{p{0.22\textwidth}p{0.58\textwidth}}
+\toprule
+列 & 值 \\
+\midrule
+\code{intent} & 1 \\
+\code{status} & \code{filled} \\
+\code{side} & \code{sell} \\
+\code{cell} & \code{00_none} \\
+\code{capacity} & \code{core} \\
+\code{requested} & 0.625 \\
+\code{actual} & 0.625 \\
+\code{obs seq} & 1144 \\
+\code{arr seq} & 1144 \\
+\code{fill} & 0.15406 \\
+\code{spread} & 1.2981 bps \\
+\code{lat slippage} & 0.0 bps \\
+\bottomrule
+\end{longtable}
+
+这就是“手动执行函数”的意义：Monitor 页面不是独立计算系统，而是把日志里的分散事实按 \code{intent_id} 重新排成可读形式。
+
+\section{第 8 章：常见混淆与调试路线}
+
+\subsection{混淆一：nested payload}
+
+很多事件长这样：
+
+\begin{lstlisting}
+event.payload.payload.intent_id
+\end{lstlisting}
+
+这不是错误，而是因为外层 payload 是 event log 包装，内层 payload 是 private stream 消息体。调试时不要只搜第一层 \code{payload.intent_id}。
+
+\subsection{混淆二：observed quote 与 arrival quote}
+
+\code{observed_quote} 是 Bot 决策绑定的盘口；\code{arrival_quote} 是 Runner 订单到达时用于成交的盘口。
+
+如果 latency profile 是 deterministic 且 \(\ell=0\)，两者常常一样。如果引入真实延迟或 pressure mode，它们可能不同。
+
+\[
+\text{latency slippage}
+\approx
+\operatorname{value}(\text{arrival quote})
+-
+\operatorname{value}(\text{observed quote}).
+\]
+
+\subsection{混淆三：strategy intent 与 exchange order}
+
+\code{order_intent} 是 Bot 的请求；\code{order_ack} 是交易所模拟器的回应；\code{fill} 是成交事实。
+
+因此：
+
+\begin{lstlisting}
+strategy intent != exchange order != fill
+\end{lstlisting}
+
+如果一个 intent 被 risk reject，它不会自然生成 fill。如果一个 order partial fill，fill qty 也不应等同于 requested qty。
+
+\subsection{混淆四：fee 与 spread}
+
+当前 venue-fee baseline 可以是：
+
+\[
+\operatorname{fee\_bps}=0.
+\]
+
+但 taker crossing spread 仍然存在：
+
+\[
+\operatorname{long\ round\ trip}
+=10^4\log\frac{b_{\mathrm{exit}}}{a_{\mathrm{entry}}}.
+\]
+
+这里 entry 用 ask，exit 用 bid。即使没有手续费，也可能因为 crossing spread 和路径衰减损失很多。
+
+\subsection{混淆五：fast 与 strict}
+
+fast backtest 回答：
+
+\begin{quote}
+策略、容量、尾部和参数大概如何？
+\end{quote}
+
+strict replay 回答：
+
+\begin{quote}
+在交易所式 public/private stream、latency、fill 和 event log 下，行为是否可信？
+\end{quote}
+
+Monitor 第一版主要服务 strict replay 的解释，因为它展示的是 Runner 事件日志。
+
+\subsection{调试路线}
+
+如果 Monitor 某一行看起来不对，按这个顺序查：
+
+\begin{enumerate}[leftmargin=2em]
+\item 在 \code{events.ndjson} 搜 \code{"intent_id":N}；
+\item 确认是否有 \code{capacity_decision}；
+\item 确认是否有 \code{order_scheduled}；
+\item 确认是否有 \code{order_arrived}；
+\item 确认是否有 \code{order_ack} 或 \code{order_reject}；
+\item 确认是否有 \code{fill}；
+\item 对照 \file{monitor_server.mjs} 的 \code{updateChainFromEvent} 分支。
+\end{enumerate}
+
+\section*{附录 A：字段词典}
+\addcontentsline{toc}{section}{附录 A：字段词典}
+
+\begin{longtable}{p{0.26\textwidth}p{0.58\textwidth}}
+\toprule
+字段 & 解释 \\
+\midrule
+\code{intent_id} & Bot 提交意图后，Runner/日志用于串联生命周期的 key \\
+\code{observed_seq} & Bot 观察并触发 intent 的市场序号 \\
+\code{arrival_seq} & Runner 判定订单到达时对应的市场/stream 序号 \\
+\code{observed_local_ts_us} & 触发时刻的本地微秒时间 \\
+\code{arrival_local_ts_us} & 订单目标到达时间 \\
+\code{observed_quote} & 策略观察时的盘口 \\
+\code{arrival_quote} & 成交计算使用的到达盘口 \\
+\code{fill_price} & fill model 给出的成交价 \\
+\code{spread_bps_at_arrival} & 到达盘口的 bid-ask spread，单位 bps \\
+\code{latency_slippage_bps} & latency 导致的相对价格偏移 \\
+\code{capacity_source} & core 或 idle sleeve 等容量来源 \\
+\code{requested_exposure} & 策略请求敞口 \\
+\code{actual_exposure} & 容量约束后的实际敞口 \\
+\code{runtime_safe} & 字段只来自运行时可见信息，不包含未来 label \\
+\bottomrule
+\end{longtable}
+
+\section*{附录 B：函数索引}
+\addcontentsline{toc}{section}{附录 B：函数索引}
+
+\begin{longtable}{p{0.30\textwidth}p{0.54\textwidth}}
+\toprule
+函数 & 作用 \\
+\midrule
+\code{pickIntentId} & 从不同嵌套位置取出 \code{intent_id} \\
+\code{ensureChain} & 为某个 \code{intent_id} 创建或取回聚合链 \\
+\code{mergeSignal} & 把 \code{shadow_signal} 的策略解释字段并入链 \\
+\code{mergeCapacity} & 把 \code{capacity_decision} 的容量字段并入链 \\
+\code{updateChainFromEvent} & 按事件类型更新链字段 \\
+\code{parseEvents} & 逐行 streaming 读取 \code{events.ndjson} 并生成链表 \\
+\code{normalizeSummary} & 合成页面头部 summary/profile 字段 \\
+\bottomrule
+\end{longtable}
+
+\section*{附录 C：最小复现命令}
+\addcontentsline{toc}{section}{附录 C：最小复现命令}
+
+启动 Monitor 页面：
+
+\begin{lstlisting}
+npm --prefix systems/ccusdt_replay_exchange/monitor run dev -- --port 8810
+\end{lstlisting}
+
+检查离线 run API：
+
+\begin{lstlisting}
+Invoke-RestMethod `
+  "http://127.0.0.1:8810/api/offline-run?runDir=det_barrier_full_span60s_20260521"
+\end{lstlisting}
+
+直接搜 intent：
+
+\begin{lstlisting}
+Select-String `
+  -Path systems/ccusdt_replay_exchange/runs/det_barrier_full_span60s_20260521/events.ndjson `
+  -Pattern '"intent_id":1'
+\end{lstlisting}
+
+编译本册：
+
+\begin{lstlisting}
+xelatex -interaction=nonstopmode `
+  -output-directory docs/books/ccusdt-data-structure-booklet/out `
+  docs/books/ccusdt-data-structure-booklet/book.tex
+\end{lstlisting}
+
+\end{document}

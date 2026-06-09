@@ -1,0 +1,152 @@
+\chapter{gamma 与 3x ledger：目标仓位如何变成真实仓位}
+
+\section{本章要解决的困惑}
+
+entry 触发以后，策略还没有真正下满仓。它要先算目标仓位，再经过 capacity ledger。
+当前控制并不复杂：
+
+\[
+target\_exposure_t = weak\_overlay\_weight_t \cdot \gamma_{cell_t}.
+\]
+
+然后进入 3x 杠杆账本：
+
+\[
+actual\_exposure_t
+= \min(target\_exposure_t,\ 3-open\_exposure_t).
+\]
+
+这就是主体。
+
+\section{base weight 从哪里来}
+
+\code{BASE_WEIGHTS} 是 membership set 到基础权重的表。它不是模型估计器，而是手写映射。
+
+例如：
+
+\begin{lstlisting}
+tfi_follow_flat+tfi_long_flat -> 0.5
+tfi_follow_flat+tfi_short_flat -> 0.5
+tfi_follow_flat+tfi_short_flat+tfi_short_stale25+tfi_event_active -> 2.0
+\end{lstlisting}
+
+设当前 membership set 对应：
+
+\[
+base\_weight=0.5.
+\]
+
+如果 frames 特别高，超过 overlay threshold，当前代码加一个弱 overlay：
+
+\[
+weak\_overlay\_weight
+= base\_weight + overlay\_boost.
+\]
+
+其中：
+
+\[
+overlay\_boost =
+\begin{cases}
+0.5, & frames\_since\_mid\_change \ge 59.8,\\
+0, & \text{otherwise}.
+\end{cases}
+\]
+
+\section{gamma 从 cell 来}
+
+当前默认 \code{core_q70} preset 是：
+
+\begin{longtable}{p{0.30\textwidth}p{0.20\textwidth}p{0.40\textwidth}}
+\toprule
+cell & gamma & 解释 \\
+\midrule
+\code{00_none} & 1.25 & baseline core cell \\
+\code{10_r5_only} & 0.75 & R5 好但 frames 不高 \\
+\code{01_frames_only} & 0.0 & frames 高但 R5 不好，默认不用 \\
+\code{11_r5_frames} & 0.75 & R5 好且 frames 高 \\
+\bottomrule
+\end{longtable}
+
+注意，这组 gamma 不是深度学习，也不是连续控制函数。它是一张小表。
+
+\section{完整手算例子}
+
+假设当前 entry 信号：
+
+\begin{lstlisting}
+membership_set = tfi_follow_flat+tfi_long_flat
+base_weight = 0.5
+frames_since_mid_change = 65
+cell = 11_r5_frames
+gamma[11_r5_frames] = 0.75
+open_exposure_before = 2.80
+leverage_cap = 3.0
+\end{lstlisting}
+
+因为 frames 超过 overlay threshold：
+
+\[
+weak\_overlay\_weight=0.5+0.5=1.0.
+\]
+
+目标仓位：
+
+\[
+target\_exposure=1.0 \times 0.75=0.75.
+\]
+
+但账本已经开了 2.80，剩余 capacity：
+
+\[
+free=3.0-2.80=0.20.
+\]
+
+真实仓位：
+
+\[
+actual\_exposure=\min(0.75,0.20)=0.20.
+\]
+
+被剪掉：
+
+\[
+clipped\_exposure=0.75-0.20=0.55.
+\]
+
+这就是 \code{entries.parquet} 里 \code{requested_exposure}、\code{actual_exposure}、
+\code{clipped_exposure} 的来源。
+
+\section{core\_idle01 profile 的区别}
+
+\code{execution_runtime.py} 里有两个 allocator：
+
+\begin{lstlisting}
+CapacityLedger
+CoreIdle01CapacityAllocator
+\end{lstlisting}
+
+普通 \code{CapacityLedger} 只有一条 FIFO capacity：
+
+\[
+actual = \min(requested,\max(0,cap-open)).
+\]
+
+\code{CoreIdle01CapacityAllocator} 多了一个特殊处理：\code{01_frames_only} 可以作为 idle sleeve，只用剩余空闲 capacity，不挤占 core cells。它的工程含义是：
+
+\begin{quote}
+让某些弱结构只吃闲置杠杆，不要影响主结构。
+\end{quote}
+
+但这仍然是账本规则，不是预测模型。
+
+\section{常见误解}
+
+\begin{itemize}[leftmargin=2em]
+  \item \term{误解一：gamma 是收益预测。}不是。gamma 是 cell 到仓位倍率的表。
+  \item \term{误解二：target exposure 就是真实下单。}不是。真实进入结果还要经过 admission 和 capacity。
+  \item \term{误解三：3x 表示每笔都 3 倍。}不是。3x 是总 open exposure 上限。
+\end{itemize}
+
+\checkpoint{读完本章，你应该能从 membership、cell、gamma、open exposure 手算 actual exposure。}
+

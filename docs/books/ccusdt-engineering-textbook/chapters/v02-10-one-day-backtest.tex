@@ -1,0 +1,203 @@
+\chapter{从已有数据自己回测一天}
+
+\section{本章要解决的困惑}
+
+本章把前面内容变成一次新人可以执行的单日路线。重点不是背命令，而是知道每条命令验证哪条链路。
+
+\section{第零步：先选一个非常小的目标}
+
+新人不要一上来跑三周、多 profile、多币种。第一天只做：
+
+\begin{lstlisting}
+one symbol
+one date
+one policy
+one admission profile
+one exit profile
+\end{lstlisting}
+
+目标也不是找新 alpha，而是确认自己能从输入数据解释输出 artifact。一个合格的单日实验，哪怕结果是亏的，也应该能回答：
+
+\begin{quote}
+这一天哪些 frame 触发了？哪些被 spread gate 拒绝？哪些被 3x ledger 剪掉？60 秒 executable 是怎样算的？
+\end{quote}
+
+\section{第一步：检查 decision frame cache}
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/decision_frame_cache.py validate ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18
+\end{lstlisting}
+
+它验证：
+
+\begin{quote}
+canonical trade/L2 是否已经被转换成 runtime-safe 的 \code{decision_frame_v1}。
+\end{quote}
+
+\section{第二步：理解你要跑的 profile}
+
+跑之前先写清楚：
+
+\begin{lstlisting}
+symbol = CCUSDT
+date = 2026-05-18
+policy = old_tfi_four_cell_shadow_v1
+admission = entry_spread_q70_v1
+capacity = core_idle01 or fifo_clip
+exit = fixed60_taker or fixed60_mid
+leverage_cap = 3
+\end{lstlisting}
+
+如果 profile 写不清，输出结果也没有解释力。
+
+\section{第三步：跑 fast backtest}
+
+示意命令：
+
+\begin{lstlisting}
+python systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py ^
+  --repo-root . ^
+  --symbol CCUSDT ^
+  --from-date 2026-05-18 ^
+  --to-date 2026-05-18 ^
+  --exit-profile fixed60_taker ^
+  --capacity-profile core_idle01 ^
+  --admission-profile entry_spread_q70_v1 ^
+  --leverage-cap 3
+\end{lstlisting}
+
+实际项目中 q70 admission 可能还需要 threshold JSON。没有阈值不要假装等价。
+
+\section{第四步：检查输出}
+
+顺序：
+
+\begin{lstlisting}
+summary.json
+profile_manifest.json
+daily.csv
+entries.parquet
+exits.parquet
+\end{lstlisting}
+
+先问：
+
+\begin{itemize}[leftmargin=2em]
+  \item actual entries 多少？
+  \item admission 拒绝了多少？
+  \item capacity clipped 多少？
+  \item mid 和 executable 差多少？
+  \item daily 是否稳定？
+\end{itemize}
+
+\section{读一行 entries.parquet}
+
+假设你从 \code{entries.parquet} 抽出一行：
+
+\begin{lstlisting}
+entry_ts_us = 1716000010000000
+side = buy
+cell = 11_r5_frames
+membership_set = tfi_follow_flat+tfi_long_flat+tfi_event_active
+entry_bid = 0.1120
+entry_ask = 0.1124
+entry_spread_bps = 35.65
+entry_cross_bps = 17.825
+a_r5_raw = 4.33
+base_weight = 0.5
+gamma = 0.75
+requested_exposure = 0.375
+actual_exposure = 0.1
+\end{lstlisting}
+
+你应该能逐项解释：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \code{side=buy} 来自 \(TFI=1\)；
+  \item \code{entry_cross_bps} 是 half spread；
+  \item \code{cell=11_r5_frames} 来自 \(R5\ge1\) 且 \(frames\ge31\)；
+  \item \code{requested_exposure=0.375} 来自 base weight 乘 gamma；
+  \item \code{actual_exposure=0.1} 表示 3x ledger 只剩 0.1 free capacity。
+\end{enumerate}
+
+如果这五项解释不了，说明还没真正掌握当前策略。
+
+\section{读一行 exits.parquet}
+
+假设对应 exit：
+
+\begin{lstlisting}
+entry_side = buy
+entry_ask = 0.1124
+exit_bid = 0.1126
+exit_profile = fixed60_taker
+net_bps = 17.8
+\end{lstlisting}
+
+手算：
+
+\[
+net=10000\log\frac{0.1126}{0.1124}=17.8.
+\]
+
+再乘 exposure：
+
+\[
+contribution=17.8\times0.1=1.78.
+\]
+
+这才是它对 weighted result 的贡献。只看 \code{net_bps} 不看 \code{actual_exposure}，会误判策略贡献。
+
+\section{读 daily.csv}
+
+单日 \code{daily.csv} 应该和 entries/exits 能对上：
+
+\begin{longtable}{p{0.28\textwidth}p{0.56\textwidth}}
+\toprule
+字段 & 手动解释 \\
+\midrule
+\code{actual_entries} & \code{actual_exposure > 0} 的 entry 数 \\
+\code{gross_entries} & policy/admission/capacity 前后的候选口径要看定义 \\
+\code{net_weighted_bps} & 每笔 executable bps 乘 actual exposure 后求和 \\
+\code{admission_rejected} & spread gate 拒绝数量 \\
+\code{capacity_clipped} & requested 大于 free capacity 的数量或总量 \\
+\bottomrule
+\end{longtable}
+
+不要把 \code{actual_entries} 当成交易量，也不要把 raw trigger count 当成资金投入。仓位贡献要看 \code{actual_exposure}。
+
+\section{第五步：必要时 strict replay}
+
+如果只是研究 entry/gamma，fast 够了。如果要验收 Bot/Runner 路径，用：
+
+\begin{lstlisting}
+cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml ^
+  -p ccusdt_replay_cli -- run sparse-python ^
+  --canonical-date 2026-05-18 ^
+  --max-events 500 ^
+  --latency-us 50000
+\end{lstlisting}
+
+它验证的是：
+
+\begin{quote}
+Runner 能否把 market stream 送给 Python Bot，并把 submit order 转成 arrival、fill、portfolio 和 events.ndjson。
+\end{quote}
+
+\section{单日实验成功的标准}
+
+不是赚了就成功。成功是你能解释：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 每笔 entry 为什么触发；
+  \item 每笔 entry 为什么被接受或拒绝；
+  \item 每笔 actual exposure 为什么被剪裁；
+  \item fixed60 executable 是怎样算的；
+  \item fast 结果和 strict 审计分别说明什么。
+\end{enumerate}
+
+\checkpoint{自己回测的第一目标不是赚钱，而是能解释每一行输出。}

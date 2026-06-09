@@ -1,0 +1,273 @@
+\chapter{从已有数据自己回测一天：完整演练}
+
+\section{本章要解决的困惑}
+
+前面每章都拆了一个对象。本章把它们重新装回一天的实验。目标不是记命令，而是让你知道每一步在验证哪条数据变换。
+
+我们选一个单日实验：
+
+\begin{lstlisting}
+symbol = CCUSDT
+date = 2026-05-18
+strategy = old_tfi_four_cell_shadow_v1
+admission = entry_spread_q70_v1
+capacity = core_idle01 or fifo_clip
+exit = fixed60_taker or fixed60_mid
+\end{lstlisting}
+
+如果你能理解这个单日实验，三天、多 profile、strict audit 都只是规模扩展。
+
+\section{第一步：确认市场事实存在}
+
+先确认 canonical 数据大致存在。你不需要先关心策略，只要知道有三条事实流：
+
+\begin{lstlisting}
+quote_frame_v1
+trade_event_v1
+l2_level_update_v1
+\end{lstlisting}
+
+它们分别回答：
+
+\begin{itemize}[leftmargin=2em]
+  \item 当前最优 bid/ask 是多少；
+  \item 最近主动成交方向和数量是什么；
+  \item 订单簿价位和数量怎样更新。
+\end{itemize}
+
+如果这三条事实流不完整，后面的策略结果都要标记证据不完整。尤其是 TFI 依赖 trade，不能把 quote-only 结果伪装成 TFI 完整证据。
+
+\section{第二步：确认 decision frame 是 runtime-safe}
+
+\code{decision_frame_v1} 是 fast 回测的热路径。它应该只包含 entry 时刻以前可见的信息。你检查它不是为了相信它，而是为了确认它没有混进未来答案。
+
+合法字段包括：
+
+\begin{lstlisting}
+best_bid_price
+best_ask_price
+mid_price
+spread_bps
+trade_window_count
+trade_flow_imbalance
+frames_since_mid_change
+past_event_25_bps
+\end{lstlisting}
+
+非法直觉包括：
+
+\begin{lstlisting}
+future_return_60s
+mfe_after_entry
+mae_after_entry
+realized_pnl
+scored_entry_quality
+\end{lstlisting}
+
+\warningline{如果某个策略输入字段只有 entry 之后才能知道，它就不能进 runtime。}
+
+\section{第三步：拿一行 frame 做 entry 判断}
+
+假设一行 frame：
+
+\begin{lstlisting}
+trade_flow_imbalance = -1.0
+trade_window_count = 2
+past_event_25_bps = -0.1
+frames_since_mid_change = 38
+spread_bps = 18.0
+\end{lstlisting}
+
+先判断方向：
+
+\[
+TFI=-1 \Rightarrow side=sell,\quad direction=-1.
+\]
+
+再判断 flat：
+
+\[
+|-0.1|\le0.5 \Rightarrow flat=true.
+\]
+
+再判断 stale：
+
+\[
+38\ge25 \Rightarrow stale25=true,\quad 38\ge31 \Rightarrow B=true.
+\]
+
+如果当天 prior-day q70 entry cross threshold 是 10 bps：
+
+\[
+entry\_cross=\frac{18.0}{2}=9.0\le10.
+\]
+
+admission 通过。
+
+\section{第四步：算 cell 和仓位}
+
+假设闭合记忆：
+
+\begin{lstlisting}
+closed_bps = [1.0, 0.5, -0.4, 0.8, -0.2]
+\end{lstlisting}
+
+\[
+P_5=1.0+0.5+0.8=2.3,
+\quad
+N_5=0.4+0.2=0.6.
+\]
+
+\[
+R5=\frac{2.3}{0.6}=3.83.
+\]
+
+于是：
+
+\[
+A=1,\quad B=1,\quad \text{cell}=\text{\ttfamily 11\_r5\_frames}.
+\]
+
+假设 membership set 是：
+
+\begin{lstlisting}
+tfi_follow_flat+tfi_short_flat+tfi_short_stale25+tfi_event_active
+\end{lstlisting}
+
+则：
+
+\[
+base\_weight=2.0.
+\]
+
+frames 没超过 59.8：
+
+\[
+weak\_overlay\_weight=2.0.
+\]
+
+默认 gamma：
+
+\[
+\gamma_{11}=0.75.
+\]
+
+目标仓位：
+
+\[
+target=2.0\times0.75=1.5.
+\]
+
+如果入场前 open exposure 是 2.0：
+
+\[
+actual=\min(1.5,3.0-2.0)=1.0.
+\]
+
+\section{第五步：算 fixed60 taker 收益}
+
+short 入场时：
+
+\begin{lstlisting}
+entry_bid = 0.1120
+entry_ask = 0.1124
+\end{lstlisting}
+
+60 秒后：
+
+\begin{lstlisting}
+exit_bid = 0.1114
+exit_ask = 0.1118
+\end{lstlisting}
+
+short executable：
+
+\[
+Y^{exec,short}
+=10000\log\frac{entry\_bid}{exit\_ask}
+=10000\log\frac{0.1120}{0.1118}
+\approx17.9\text{ bps}.
+\]
+
+如果 actual exposure 是 1.0，则这笔 weighted contribution 近似就是 17.9 bps exposure-units。若 actual exposure 只有 0.2，则贡献按 0.2 缩小。
+
+\section{第六步：把手算对应到输出文件}
+
+你应该能在 \code{entries.parquet} 找到：
+
+\begin{lstlisting}
+side = sell
+cell = 11_r5_frames
+membership_set = ...
+entry_cross_bps = 9.0
+admission_accepted = true
+requested_exposure = 1.5
+actual_exposure = 1.0
+\end{lstlisting}
+
+在 \code{exits.parquet} 找到：
+
+\begin{lstlisting}
+exit_profile = fixed60_taker
+entry_bid = 0.1120
+exit_ask = 0.1118
+net_bps ~= 17.9
+\end{lstlisting}
+
+在 \code{daily.csv} 看到这笔贡献进入当天汇总。
+
+\section{第七步：读 summary 不要只看一个数}
+
+\code{summary.json} 最少看：
+
+\begin{lstlisting}
+policy
+admission_profile
+capacity_profile
+exit_profile
+actual_entries
+admission_accepted_entries
+admission_rejected_entries
+exits
+net_weighted_bps
+daily rows
+\end{lstlisting}
+
+如果一个 summary 没写清楚 profile，就不能拿来和别的结果比较。
+
+\section{第八步：什么时候这个单日实验算成功}
+
+不是赚了就成功。学习意义上的成功是：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 你能解释每个 entry 为什么触发；
+  \item 你能解释每个 actual exposure 为什么被剪裁或没被剪裁；
+  \item 你能解释 mid 和 executable 为什么不同；
+  \item 你能指出这次实验有没有用到 future label；
+  \item 你能说明它是 fast evidence，不是 strict exchange audit。
+\end{enumerate}
+
+\section{把一天扩展到多天}
+
+多天不是换一种算法。只是重复：
+
+\begin{lstlisting}
+for day in date_range:
+    load decision_frame cache
+    start/reset day-local buckets
+    preserve or seed runtime-safe closed state as configured
+    scan frames
+    write daily rows
+\end{lstlisting}
+
+真正需要小心的是：
+
+\begin{itemize}[leftmargin=2em]
+  \item q70 threshold 是否来自 prior day；
+  \item R5 state 是否跨日按 runtime-safe 规则处理；
+  \item quote/trade/L2 覆盖是否一致；
+  \item 不同日期是否用了同一 profile；
+  \item worst day 是否暴露结构问题。
+\end{itemize}
+
+\checkpoint{本章的目标是让你能闭着眼睛画出一条链：frame 到 signal，到 admission，到 capacity，到 entry，到 exit，到 daily。}

@@ -1,0 +1,374 @@
+\chapter{fast backtest 如何逐行执行策略}
+
+\section{本章要解决的困惑}
+
+现在我们有了 \code{decision_frame_v1}。fast backtest 做的事情很直接：顺序扫描每一行，把第一章的状态机执行一遍。
+
+\begin{lstlisting}
+for frame in decision_frame_cache:
+    signal = ShadowFourCellPolicy.on_decision_frame(frame)
+    if signal is entry:
+        admission = EntrySpreadAdmissionGate.decide(signal)
+        capacity = CapacityLedger.decide(signal)
+        write entry row
+    if old positions mature:
+        write exit row
+\end{lstlisting}
+
+\section{ShadowFourCellPolicy：当前策略主体}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/shadow_policy.py
+\end{lstlisting}
+
+真实触发代码的核心：
+
+\begin{lstlisting}
+high = tfi >= 1.0 - 1e-12
+low = tfi <= -1.0 + 1e-12
+if not high and not low:
+    return {}
+direction = 1 if high else -1
+
+trade_present = trade_count > 0
+flat = past25 is not None and abs(past25) <= 0.5
+stale25 = frames_since_mid_change is not None and frames_since_mid_change >= 25
+
+if flat:
+    active["tfi_follow_flat"] = direction
+    if low: active["tfi_short_flat"] = -1
+    if high: active["tfi_long_flat"] = 1
+if low and stale25:
+    active["tfi_short_stale25"] = -1
+if trade_present and stale25:
+    active["tfi_event_active"] = direction
+\end{lstlisting}
+
+这段代码就是 entry 的万物起源。
+
+\section{从 active triggers 到 membership}
+
+policy 按固定顺序遍历 trigger：
+
+\begin{lstlisting}
+TRIGGER_ORDER = [
+    "tfi_follow_flat",
+    "tfi_short_flat",
+    "tfi_long_flat",
+    "tfi_short_stale25",
+    "tfi_event_active",
+]
+\end{lstlisting}
+
+每个 trigger 同一 60 秒 bucket 只能选一次：
+
+\begin{lstlisting}
+if self.selected_bucket_by_trigger.get(trigger) == bucket:
+    continue
+self.selected_bucket_by_trigger[trigger] = bucket
+selected.append(trigger)
+\end{lstlisting}
+
+然后：
+
+\begin{lstlisting}
+membership_set = "+".join(selected)
+base_weight = BASE_WEIGHTS.get(membership_set, 0.0)
+\end{lstlisting}
+
+如果 \code{base_weight <= 0}，这行 frame 不产生 entry。
+
+\section{cell 和 target exposure}
+
+同一个 policy 继续做：
+
+\begin{lstlisting}
+closed = self.closed.snapshot()
+r5 = closed["r5"]
+a_r5 = bool(r5 is not None and r5 >= self.r5_threshold)
+b_frames = bool(frames_value >= self.frames_threshold)
+cell = self._cell(a_r5, b_frames)
+overlay_boost = 0.5 if frames_value >= self.overlay_threshold else 0.0
+weak_overlay_weight = base_weight + overlay_boost
+gamma = self.gamma[cell]
+target_exposure = weak_overlay_weight * gamma
+\end{lstlisting}
+
+这对应第一章的 R5、frames、cell、gamma。
+
+\section{AdmissionGate：spread q70}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/execution_runtime.py
+\end{lstlisting}
+
+核心规则：
+
+\begin{lstlisting}
+spread = _optional_float(shadow_signal.get("entry_spread_bps"))
+entry_cross = 0.5 * spread
+accepted = entry_cross <= float(self.entry_cross_threshold_bps)
+\end{lstlisting}
+
+它只看 entry 时刻的 spread，不看未来收益。
+
+\section{CapacityLedger：3x 剪仓}
+
+核心代码：
+
+\begin{lstlisting}
+requested = max(0.0, float(shadow_signal.get("target_exposure") or 0.0))
+before = self.open_exposure
+free = max(0.0, self.leverage_cap - before)
+actual = min(requested, free)
+clipped = max(0.0, requested - actual)
+after = before + actual
+self.open_exposure = after
+\end{lstlisting}
+
+这就是 3x 账本。不复杂，但非常关键。
+
+\section{fast\_strategy\_backtest.add\_entry}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py
+\end{lstlisting}
+
+真实输出 row 的核心字段：
+
+\begin{lstlisting}
+row = {
+    "entry_seq": signal.get("observed_seq"),
+    "entry_ts_us": signal.get("entry_ts_us"),
+    "side": signal.get("side"),
+    "cell": signal.get("cell"),
+    "membership_set": signal.get("membership_set"),
+    "entry_mid": entry_mid,
+    "entry_bid": entry_bid,
+    "entry_ask": entry_ask,
+    "entry_spread_bps": signal.get("entry_spread_bps"),
+    "entry_cross_bps": admission.get("entry_cross_bps"),
+    "admission_accepted": admission.get("accepted"),
+    "a_r5_raw": signal.get("a_r5_raw"),
+    "base_weight": signal.get("base_weight"),
+    "gamma": signal.get("gamma"),
+    "requested_exposure": requested,
+    "actual_exposure": actual,
+    "clipped_exposure": clipped,
+    "open_exposure_before": decision["open_exposure_before"],
+    "open_exposure_after": decision["open_exposure_after"],
+}
+\end{lstlisting}
+
+这就是 \code{entries.parquet} 的来源。
+
+\section{一行 frame 的完整 trace}
+
+现在把前几章的对象放进 fast 执行链。输入 frame：
+
+\begin{lstlisting}
+observed_seq = 105
+local_ts_us = 10_000_000
+mid_price = 0.1122
+spread_bps = 35.65
+trade_window_count = 3
+trade_flow_imbalance = 1.0
+past_event_25_bps = 0.2
+frames_since_mid_change = 34
+fwd_time_60s_bucket = 0
+\end{lstlisting}
+
+第一步，policy 只看 runtime-safe 字段：
+
+\begin{lstlisting}
+high = True
+low = False
+flat = True
+stale25 = True
+trade_present = True
+\end{lstlisting}
+
+得到 active triggers：
+
+\begin{lstlisting}
+tfi_follow_flat -> +1
+tfi_long_flat -> +1
+tfi_event_active -> +1
+\end{lstlisting}
+
+第二步，bucket 去重。如果这三个 trigger 在 bucket 0 还没被用过，就进入 selected：
+
+\begin{lstlisting}
+selected = [
+  "tfi_follow_flat",
+  "tfi_long_flat",
+  "tfi_event_active",
+]
+membership_set = "tfi_follow_flat+tfi_long_flat+tfi_event_active"
+base_weight = 0.5
+\end{lstlisting}
+
+第三步，读取已经闭合的 outcome memory：
+
+\begin{lstlisting}
+closed_outcomes = [3.0, -1.0, 2.0, 1.5, -0.5]
+r5 = 4.33
+\end{lstlisting}
+
+cell：
+
+\begin{lstlisting}
+a_r5 = True
+b_frames = True
+cell = "11_r5_frames"
+gamma = 0.75
+target_exposure = 0.5 * 0.75
+\end{lstlisting}
+
+第四步，admission：
+
+\begin{lstlisting}
+entry_cross_bps = 0.5 * 35.65 = 17.825
+threshold = prior_day_q70 = 20
+accepted = True
+\end{lstlisting}
+
+第五步，capacity：
+
+\begin{lstlisting}
+open_exposure_before = 2.9
+free = 3.0 - 2.9 = 0.1
+actual_exposure = min(0.375, 0.1)
+clipped_exposure = 0.275
+\end{lstlisting}
+
+第六步，写 entry row。注意：fast row 里既保留 shadow signal，也保留 admission 和 capacity 的结果。这样 later audit 可以知道到底是哪一步把候选剪掉了。
+
+\section{为什么有 shadow entry 和 actual entry}
+
+很多结果表会同时出现“候选很多”和“实际 entries 少”。原因是链路分层：
+
+\begin{longtable}{p{0.25\textwidth}p{0.30\textwidth}p{0.35\textwidth}}
+\toprule
+层 & 通过条件 & 失败原因 \\
+\midrule
+shadow signal & policy trigger 有 base weight & TFI 不单边、flat 不成立、bucket 已用 \\
+admission & entry cross 不超过 q70 & spread 太宽或缺失 \\
+capacity & 3x ledger 有空闲 & open exposure 已接近 3x \\
+actual entry & accepted 且 actual exposure \(>0\) & admission/capacity 任一失败 \\
+\bottomrule
+\end{longtable}
+
+所以“笔数”必须问清楚是哪一层的笔数。策略讨论里更重要的通常不是 raw trigger count，而是加权后的 \code{actual_exposure} 和 executable return。
+
+\section{fast close 和 R5 的时间顺序}
+
+R5 的一个关键边界是：只用已经闭合的结果。代码里 close mature entry 的条件是：
+
+\begin{lstlisting}
+while pending_entries and pending_entries[0].due_ts_us < local_ts_us:
+    ...
+\end{lstlisting}
+
+注意是 \code{< local_ts_us}，不是 \code{<=} 的随意未来读。交易含义是：
+
+\begin{quote}
+一个 entry 必须先过了 fixed exit 时间，并且当前已经走到更晚 frame，它的 outcome 才能进入 R5。
+\end{quote}
+
+这可以避免同一时刻刚开仓就把未来 60 秒结果写回 memory。
+
+\section{QuoteFrameIndex：为什么 fast 还要 quote frame}
+
+\code{decision_frame} 已经有 entry bid/ask，但 fixed60 exit 需要找到 60 秒后的 top-of-book。fast runner 会用 \code{QuoteFrameIndex} 在 quote frame 里查：
+
+\begin{lstlisting}
+entry_ts_us -> entry quote
+entry_ts_us + 60s -> exit quote
+\end{lstlisting}
+
+对 long：
+
+\[
+net=10000\log\frac{exit\_bid}{entry\_ask}.
+\]
+
+对 short：
+
+\[
+net=10000\log\frac{entry\_bid}{exit\_ask}.
+\]
+
+如果 exit quote 缺失，runner 应该记录 label validity drop，而不是凭空补一个收益。
+
+\section{daily.csv 的手算}
+
+假设一天里三笔 actual entries：
+
+\begin{longtable}{p{0.18\textwidth}p{0.22\textwidth}p{0.22\textwidth}p{0.26\textwidth}}
+\toprule
+entry & actual exposure & executable bps & contribution \\
+\midrule
+1 & 0.50 & 10.0 & 5.0 \\
+2 & 0.25 & -8.0 & -2.0 \\
+3 & 1.00 & 4.0 & 4.0 \\
+\bottomrule
+\end{longtable}
+
+当天 weighted bps：
+
+\[
+5.0-2.0+4.0=7.0.
+\]
+
+\code{daily.csv} 的意义不是预测未来，而是把一天内每笔 entry/exposure/exit 的已实现读数汇总成可检查表。
+
+\section{summary.json 的最低限度}
+
+一本工程教材要告诉新人：\code{summary.json} 不是“结果很好”的宣传页，而是 sanity check。至少要看：
+
+\begin{itemize}[leftmargin=2em]
+  \item actual entries 有多少；
+  \item admission reject 有多少；
+  \item capacity clipped 有多少；
+  \item weighted executable bps 是正还是负；
+  \item positive days / total days；
+  \item profile manifest 是否说明了 admission、capacity、exit 口径。
+\end{itemize}
+
+如果 summary 只报 mid return，不报 executable return，就不能用来判断 taker 策略是否可行。
+
+\section{fixed60 close}
+
+policy 里 pending entries 到期后会 close：
+
+\begin{lstlisting}
+while self.pending_entries and self.pending_entries[0].due_ts_us < local_ts_us:
+    entry = self.pending_entries.popleft()
+    pnl_bps = entry.direction * math.log(mid / entry.entry_mid) * 10000.0
+    self.closed.add(pnl_bps)
+\end{lstlisting}
+
+注意这里更新的是 closed outcome memory，也就是未来 entry 计算 R5 的来源。严格说，R5 只来自已经 mature 的 entry。
+
+\section{手动检查点}
+
+读 \code{fast_strategy_backtest.py} 时，不要从头到尾硬啃。按这个顺序找：
+
+\begin{lstlisting}
+parse_args
+QuoteFrameIndex
+ShadowFourCellPolicy(...)
+for frame in iter_cached_decision_frames
+add_entry
+close_actual_position
+write_parquet / write_csv / summary.json
+\end{lstlisting}
+
+\checkpoint{fast backtest 的本质是：把第一章的手算链对每一行 decision frame 执行一遍。}

@@ -1,0 +1,227 @@
+\chapter{Python Bot 如何在线维护同一个状态机}
+
+\section{本章要解决的困惑}
+
+fast backtest 读 \code{decision_frame_v1}。Python Bot 在线运行时，输入不是 parquet，而是 Runner 发来的 public/private event stream。但它维护的是同一类状态：
+
+\begin{lstlisting}
+quote -> bid/ask/mid/spread/frames
+trade -> rolling TFI
+fill/private -> closed outcome memory R5
+policy -> order intent
+\end{lstlisting}
+
+所以 Python Bot 不是另一套策略。它是同一个简单状态机的在线版本。
+
+\section{online\_features.py}
+
+代码入口：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/online_features.py
+\end{lstlisting}
+
+核心对象：
+
+\begin{lstlisting}
+RollingTrade
+ClosedOutcomeState
+OnlineFeatureState
+\end{lstlisting}
+
+\code{OnlineFeatureState.add_trade} 的逻辑和第一章一样：
+
+\begin{lstlisting}
+is_buy = side == "buy"
+signed = qty if is_buy else -qty
+self.signed_qty += signed
+self.abs_qty += abs(qty)
+\end{lstlisting}
+
+TFI：
+
+\begin{lstlisting}
+def tfi(self) -> float:
+    if self.abs_qty <= EPS:
+        return 0.0
+    return self.signed_qty / self.abs_qty
+\end{lstlisting}
+
+\section{update\_quote：frames 和 spread}
+
+quote 进来后，Bot 更新：
+
+\begin{lstlisting}
+spread_bps = (ask - bid) / mid * 10000
+mid_change = mid - last_mid
+if mid changed:
+    frames_since_mid_change = 0
+else:
+    frames_since_mid_change += 1
+\end{lstlisting}
+
+这和第一章的 L2 例子一致。区别是 fast 线已经把它算成 \code{decision_frame}，Bot 线要边收 quote 边维护。
+
+\section{ClosedOutcomeState：R5 的在线来源}
+
+R5 只应该来自已经闭合的交易：
+
+\begin{lstlisting}
+positive_bps = sum(value for value in outcomes_bps if value > 0)
+negative_bps = sum(value for value in outcomes_bps if value < 0)
+r5 = positive_bps / abs(negative_bps)
+\end{lstlisting}
+
+Bot 不能读取未来 PnL，也不能读取 \code{date/} 目录。它只能从 private fills 和已闭合 lifecycle 里更新状态。
+
+\warningline{Bot 不读 date/。如果 Bot 读了研究输出，回测就不是 runtime-safe。}
+
+\section{strategy.py：stdin/stdout sparse Bot}
+
+\code{strategy.py} 是 Runner sparse-python 模式下的 Bot 入口。它接收：
+
+\begin{lstlisting}
+session_start
+market_quote
+market_trade
+market_l2_update
+market_batch
+account_snapshot
+order_ack
+order_reject
+fill
+session_end
+\end{lstlisting}
+
+输出只应该是：
+
+\begin{lstlisting}
+heartbeat
+submit_order
+cancel_order
+\end{lstlisting}
+
+稀疏策略不应该对每个 market event 输出 hold。它只在需要下单或保活时输出。
+
+\section{Bot 和 fast 的差别}
+
+\begin{longtable}{p{0.22\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+对象 & fast backtest & Python Bot \\
+\midrule
+输入 & decision frame parquet & public/private stream \\
+状态 & ShadowFourCellPolicy + cached frames & OnlineFeatureState + ShadowFourCellPolicy \\
+输出 & entries/exits tables & submit order intent \\
+成交 & fast 近似 & Runner 决定 \\
+\bottomrule
+\end{longtable}
+
+fast 更适合研究参数，Bot 更接近 runtime。
+
+\section{在线例子一：三笔 trade 如何变成 TFI}
+
+Runner public stream 连续发来：
+
+\begin{lstlisting}
+market_trade side=buy  qty=300
+market_trade side=buy  qty=200
+market_trade side=sell qty=100
+\end{lstlisting}
+
+Bot 的 \code{OnlineFeatureState} 不需要知道完整订单簿，也不需要未来价格。它只维护 rolling 窗口：
+
+\begin{lstlisting}
+signed_qty = +300 +200 -100 = 400
+abs_qty = 300 + 200 + 100 = 600
+tfi = 400 / 600 = 0.667
+\end{lstlisting}
+
+这时当前旧 entry 不触发。若第三笔也是 buy：
+
+\begin{lstlisting}
+signed_qty = 600
+abs_qty = 600
+tfi = 1.0
+\end{lstlisting}
+
+才可能进入 policy trigger。在线和 fast 的区别只是数据来源不同，数学定义相同。
+
+\section{在线例子二：quote 如何维护 frames}
+
+Runner 发来 quote：
+
+\begin{longtable}{p{0.18\textwidth}p{0.20\textwidth}p{0.20\textwidth}p{0.22\textwidth}}
+\toprule
+event & bid & ask & mid \\
+\midrule
+1 & 0.1120 & 0.1124 & 0.1122 \\
+2 & 0.1120 & 0.1124 & 0.1122 \\
+3 & 0.1120 & 0.1124 & 0.1122 \\
+4 & 0.1121 & 0.1125 & 0.1123 \\
+\bottomrule
+\end{longtable}
+
+Bot 维护：
+
+\begin{lstlisting}
+event 1: last_mid empty -> frames = 0
+event 2: mid unchanged -> frames = 1
+event 3: mid unchanged -> frames = 2
+event 4: mid changed   -> frames = 0
+\end{lstlisting}
+
+这和 \code{decision_frame_v1} 的 \code{frames_since_mid_change} 是同一概念。Bot 不是从 parquet 把 frames 读出来，而是在线维护。
+
+\section{在线例子三：fill 后如何形成 R5}
+
+Bot 产生 order intent 后，成交事实由 Runner private stream 返回。只有在生命周期结束后，Bot 才能把结果放进 closed outcome memory。
+
+\begin{lstlisting}
+entry mid = 0.1122
+close mid = 0.1125
+direction = long
+pnl_bps = log(0.1125 / 0.1122) * 10000 = 26.7
+\end{lstlisting}
+
+这个 \(26.7\) bps 才能成为后续 R5 的一个 \(g_i\)。如果 position 还没到 fixed60，或者 fill 尚未完成，它不能进入 R5。
+
+\section{从 signal 到 submit order}
+
+Bot 的 policy 如果给出 signal，后面仍要经过 admission 和 capacity：
+
+\begin{lstlisting}
+signal = ShadowFourCellPolicy.on_quote(...)
+admission = EntrySpreadAdmissionGate.decide(signal)
+capacity = CapacityLedger.decide(signal)
+if admission.accepted and capacity.actual_exposure > 0:
+    submit_order(...)
+\end{lstlisting}
+
+这段伪代码就是 fast runner 和 Bot 的共同骨架。差别在于：fast 写 \code{entries.parquet}，Bot 写 order intent 给 Runner。
+
+\section{Bot 绝不能做的事}
+
+当前 runtime safety 可以用一句话概括：Bot 只能看“到当前为止 Runner 发给它的东西”。所以它不能：
+
+\begin{itemize}[leftmargin=2em]
+  \item 读取 \code{date/} 里的未来 market 文件；
+  \item 读取 \code{entries.parquet} 或 \code{exits.parquet}；
+  \item 读取 scored entries、MFE、MAE、future return label；
+  \item 为了调试把 future label 塞进 feature snapshot；
+  \item 从 Monitor 接 order decision。
+\end{itemize}
+
+\warningline{Bot 只能产生策略意图。成交事实永远由 Runner 决定。}
+
+\section{手动检查点}
+
+读 Bot 代码时，按顺序看：
+
+\begin{lstlisting}
+online_features.py: add_trade, update_quote, tfi, ClosedOutcomeState
+shadow_policy.py: on_quote / on_decision_frame
+strategy.py: message loop and submit_order
+execution_runtime.py: admission and capacity helpers
+\end{lstlisting}
+
+\checkpoint{Python Bot 不神秘。它只是把第一章的状态机放到事件流里在线维护。}

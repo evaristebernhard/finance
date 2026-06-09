@@ -1,0 +1,155 @@
+\begin{thebibliography}{24}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Alfonsi et~al.(2010)Alfonsi, Fruth, and Schied]{alfonsi2010}
+A.~Alfonsi, A.~Fruth, and A.~Schied.
+\newblock Optimal execution strategies in limit order books with general shape
+  functions.
+\newblock \emph{Quantitative Finance}, 10\penalty0 (2):\penalty0 143--157,
+  2010.
+
+\bibitem[Alfonsi et~al.(2012)Alfonsi, Schied, and Slynko]{alfonsi2012order}
+A.~Alfonsi, A.~Schied, and A.~Slynko.
+\newblock Order book resilience, price manipulation, and the positive portfolio
+  problem.
+\newblock \emph{SIAM Journal on Financial Mathematics}, 3\penalty0
+  (1):\penalty0 511--533, 2012.
+
+\bibitem[Almgren and Chriss(2001)]{almgren2001optimal}
+R.~Almgren and N.~Chriss.
+\newblock Optimal execution of portfolio transactions.
+\newblock \emph{Journal of Risk}, 3:\penalty0 5--40, 2001.
+
+\bibitem[Bank and Baum(2004)]{bank2004hedging}
+P.~Bank and D.~Baum.
+\newblock Hedging and portfolio optimization in financial markets with a large
+  trader.
+\newblock \emph{Mathematical Finance: An International Journal of Mathematics,
+  Statistics and Financial Economics}, 14\penalty0 (1):\penalty0 1--18, 2004.
+
+\bibitem[Bertsimas and Lo(1998)]{bertsimas1998optimal}
+D.~Bertsimas and A.~W. Lo.
+\newblock Optimal control of execution costs.
+\newblock \emph{Journal of Financial Markets}, 1\penalty0 (1):\penalty0 1--50,
+  1998.
+
+\bibitem[Blais and Protter(2010)]{BP:2010}
+M.~Blais and P.~Protter.
+\newblock An analysis of the supply curve for liquidity risk through book data.
+\newblock \emph{International Journal of Theoretical and Applied Finance},
+  13\penalty0 (06):\penalty0 821--838, 2010.
+
+\bibitem[Cartea et~al.(2014)Cartea, Jaimungal, and Ricci]{cartea2014modelling}
+A.~Cartea, S.~Jaimungal, and J.~Ricci.
+\newblock Buy low, sell high: a high frequency trading perspective.
+\newblock \emph{SIAM J. Financ. Math.}, 5\penalty0 (1):\penalty0 415--444,
+  2014.
+
+\bibitem[\c{C}etin et~al.(2010)\c{C}etin, Jarrow, and Protter]{CJP:2003}
+U.~\c{C}etin, R.~A. Jarrow, and P.~Protter.
+\newblock Liquidity risk and arbitrage pricing theory.
+\newblock In \emph{Handbook of Quantitative Finance and Risk Management}, pages
+  1007--1024. Springer, 2010.
+
+\bibitem[Cont and Kukanov(2013)]{ContKukanov2013}
+R.~Cont and A.~Kukanov.
+\newblock Optimal order placement in limit order markets.
+\newblock \emph{Available at ssrn 2155218}, 2013.
+
+\bibitem[Donier(2012)]{donier2012market}
+J.~Donier.
+\newblock Market impact with autocorrelated order flow under perfect
+  competition.
+\newblock \emph{Available at SSRN 2191660}, 2012.
+
+\bibitem[Eisler et~al.(2012)Eisler, Bouchaud, and Kockelkoren]{eisler2012price}
+Z.~Eisler, J.-P. Bouchaud, and J.~Kockelkoren.
+\newblock The price impact of order book events: market orders, limit orders
+  and cancellations.
+\newblock \emph{Quantitative Finance}, 12\penalty0 (9):\penalty0 1395--1419,
+  2012.
+
+\bibitem[Figueroa-L{\'o}pez et~al.(2018)Figueroa-L{\'o}pez, Lee, and
+  Pasupathy]{FLP:2018}
+J.~E. Figueroa-L{\'o}pez, H.~Lee, and R.~Pasupathy.
+\newblock Optimal placement of a small order in a diffusive limit order book.
+\newblock \emph{High Frequency}, 1\penalty0 (2):\penalty0 87--116, 2018.
+
+\bibitem[Frey and Patie(2002)]{frey2002risk}
+R.~Frey and P.~Patie.
+\newblock Risk management for derivatives in illiquid markets: A simulation
+  study.
+\newblock In \emph{Advances in finance and stochastics}, pages 137--159.
+  Springer, 2002.
+
+\bibitem[Gatheral(2010)]{gatheral2010no}
+J.~Gatheral.
+\newblock No-dynamic-arbitrage and market impact.
+\newblock \emph{Quantitative finance}, 10\penalty0 (7):\penalty0 749--759,
+  2010.
+
+\bibitem[Gatheral et~al.(2012)Gatheral, Schied, and
+  Slynko]{gatheral2012transient}
+J.~Gatheral, A.~Schied, and A.~Slynko.
+\newblock Transient linear price impact and fredholm integral equations.
+\newblock \emph{Mathematical Finance: An International Journal of Mathematics,
+  Statistics and Financial Economics}, 22\penalty0 (3):\penalty0 445--474,
+  2012.
+
+\bibitem[Gu{\'e}ant(2015)]{gueant2015optimal}
+O.~Gu{\'e}ant.
+\newblock Optimal execution and block trade pricing: a general framework.
+\newblock \emph{Applied Mathematical Finance}, 22\penalty0 (4):\penalty0
+  336--365, 2015.
+
+\bibitem[Guilbaud and Pham(2013)]{GuilbaudPham2013}
+F.~Guilbaud and H.~Pham.
+\newblock Optimal high-frequency trading with limit and market orders.
+\newblock \emph{Quantitative Finance}, 13\penalty0 (1):\penalty0 79--94, 2013.
+
+\bibitem[Guo et~al.(2016)Guo, De~Larrard, and Ruan]{GDR:2017}
+X.~Guo, A.~De~Larrard, and Z.~Ruan.
+\newblock Optimal placement in a limit order book.
+\newblock \emph{Mathematics and Financial Economics}, 2016.
+
+\bibitem[Jacquier and Liu(2017)]{jacquierLiu2017}
+A.~Jacquier and H.~Liu.
+\newblock Optimal liquidation in a level-i limit order book for large-tick
+  stocks.
+\newblock \emph{Preprint. Available at arXiv:1701.01327 [q-fin.TR]}, 2017.
+
+\bibitem[Jeanblanc et~al.(2009)Jeanblanc, Yor, and
+  Chesney]{jeanblanc2009mathematical}
+M.~Jeanblanc, M.~Yor, and M.~Chesney.
+\newblock \emph{Mathematical methods for financial markets}.
+\newblock Springer, 2009.
+
+\bibitem[Maglaras et~al.(2015)Maglaras, Moallemi, and Zheng]{Manglaras2015}
+C.~Maglaras, C.~Moallemi, and H.~Zheng.
+\newblock Optimal execution in a limit order book and an associated
+  microstructure market impact model.
+\newblock \emph{Preprint available at ssrn 2610808}, 2015.
+
+\bibitem[Obizhaeva and Wang(2013)]{obizhaeva2013optimal}
+A.~A. Obizhaeva and J.~Wang.
+\newblock Optimal trading strategy and supply/demand dynamics.
+\newblock \emph{Journal of Financial Markets}, 16\penalty0 (1):\penalty0 1--32,
+  2013.
+
+\bibitem[Potters and Bouchaud(2003)]{potters2003more}
+M.~Potters and J.-P. Bouchaud.
+\newblock More statistical properties of order books and price impact.
+\newblock \emph{Physica A: Statistical Mechanics and its Applications},
+  324\penalty0 (1-2):\penalty0 133--140, 2003.
+
+\bibitem[Predoiu et~al.(2011)Predoiu, Shaikhet, and Shreve]{predoiu2011optimal}
+S.~Predoiu, G.~Shaikhet, and S.~Shreve.
+\newblock Optimal execution in a general one-sided limit-order book.
+\newblock \emph{SIAM Journal on Financial Mathematics}, 2\penalty0
+  (1):\penalty0 183--212, 2011.
+
+\end{thebibliography}

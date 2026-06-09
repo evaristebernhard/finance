@@ -1,0 +1,248 @@
+\chapter{一笔 strict replay 订单的完整生命周期}
+
+\section{本章要解决的困惑}
+
+fast 输出 entries/exits。strict replay 输出 event log。要理解 Runner，最好的方式不是读全文件，而是跟踪一笔订单。
+
+一笔订单的链条：
+
+\begin{lstlisting}
+market event
+-> Bot feature update
+-> order_intent
+-> order_scheduled
+-> order_arrived
+-> order_ack / order_reject
+-> fill_created
+-> portfolio_state_on_change
+\end{lstlisting}
+
+\section{market event}
+
+Runner 从 canonical market truth 中读 quote、trade、L2，然后发给 Bot。Bot 只能看到已经发送给它的 public stream。
+
+\begin{lstlisting}
+market_quote
+market_trade
+market_l2_update
+market_decision_frame
+\end{lstlisting}
+
+在 panel sparse fast clock 模式下，Runner 可以发送 \code{market_decision_frame}，但 market truth 仍来自 canonical 数据。
+
+\section{Bot feature update}
+
+Bot 更新：
+
+\begin{lstlisting}
+rolling trades -> TFI
+quote -> spread and frames
+closed outcomes -> R5
+shadow policy -> signal
+\end{lstlisting}
+
+如果触发 entry，就产生 order intent。
+
+\section{order\_intent}
+
+order intent 是策略意图，不是成交事实。它应该记录：
+
+\begin{lstlisting}
+side
+qty or exposure intent
+observed_seq
+observed_local_ts_us
+feature_snapshot
+\end{lstlisting}
+
+这个 intent 绑定到 Bot 当时看到的 market event。
+
+\section{order\_scheduled 和 order\_arrived}
+
+Runner 根据 latency 计算到达时间：
+
+\[
+target\_arrival\_local\_ts
+=observed\_local\_ts+latency\_us.
+\]
+
+timer arrival 模式下，Runner 用这个虚拟目标时间选 arrival quote。next-event 模式则等第一个更晚市场事件，更保守。
+
+\section{ack/reject 和 fill}
+
+如果订单合法，Runner ack；否则 reject。当前 taker IOC 主要关心到达时立即成交：
+
+\begin{itemize}[leftmargin=2em]
+  \item buy fill price = arrival ask；
+  \item sell fill price = arrival bid。
+\end{itemize}
+
+fill 之后，portfolio 更新 position、cash、equity、leverage。
+
+\section{event log 怎么审}
+
+\code{events.ndjson} 一行一个事件。每行有 envelope：
+
+\begin{lstlisting}
+event_id
+run_id
+event_type
+replay_seq
+replay_ts
+wall_ts_ms
+source
+payload
+\end{lstlisting}
+
+审计一笔订单时，从 \code{fill_created} 往前追：
+
+\begin{lstlisting}
+fill_created
+<- order_ack
+<- order_arrived
+<- order_scheduled
+<- order_intent
+<- strategy_feature_checkpoint or market event
+\end{lstlisting}
+
+\section{Monitor 的角色}
+
+Monitor 只把这些事件按 intent/order 聚合成可视化因果链。它不能下单，不能撤单，不能创造 missing fact。
+
+\warningline{Monitor 只展示，不创造事实。}
+
+\section{一笔 long order 的完整数字例子}
+
+假设 Bot 在 observed 时刻看到：
+
+\begin{lstlisting}
+observed_seq = 1000
+observed_bid = 0.1120
+observed_ask = 0.1124
+side = buy
+target_exposure = 0.50
+\end{lstlisting}
+
+策略意图是：
+
+\begin{lstlisting}
+order_intent:
+  intent_id = I-1000
+  side = buy
+  observed_seq = 1000
+  observed_quote = 0.1120 / 0.1124
+\end{lstlisting}
+
+Runner 加入 latency queue：
+
+\[
+arrival\_ts=observed\_ts+latency\_us.
+\]
+
+到达时盘口变成：
+
+\begin{lstlisting}
+arrival_bid = 0.1121
+arrival_ask = 0.1127
+\end{lstlisting}
+
+因为 side 是 buy，fill price 是 arrival ask：
+
+\[
+fill\_price=0.1127.
+\]
+
+这时 event chain 应该能看到：
+
+\begin{lstlisting}
+order_intent(observed ask 0.1124)
+order_scheduled(target arrival ts)
+order_arrived(arrival ask 0.1127)
+order_ack
+fill_created(fill price 0.1127)
+portfolio_state_on_change
+\end{lstlisting}
+
+如果 Monitor 里显示 observed quote 是 0.1124 ask，但 fill price 是 0.1127，这不一定是 bug；它可能是 latency 后 arrival quote 变差。
+
+\section{一笔 short order 的完整数字例子}
+
+short 正好相反。observed：
+
+\begin{lstlisting}
+observed_bid = 0.1120
+observed_ask = 0.1124
+side = sell
+\end{lstlisting}
+
+arrival：
+
+\begin{lstlisting}
+arrival_bid = 0.1118
+arrival_ask = 0.1122
+\end{lstlisting}
+
+sell taker 打 bid：
+
+\[
+fill\_price=0.1118.
+\]
+
+如果 60 秒后要平 short，买回会打 exit ask。strict replay 会把开仓 fill 和后续 portfolio 都记录下来；fast fixed60 则通常只从 quote index 直接算读数。
+
+\section{为什么 NDJSON 合适}
+
+\code{events.ndjson} 一行一个 JSON event。这样做有三个好处：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 可以边 replay 边写，不需要整段跑完才输出；
+  \item 大文件可以逐行 streaming parse；
+  \item 每个事件都有 envelope，方便按 \code{intent_id} 或 \code{order_id} 审计。
+\end{enumerate}
+
+一行简化 event 像这样：
+
+\begin{lstlisting}
+{
+  "event_type": "fill_created",
+  "replay_seq": 1010,
+  "replay_ts": "...",
+  "payload": {
+    "intent_id": "I-1000",
+    "side": "buy",
+    "fill_price": 0.1127,
+    "arrival_bid": 0.1121,
+    "arrival_ask": 0.1127
+  }
+}
+\end{lstlisting}
+
+这不是给策略读的 label，而是给人和 Monitor 审计的事实记录。
+
+\section{strict replay 的常见误读}
+
+\begin{longtable}{p{0.30\textwidth}p{0.56\textwidth}}
+\toprule
+误读 & 正确理解 \\
+\midrule
+fill price 应该等于 observed ask & taker fill 用 arrival quote，不是 observed quote \\
+Monitor 能修正成交 & Monitor 只展示 event log，不能创造事实 \\
+Runner 可以看 fast label & Runner 不读 label，只用市场和订单 \\
+ack 等于赚钱 & ack 只表示订单合法，不表示策略收益为正 \\
+portfolio state 是策略信号 & portfolio 是成交后账户事实，不是 alpha 输入 \\
+\bottomrule
+\end{longtable}
+
+\section{手动检查点}
+
+拿一笔 strict run，检查：
+
+\begin{enumerate}[leftmargin=2em]
+  \item observed quote 和 arrival quote 是否记录；
+  \item fill price 是否符合 side；
+  \item arrival quote lag 是否为 0 或有解释；
+  \item portfolio state 是否在 fill 后变化；
+  \item event log 是否能从 fill 追到 intent。
+\end{enumerate}
+
+\checkpoint{strict replay 的价值不是更会赚钱，而是证明订单在本地交易所里是可审计的。}

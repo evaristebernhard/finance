@@ -1,0 +1,81 @@
+\chapter{fast vs Runner：为什么两个都要懂}
+
+\section{本章要解决的困惑}
+
+fast 和 Runner 都能“回测”，但它们不是同一种工具。
+
+\begin{longtable}{p{0.20\textwidth}p{0.34\textwidth}p{0.36\textwidth}}
+\toprule
+工具 & 回答什么 & 不回答什么 \\
+\midrule
+fast & 状态机在历史 decision frame 上表现如何 & 真实订单到达、TCP、完整 event log \\
+Runner & 本地交易所如何处理 intent、latency、fill、portfolio & 大批量扫因子和 profile \\
+\bottomrule
+\end{longtable}
+
+\section{fast 适合什么}
+
+fast 适合：
+
+\begin{itemize}[leftmargin=2em]
+  \item 看 entry trigger 是否有基本 edge；
+  \item 比较 spread q70 gate；
+  \item 比较 gamma/capacity profile；
+  \item 看 daily stability；
+  \item 快速检查 mid vs executable。
+\end{itemize}
+
+它不适合证明 live path 一定正确。
+
+\section{Runner 适合什么}
+
+Runner 适合：
+
+\begin{itemize}[leftmargin=2em]
+  \item 验证 Bot 与 Runner event contract；
+  \item 验证 latency 和 arrival quote；
+  \item 验证 fill price；
+  \item 生成可审计 event log；
+  \item 检查 Monitor 的因果链展示。
+\end{itemize}
+
+它不适合扫大量因子，因为慢且工程噪声更多。
+
+\section{两个结果怎么比较}
+
+比较前必须确认：
+
+\begin{lstlisting}
+same symbol
+same date range
+same decision clock
+same policy
+same admission threshold
+same capacity profile
+same exit/fill model
+\end{lstlisting}
+
+如果 fast 是 \code{fixed60_mid}，Runner 是 \code{top_of_book_taker_ioc_v1}，净收益不同不一定是 bug。
+
+\section{什么时候先 fast，什么时候上 Runner}
+
+先 fast：
+
+\begin{itemize}[leftmargin=2em]
+  \item 新 entry 条件；
+  \item 新 gamma profile；
+  \item 新 admission threshold；
+  \item 只看研究方向是否值得继续。
+\end{itemize}
+
+上 Runner：
+
+\begin{itemize}[leftmargin=2em]
+  \item 改了 Bot message loop；
+  \item 改了 Runner fill/latency/order code；
+  \item 要验收 Monitor；
+  \item 要证明某个 profile 能在 strict path 下复现。
+\end{itemize}
+
+\checkpoint{fast 是研究显微镜，Runner 是本地交易所。把它们混成一个东西，文档和代码都会变难。}
+

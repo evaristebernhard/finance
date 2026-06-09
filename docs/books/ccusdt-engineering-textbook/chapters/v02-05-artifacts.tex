@@ -1,0 +1,128 @@
+\chapter{entries/exits/daily/summary 怎么手算和检查}
+
+\section{本章要解决的困惑}
+
+fast backtest 跑完以后，不要只看一个总收益数字。一个可信的回测输出至少要能回答：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 这次到底用了什么 profile？
+  \item 哪些 entry 被触发，哪些被 admission 拒绝？
+  \item target exposure 和 actual exposure 差多少？
+  \item fixed60 是 mid 口径还是 executable 口径？
+  \item 每天结果是否稳定，还是某一天撑起全部收益？
+\end{enumerate}
+
+\section{entries.parquet}
+
+\code{entries.parquet} 是 entry 候选和 capacity 决策的明细表。重点字段：
+
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+字段 & 检查问题 \\
+\midrule
+\code{side} & 方向是否和 TFI 一致 \\
+\code{cell} & R5/frames 分到哪个四象限 \\
+\code{membership_set} & 哪些 trigger class 组合成 entry \\
+\code{entry_bid/ask/mid} & 入场盘口是什么 \\
+\code{entry_cross_bps} & 入场 cross 成本是多少 \\
+\code{admission_accepted} & spread gate 是否允许 \\
+\code{a_r5_raw} & entry 前闭合记忆是多少 \\
+\code{base_weight/gamma} & 仓位倍率来自哪里 \\
+\code{requested_exposure} & 策略想要多少 exposure \\
+\code{actual_exposure} & 账本实际允许多少 \\
+\code{clipped_exposure} & 因 3x 限制剪掉多少 \\
+\bottomrule
+\end{longtable}
+
+真正有仓位的是：
+
+\begin{lstlisting}
+actual_exposure > 0
+\end{lstlisting}
+
+\section{exits.parquet}
+
+\code{exits.parquet} 是退出明细。重点看：
+
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+字段 & 检查问题 \\
+\midrule
+\code{exit_profile} & \code{fixed60_mid}、\code{fixed60_taker} 还是别的 \\
+\code{exit_reason} & 为什么退出 \\
+\code{exit_bid/ask/mid} & 退出盘口是什么 \\
+\code{raw_bps_mid_fixed60} & mid 口径固定 60 秒收益 \\
+\code{net_bps} & 当前 profile 下净收益口径 \\
+\code{actual_exposure} & 这笔退出对应多少仓位 \\
+\bottomrule
+\end{longtable}
+
+如果 mid 很好但 executable 很差，不要说策略好。这可能只是 spread-cost mirage。
+
+\section{daily.csv}
+
+\code{daily.csv} 用来检查稳定性。至少看：
+
+\begin{lstlisting}
+entries
+exits
+actual_exposure
+net_weighted_bps
+worst_actual_leg_net_bps
+max_open_exposure
+admission_accepted_entries
+admission_rejected_entries
+\end{lstlisting}
+
+如果三天总收益好，但其中一天很差，就不能只说“总收益不错”。当前系统样本本来就短，daily split 比总数更重要。
+
+\section{summary.json}
+
+\code{summary.json} 是 run 的封面。它必须告诉你：
+
+\begin{lstlisting}
+run_id
+symbol
+date range
+policy
+admission_profile
+capacity_profile
+exit_profile
+actual_entries
+exits
+net_weighted_bps
+timing_ms
+\end{lstlisting}
+
+如果两个 run 的 \code{exit_profile} 不同，一个是 \code{fixed60_mid}，一个是 \code{fixed60_taker}，不能直接比较收益。
+
+\section{一个检查顺序}
+
+建议每次按这个顺序：
+
+\begin{lstlisting}
+summary.json
+-> profile_manifest.json
+-> daily.csv
+-> entries.parquet cell/admission/capacity
+-> exits.parquet mid vs executable
+-> worst day and worst leg
+\end{lstlisting}
+
+\section{手动检查点}
+
+拿一笔 entry 和 exit，手算：
+
+\[
+Y^{exec,long}_{60}=10000\log\frac{exit\_bid}{entry\_ask},
+\]
+
+或：
+
+\[
+Y^{exec,short}_{60}=10000\log\frac{entry\_bid}{exit\_ask}.
+\]
+
+再乘以 \code{actual_exposure}，看是否能解释 daily 贡献。
+
+\checkpoint{输出文件不是附属物。它们是你判断回测是否可信的证据层。}

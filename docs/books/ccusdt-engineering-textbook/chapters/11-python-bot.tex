@@ -1,0 +1,148 @@
+\chapter{Python Bot：同一个状态机如何在线运行}
+
+\section{本章要解决的困惑}
+
+fast backtest 读 \code{decision_frame}。Python Bot 在线运行时，不是直接读 parquet，而是从 Runner 的 public/private stream 接收消息，维护同样的 runtime-safe 状态。
+
+这并不意味着 Bot 是另一套策略。它仍然是同一个状态机，只是输入形态从表格变成事件流。
+
+\section{Bot 的职责}
+
+Bot 只负责三件事：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 从市场事件更新在线特征；
+  \item 用 shadow policy 判断是否产生订单意图；
+  \item 从 private fill/account 反馈更新闭合状态。
+\end{enumerate}
+
+它不能负责：
+
+\begin{itemize}[leftmargin=2em]
+  \item 控制 replay clock；
+  \item 决定订单何时到达交易所；
+  \item 计算 fill price；
+  \item 读取未来 label；
+  \item 读取 \code{date/} 研究输出。
+\end{itemize}
+
+\warningline{Bot 不读 date/。这不是风格偏好，而是防止 runtime 偷看研究结果的边界。}
+
+\section{Python 文件阅读顺序}
+
+\begin{lstlisting}
+online_features.py
+decision_frame.py
+shadow_policy.py
+execution_runtime.py
+strategy.py
+\end{lstlisting}
+
+读法：
+
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+文件 & 先看什么 \\
+\midrule
+\code{online_features.py} & \code{OnlineFeatureState}、\code{RollingTrade}、\code{ClosedOutcomeState} \\
+\code{decision_frame.py} & cache clock 如何从 trade/L2 build 一行状态 \\
+\code{shadow_policy.py} & entry trigger、cell、gamma、pending entries \\
+\code{execution_runtime.py} & admission、capacity、stopping helpers \\
+\code{strategy.py} & stdin/stdout sparse Bot 怎样处理消息并输出 intent \\
+\bottomrule
+\end{longtable}
+
+\section{online feature 和 decision frame 的关系}
+
+两者都在描述“策略当前能看到什么”，但输入不同：
+
+\begin{itemize}[leftmargin=2em]
+  \item fast 线：已经有 \code{decision_frame_v1.parquet}，逐行读；
+  \item Bot 线：收到 \code{market_quote}、\code{market_trade}、\code{market_l2_update}，边收边更新。
+\end{itemize}
+
+核心状态是一致的：
+
+\begin{lstlisting}
+last bid / ask / mid
+spread_bps
+rolling trades
+trade_flow_imbalance
+frames_since_mid_change
+past_event_25_bps
+closed outcome memory
+\end{lstlisting}
+
+\section{Bot 怎样得到 TFI}
+
+\code{online_features.py} 里的 \code{add_trade} 会把每笔成交变成 signed quantity：
+
+\begin{lstlisting}
+buy  -> +qty
+sell -> -qty
+\end{lstlisting}
+
+滚动窗口修剪后：
+
+\[
+TFI=\frac{signed\_qty}{abs\_qty+\epsilon}.
+\]
+
+如果窗口里没有成交，\code{abs_qty} 近似 0，TFI 返回 0。
+
+\section{Bot 怎样得到 R5}
+
+Bot 不能用未来收益。它只能从 private fill 或 fast shadow close 里得到已经闭合的 outcome。
+
+\code{ClosedOutcomeState} 只保存最近 5 笔已闭合结果：
+
+\begin{lstlisting}
+outcomes_bps deque
+positive_bps
+negative_bps
+r5
+delta
+energy
+z
+\end{lstlisting}
+
+当前 runtime 只把 R5 用进 cell；Delta/Energy/Z 不进入控制。
+
+\section{从 signal 到 order intent}
+
+Bot 的 policy 产生的是一个策略意图，不是成交事实。意图里会有：
+
+\begin{lstlisting}
+side
+target_exposure
+feature_snapshot
+observed_seq
+observed_local_ts_us
+\end{lstlisting}
+
+Runner 收到以后，才决定：
+
+\begin{itemize}[leftmargin=2em]
+  \item 什么时候到达；
+  \item 是否 accepted/rejected；
+  \item 用 arrival quote 的 bid/ask 成交；
+  \item portfolio 怎样变化。
+\end{itemize}
+
+\section{为什么 Bot 不该读 entries.parquet}
+
+\code{entries.parquet} 是回测输出。它里面包含这笔 entry 是否被 capacity 接受、后来怎么退出等信息。Bot 如果读它，就相当于读了历史答案。
+
+正确关系是：
+
+\begin{lstlisting}
+Bot state -> intent -> Runner/fill -> run artifacts
+\end{lstlisting}
+
+错误关系是：
+
+\begin{lstlisting}
+run artifacts -> Bot state -> intent
+\end{lstlisting}
+
+\checkpoint{Python Bot 是在线状态机。它和 fast backtest 的策略逻辑应尽量一致，但它不能读 fast 输出。}

@@ -1,0 +1,142 @@
+\chapter{仓库地图：哪些是数据、研究、runtime、输出}
+
+\section{本章要解决的困惑}
+
+很多新人第一次打开仓库，会看到 \code{docs}、\code{systems}、\code{data}、
+\code{date}、\code{runs}、\code{diagnostics}、\code{strategies}、\code{engine}，
+然后马上迷路。迷路的原因不是目录太多，而是不知道哪个目录是事实，哪个目录是研究，哪个目录是运行时。
+
+本章只建立一张地图。先不用读每个文件。
+
+\section{最重要的分层}
+
+\begin{longtable}{p{0.24\textwidth}p{0.31\textwidth}p{0.35\textwidth}}
+\toprule
+层 & 代表路径 & 读法 \\
+\midrule
+当前入口 & \file{docs/markets/ccusdt/START_HERE.md} & 新会话先读这里，确认当前主线 \\
+策略真相 & \file{docs/markets/ccusdt/current/CURRENT_STRATEGY_PLAIN.md} & 当前 runtime 到底做了什么 \\
+系统源码 & \file{systems/ccusdt_replay_exchange/} & replay exchange、Bot、Runner、Monitor \\
+市场事实 & \file{data/canonical/}、\file{data/canonical_parquet/} & 本地生成数据，不是代码 \\
+历史研究 & \file{docs/markets/ccusdt/research/} & 证据和想法，不等于 runtime \\
+运行输出 & \file{systems/ccusdt_replay_exchange/runs/} & fast/strict 的输出结果 \\
+\bottomrule
+\end{longtable}
+
+\warningline{不要把 \code{date/}、旧 scored entries、未来 label 文件当成 Bot runtime 输入。它们最多是研究材料。}
+
+\section{系统目录的第一张图}
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/
+  docs/          contracts, execution model, runbook
+  configs/       local configs
+  schemas/       JSON schemas
+  engine/        Rust workspace: CLI, runner, exchange sim, replay core
+  strategies/    Python Bot and strategy clients
+  diagnostics/   fast research and audit scripts
+  monitor/       read-only monitor
+  runs/          generated run artifacts
+\end{lstlisting}
+
+这张图里，和当前 fast 回测最相关的是：
+
+\begin{lstlisting}
+diagnostics/decision_frame_cache.py
+diagnostics/fast_strategy_backtest.py
+strategies/python/ccusdt_tfi_core_idle01/shadow_policy.py
+strategies/python/ccusdt_tfi_core_idle01/execution_runtime.py
+\end{lstlisting}
+
+和 strict replay 最相关的是：
+
+\begin{lstlisting}
+engine/crates/cli/src/main.rs
+engine/crates/runner/src/lib.rs
+strategies/python/ccusdt_tfi_core_idle01/strategy.py
+docs/event_contracts.md
+\end{lstlisting}
+
+\section{数据、状态、意图、成交、输出}
+
+从第一性原理看，目录可以重新命名为五类对象：
+
+\begin{enumerate}[leftmargin=2em]
+  \item \term{数据}：quote、trade、L2，回答“市场发生了什么”。
+  \item \term{状态}：decision frame、online feature，回答“策略现在看到了什么”。
+  \item \term{意图}：shadow signal、order intent，回答“策略想做什么”。
+  \item \term{成交}：Runner fill、portfolio state，回答“交易所实际给了什么结果”。
+  \item \term{输出}：entries、exits、daily、summary、events，回答“怎么审计和复现”。
+\end{enumerate}
+
+把这五类对象串起来，就是全书主线：
+
+\begin{lstlisting}
+market truth
+  -> decision_frame row
+  -> shadow signal
+  -> admission decision
+  -> capacity decision
+  -> entry row
+  -> exit row
+  -> daily / summary
+\end{lstlisting}
+
+\section{为什么当前策略显得比它实际复杂}
+
+因为同一个变量会在不同层出现不同名字。例如：
+
+\begin{longtable}{p{0.25\textwidth}p{0.28\textwidth}p{0.37\textwidth}}
+\toprule
+交易含义 & fast 线名字 & Bot/Runner/日志名字 \\
+\midrule
+观察时刻 & \code{local_ts_us} & \code{observed_local_ts_us}、\code{replay_ts} \\
+主动流方向 & \code{trade_flow_imbalance} & \code{feature_value}、\code{TFI} \\
+入场价差 & \code{spread_bps} & \code{entry_spread_bps}、\code{arrival_spread_bps} \\
+目标仓位 & \code{target_exposure} & \code{requested_exposure} \\
+真实仓位 & \code{actual_exposure} & \code{fill qty} 对应的账本风险 \\
+退出结果 & \code{pnl_bps} & \code{fill_created}、\code{portfolio_state} \\
+\bottomrule
+\end{longtable}
+
+读代码时不要被名字带跑。先问：这个字段回答的是数据、状态、意图、成交，还是输出？
+
+\section{代码入口不是阅读顺序}
+
+代码运行时，入口可能是 CLI、Python main、TCP bot、diagnostic script。教学阅读时，入口应该是概念。推荐顺序：
+
+\begin{lstlisting}
+CURRENT_STRATEGY_PLAIN.md
+decision_frame.py
+shadow_policy.py
+execution_runtime.py
+fast_strategy_backtest.py
+event_contracts.md
+runner/lib.rs
+\end{lstlisting}
+
+原因很朴素：你先看 Runner，会被 event loop、socket、latency 和 fill model 淹没。先看
+\code{shadow_policy.py}，才能看到当前策略其实只有几条 if。
+
+\section{手动检查点}
+
+打开下面这个文件，先只找三处：
+
+\begin{lstlisting}
+systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/shadow_policy.py
+\end{lstlisting}
+
+\begin{lstlisting}
+TRIGGER_ORDER
+BASE_WEIGHTS
+GAMMA_PRESETS
+\end{lstlisting}
+
+再找：
+
+\begin{lstlisting}
+_active_trigger_directions_from_values
+_cell
+\end{lstlisting}
+
+如果这五个对象能看懂，当前策略主体就已经看懂一半了。

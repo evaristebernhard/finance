@@ -1,0 +1,144 @@
+\chapter{past\_event、frames、spread q70：三个朴素过滤器}
+
+\section{本章要解决的困惑}
+
+TFI 给方向，但当前策略不会只因为 TFI 单边就无条件吃单。它还看三个过滤器：
+
+\begin{lstlisting}
+past_event_25_bps
+frames_since_mid_change
+entry_cross_bps <= prior-day q70
+\end{lstlisting}
+
+这三个过滤器都很朴素。它们不是复杂预测器，而是回答三个简单问题：
+
+\begin{enumerate}[leftmargin=2em]
+  \item 价格是不是已经提前释放了？
+  \item mid 是不是停滞了足够久？
+  \item 现在 cross 的成本是不是太贵？
+\end{enumerate}
+
+\section{past\_event\_25\_bps：刚才价格动了多少}
+
+\code{past_event_25_bps} 来自过去约 25 个 mid 历史点。直觉是：
+
+\[
+past25_t = 10000 \times \log\frac{m_t}{m_{t-25}}.
+\]
+
+当前 flat 条件是：
+
+\[
+|past25_t| \le 0.5 \text{ bps}.
+\]
+
+人话：
+
+\begin{quote}
+如果主动流来了，但价格刚才还没动很多，可能存在尚未释放的压力。
+\end{quote}
+
+注意，这只是很粗的切口。它不是完整 path model，也没有回答“未来最大值什么时候到”。
+
+\section{frames\_since\_mid\_change：mid 停了多久}
+
+\code{frames_since_mid_change} 统计 mid 连续多少个 frame 没变。代码中两个阈值常见：
+
+\begin{lstlisting}
+frames_threshold = 31.0
+overlay_threshold = 59.80000000000018
+\end{lstlisting}
+
+一个小例子：
+
+\begin{longtable}{p{0.18\textwidth}p{0.22\textwidth}p{0.28\textwidth}p{0.22\textwidth}}
+\toprule
+frame & mid & 是否变化 & frames \\
+\midrule
+100 & 0.1122 & 刚变化 & 0 \\
+101 & 0.1122 & 没变 & 1 \\
+102 & 0.1122 & 没变 & 2 \\
+... & ... & ... & ... \\
+134 & 0.1122 & 没变 & 34 \\
+\bottomrule
+\end{longtable}
+
+如果此时 TFI 单边、past25 flat，那么 frames 高表示“主动流来了，但 mid 还没动”。这就是旧四象限里 stale-release 的直觉。
+
+\section{spread q70 admission：零手续费也不能乱吃}
+
+最容易误会的是：CCUSDT 零手续费，所以执行成本为零。错。
+
+如果现在盘口是：
+
+\begin{lstlisting}
+bid = 0.1120
+ask = 0.1124
+mid = 0.1122
+\end{lstlisting}
+
+做多 entry 打 ask，理论上刚入场就比 mid 贵半个 spread：
+
+\[
+entry\_cross\_bps
+= 10000 \times \log\frac{ask}{mid}
+\approx \frac{spread\_bps}{2}.
+\]
+
+当前 \code{EntrySpreadAdmissionGate} 的规则是：
+
+\[
+entry\_cross\_bps \le q70_{\text{prior day}}.
+\]
+
+也就是说，今天某个 entry 是否允许，要用前一天训练/统计出的 q70 门槛判断，而不是用当天未来分布。
+
+\warningline{如果用当天全日分布来给当天 entry 过滤，就会把未来市场状态偷进策略。}
+
+\section{三个过滤器如何组合}
+
+把 TFI 和过滤器合起来，当前直觉可以写成：
+
+\begin{lstlisting}
+direction = sign(TFI)
+need abs(TFI) >= 1
+need trade_window_count > 0
+prefer abs(past_event_25_bps) <= 0.5
+prefer frames_since_mid_change high
+need entry_cross_bps <= prior-day q70
+\end{lstlisting}
+
+更人话的版本：
+
+\begin{quote}
+最近主动成交方向很单边，市场价格刚才没有明显跟上，盘口 mid 又停了比较久，而且现在吃单成本没有太夸张。
+\end{quote}
+
+\section{为什么这些过滤器不等于预测模型}
+
+它们只做 entry 时刻的条件判断，没有建模后续路径分布。它们没有回答：
+
+\begin{itemize}[leftmargin=2em]
+  \item entry 后最大 favorable move 是多少；
+  \item 最大值什么时候出现；
+  \item 峰值后什么时候回到 0bps；
+  \item fixed60 是不是合理退出；
+  \item Delta/Energy 是否应该改变 sizing。
+\end{itemize}
+
+所以不要把当前策略说成完整 path prediction。它只是用几个朴素过滤器挑出一类 stale-release 状态。
+
+\section{手动检查点}
+
+拿一行 frame，按下面顺序判断：
+
+\begin{lstlisting}
+1. abs(trade_flow_imbalance) >= 1 ?
+2. trade_window_count > 0 ?
+3. abs(past_event_25_bps) <= 0.5 ?
+4. frames_since_mid_change >= 25 or 31 ?
+5. spread_bps / 2 <= prior_day_q70_entry_cross ?
+\end{lstlisting}
+
+前四步决定是否可能产生 shadow signal；第五步是 admission gate，决定这个 signal 是否允许进入 capacity ledger。
+
