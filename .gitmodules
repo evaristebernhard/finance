@@ -1,0 +1,24 @@
+[submodule "external/polymarket_research_repos/KSonny4__trader_evaluator"]
+	path = external/polymarket_research_repos/KSonny4__trader_evaluator
+	url = https://github.com/KSonny4/trader_evaluator.git
+[submodule "external/polymarket_research_repos/YOPHackathon__PolyCopy"]
+	path = external/polymarket_research_repos/YOPHackathon__PolyCopy
+	url = https://github.com/YOPHackathon/PolyCopy.git
+[submodule "external/polymarket_research_repos/Gonzih__poly-scout"]
+	path = external/polymarket_research_repos/Gonzih__poly-scout
+	url = https://github.com/Gonzih/poly-scout.git
+[submodule "external/polymarket_research_repos/gavindumas-gif__polymarket-smart-money-tracker"]
+	path = external/polymarket_research_repos/gavindumas-gif__polymarket-smart-money-tracker
+	url = https://github.com/gavindumas-gif/polymarket-smart-money-tracker.git
+[submodule "external/polymarket_research_repos/darrnhard__polymarket-smart-money"]
+	path = external/polymarket_research_repos/darrnhard__polymarket-smart-money
+	url = https://github.com/darrnhard/polymarket-smart-money.git
+[submodule "external/polymarket_research_repos/NYTEMODEONLY__polyterm"]
+	path = external/polymarket_research_repos/NYTEMODEONLY__polyterm
+	url = https://github.com/NYTEMODEONLY/polyterm.git
+[submodule "external/polymarket_research_repos/nimoolee__polymarket-radar"]
+	path = external/polymarket_research_repos/nimoolee__polymarket-radar
+	url = https://github.com/nimoolee/polymarket-radar.git
+[submodule "external/polymarket_research_repos/gozuray__Cluster-Analyzer"]
+	path = external/polymarket_research_repos/gozuray__Cluster-Analyzer
+	url = https://github.com/gozuray/Cluster-Analyzer.git
