@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scripts.polymarket.join.claim_join import group_follow_rows_for_ev
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = Path("output/polymarket_combined_strategy_join")
 
@@ -76,15 +78,20 @@ def group_follow_rows(follow_rows: list[dict[str, Any]]) -> dict[str, list[dict[
     return grouped
 
 
-def smart_flow_features(ev: dict[str, Any], flows: list[dict[str, Any]]) -> dict[str, Any]:
+def smart_flow_features(ev: dict[str, Any], flows: list[dict[str, Any]], join_mode: str = "token") -> dict[str, Any]:
     ev_outcome = str(ev.get("outcome") or "").lower()
+    ev_direction = str(ev.get("direction") or "").lower()
     same = []
     opposite = []
     for row in flows:
         outcome = str(row.get("outcome") or "").lower()
-        if outcome == ev_outcome:
+        direction = str(row.get("direction") or "").lower()
+        is_same = outcome == ev_outcome
+        if join_mode == "claim" and ev_direction and direction:
+            is_same = is_same or direction == ev_direction
+        if is_same:
             same.append(row)
-        elif outcome:
+        elif outcome or direction:
             opposite.append(row)
     same_score = sum(max(0.0, safe_float(r.get("follow_score"))) for r in same)
     opp_score = sum(max(0.0, safe_float(r.get("follow_score"))) for r in opposite)
@@ -143,13 +150,14 @@ def build_combined_candidates(
     ev_rows: list[dict[str, Any]],
     follow_rows: list[dict[str, Any]],
     min_combined_score: float = 0.0,
+    join_mode: str = "token",
 ) -> list[dict[str, Any]]:
-    grouped_flows = group_follow_rows(follow_rows)
+    grouped_flows = group_follow_rows(follow_rows) if join_mode == "token" else group_follow_rows_for_ev(ev_rows, follow_rows, join_mode=join_mode)
     out: list[dict[str, Any]] = []
     for ev in ev_rows:
         token = str(ev.get("token_id") or ev.get("asset") or "")
         flows = grouped_flows.get(token, [])
-        smart = smart_flow_features(ev, flows)
+        smart = smart_flow_features(ev, flows, join_mode=join_mode)
         mom = momentum_score_from_flows(flows, str(ev.get("outcome") or ""))
         micro_score, micro = microstructure_score(ev, flows)
         e_score = ev_score(ev)
@@ -180,6 +188,8 @@ def build_combined_candidates(
             "symbol": ev.get("symbol", ""),
             "outcome": ev.get("outcome", ""),
             "token_id": token,
+            "claim_id": ev.get("claim_id", ""),
+            "join_mode": join_mode,
             "settle_time_utc": ev.get("settle_time_utc", ""),
             "minutes_to_settle": safe_float(ev.get("minutes_to_settle")),
             "ensemble_candidate": ensemble_candidate,
@@ -254,6 +264,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--follow-candidates-csv", type=Path, default=Path("output/polymarket_wallet_factor_probe_deep_20260608/follow_candidates.csv"))
     p.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     p.add_argument("--min-combined-score", type=float, default=0.0)
+    p.add_argument("--join-mode", choices=["token", "claim"], default="token")
     p.add_argument("--self-test", action="store_true")
     return p.parse_args()
 
@@ -276,7 +287,7 @@ def main() -> None:
     output_dir = args.output_dir if args.output_dir.is_absolute() else REPO_ROOT / args.output_dir
     ev_rows = read_csv(ensemble_csv)
     follow_rows = read_csv(follow_csv)
-    rows = build_combined_candidates(ev_rows, follow_rows, args.min_combined_score)
+    rows = build_combined_candidates(ev_rows, follow_rows, args.min_combined_score, args.join_mode)
     output_dir.mkdir(parents=True, exist_ok=True)
     write_csv(output_dir / "combined_candidates.csv", rows)
     summary = summarize(rows)
