@@ -37,7 +37,7 @@ import {
 } from "./lib/bridge";
 import type { RunConfig, RunEntry, Snapshot, ReplayStateV2 } from "./types";
 import "./styles.css";
-import { present } from "./lib/presentation";
+import { fmt, present } from "./lib/presentation";
 import { PriceChart, EquityChart, HistoricalTradeAnalysis, ReplayTable, RawInspector, useReplayWindow } from "./ReplayPanels";
 
 type Page = "library" | "setup" | "workbench";
@@ -254,23 +254,85 @@ function Workbench({ replay, snapshot, loading, onLibrary, onCommand, onSeek, on
   }
 
   return (
-    <div className="workbench-stack">
-      <section className="hero-summary panel"><div className="hero-identity"><div className="symbol-badge">{snapshot.symbol.slice(0, 2)}</div><div><h1>{snapshot.symbol}</h1><p>{snapshot.datasetDate} · {snapshot.strategy} · {snapshot.executionModel}</p><code>{snapshot.runId}</code></div></div><div className="hero-event"><span className="eyebrow">HISTORICAL CURSOR</span><strong>{fillAvailable ? `${snapshot.fill.side} ${snapshot.fill.qty} ${snapshot.symbol} @ ${snapshot.fill.price}` : snapshot.state}</strong><p>{fillAvailable ? `Fill ${snapshot.fill.fillId} · realized Δ ${snapshot.fill.realizedPnlDelta} · execution Δ ${snapshot.fill.netPnlDelta}` : "Replay the session or click a signal/order/fill marker to inspect that historical moment."}</p></div><div className="hero-mark"><span>MARK</span><strong>{snapshot.mid}</strong><small>{snapshot.replayState} · {snapshot.progress}%</small></div><GhostButton onClick={onLibrary}>Experiments</GhostButton></section>
+    <div className="workbench-stack compact-workbench">
+      <section className="replay-head panel">
+        <div>
+          <h1>{snapshot.symbol}</h1>
+          <p>{snapshot.datasetDate} · {snapshot.strategy} · {snapshot.executionModel}</p>
+        </div>
+        <div className="replay-head-metrics">
+          <span><b>Mark</b>{snapshot.mid}</span>
+          <span><b>Realized</b>{snapshot.pnl.realizedPnl}</span>
+          <span><b>Unrealized</b>{snapshot.pnl.unrealizedPnl}</span>
+          <span><b>Equity</b>{snapshot.pnl.netEquity}</span>
+        </div>
+        <GhostButton onClick={onLibrary}>Experiments</GhostButton>
+      </section>
+
       <ReplayToolbar speed={replay.speed} snapshot={snapshot} loading={loading} onCommand={onCommand} onSeek={onSeek} />
-      <div className="metric-strip"><Metric label="MARK" value={snapshot.mid} tone="blue" /><Metric label="POSITION" value={snapshot.position.positionQty} tone="teal" /><Metric label="REALIZED PNL" value={snapshot.pnl.realizedPnl} tone={snapshot.pnl.realizedPnl.startsWith("-") ? "red" : "teal"} /><Metric label="UNREALIZED PNL" value={snapshot.pnl.unrealizedPnl} tone={snapshot.pnl.unrealizedPnl.startsWith("-") ? "red" : "teal"} /><Metric label="EQUITY" value={snapshot.pnl.netEquity} tone="blue" /></div>
-      <div className="source-strip"><span className="source-label">MARKET STATE</span><strong>{snapshot.datasetDate} · {snapshot.symbol}</strong><span>bid {snapshot.bid} / ask {snapshot.ask}</span><span className="source-note">spread {snapshot.spread} · delay {snapshot.delayUs.toLocaleString()} µs · fee {snapshot.feeBps.toFixed(2)} bps</span><span className="cursor-readout">{snapshot.replayTime} · cursor {snapshot.eventCursor}</span></div>
-      <div className="market-replay-grid"><PriceChart state={replay} window={window} range={range} onRange={setRange} onInspect={inspect} /><OrderBook snapshot={snapshot} /></div>
-      <div className="historical-analysis-grid"><HistoricalTradeAnalysis state={replay} onInspect={inspect} /><EquityChart window={window} /></div>
-      <div className="explain-grid"><StoryPanel title="HISTORICAL SIGNAL CONTEXT" icon={<Target size={15} />} tone="amber"><strong>{snapshot.strategySignal.profile} · signal {snapshot.strategySignal.signal} / threshold {snapshot.strategySignal.threshold}</strong><p>{snapshot.strategySignal.reason || "Move to a strategy signal or order event to inspect the historical trigger."}</p><DataLine label="Observed quote" value={snapshot.strategySignal.observedQuote} /><DataLine label="Order side / qty" value={`${snapshot.orderIntent.side} ${snapshot.orderIntent.qty}`} /></StoryPanel><StoryPanel title="EXECUTION CONDITIONS" icon={<ArrowDownToLine size={15} />} tone="blue"><strong>{snapshot.orderArrival.arrivalQuote}</strong><p>Order {snapshot.orderArrival.orderId} · status {snapshot.orderArrival.orderStatus}</p><DataLine label="Actual latency" value={snapshot.orderArrival.actualLatencyUs} /><DataLine label="Latency slippage" value={snapshot.orderArrival.latencySlippageBps} /></StoryPanel><StoryPanel title="CURRENT ACCOUNT STATE" icon={<WalletCards size={15} />} tone="teal"><strong>Position {snapshot.position.positionQty} · equity {snapshot.position.equity}</strong><p>Realized {snapshot.pnl.realizedPnl} · unrealized {snapshot.pnl.unrealizedPnl}</p><DataLine label="Avg entry" value={snapshot.position.avgEntryPrice} /><DataLine label="Fees paid" value={snapshot.position.feesPaid} /></StoryPanel></div>
-      <div className="analysis-grid"><TradeStory snapshot={snapshot} story={story} /><section className="attribution-panel panel"><PanelHeading icon={<WalletCards size={16} />} title="Selected fill attribution" subtitle="Runner-derived execution contribution at this historical cursor" /><div className="attribution-list"><DataLine label="Execution components" value={snapshot.fill.attribution || "—"} /><DataLine label="Realized PnL" value={snapshot.pnl.realizedPnl} /><DataLine label="Unrealized PnL" value={snapshot.pnl.unrealizedPnl} /><DataLine label="Selected fill Δ" value={snapshot.pnl.selectedFillDelta} /><DataLine label="Net equity" value={snapshot.pnl.netEquity} /></div></section></div>
-      <section className="event-panel panel"><div className="event-toolbar"><div className="tabs">{tabs.map(item => <button key={item} className={tab === item ? "selected" : ""} onClick={() => setTab(item)}>{item}</button>)}</div></div>{tab === "Position" ? <pre className="event-tape">{snapshot.positionText}</pre> : tab === "PnL" ? <pre className="event-tape">{JSON.stringify(replay.account,null,2)}</pre> : <ReplayTable state={replay} kind={tab === "Signals" ? "strategy_signal" : tab === "Orders" ? "order_intent" : tab === "Fills" ? "fill_created" : null} onInspect={inspect} />}</section>
-      <div className="inspector-grid"><section className="inspector panel"><div className="panel-kicker"><span>DECISION TRACE</span><b>/ event {replay.chain.fill?.eventId ?? replay.chain.intent?.eventId ?? "—"}</b></div><p>Missing stages: {replay.chain.missing.join(", ") || "none"}</p><pre>{snapshot.causal}</pre></section><RawInspector state={replay} eventId={rawEventId} /></div>
+
+      <div className="replay-focus-grid">
+        <PriceChart state={replay} window={window} range={range} onRange={setRange} onInspect={inspect} />
+        <SelectedTradeDetail replay={replay} snapshot={snapshot} />
+      </div>
+
+      <div className="historical-analysis-grid">
+        <HistoricalTradeAnalysis state={replay} onInspect={inspect} />
+        <EquityChart window={window} />
+      </div>
+
+      <details className="advanced-replay panel">
+        <summary>Market and event details</summary>
+        <div className="advanced-grid">
+          <OrderBook snapshot={snapshot} />
+          <TradeStory snapshot={snapshot} story={story} />
+        </div>
+        <section className="event-panel">
+          <div className="event-toolbar"><div className="tabs">{tabs.map(item => <button key={item} className={tab === item ? "selected" : ""} onClick={() => setTab(item)}>{item}</button>)}</div></div>
+          {tab === "Position" ? <pre className="event-tape">{snapshot.positionText}</pre> : tab === "PnL" ? <pre className="event-tape">{JSON.stringify(replay.account,null,2)}</pre> : <ReplayTable state={replay} kind={tab === "Signals" ? "strategy_signal" : tab === "Orders" ? "order_intent" : tab === "Fills" ? "fill_created" : null} onInspect={inspect} />}
+        </section>
+        <div className="inspector-grid"><section className="inspector panel"><div className="panel-kicker"><span>DECISION TRACE</span><b>/ event {replay.chain.fill?.eventId ?? replay.chain.intent?.eventId ?? "—"}</b></div><pre>{snapshot.causal}</pre></section><RawInspector state={replay} eventId={rawEventId} /></div>
+      </details>
     </div>
   );
 }
 
+function SelectedTradeDetail({ replay, snapshot }: { replay: ReplayStateV2; snapshot: Snapshot }) {
+  const account = replay.chain.account?.data?.account as Record<string, unknown> | undefined;
+  const hasFill = replay.chain.fill !== null;
+  return <section className="trade-detail panel">
+    <div className="trade-detail-head">
+      <div><span>Selected trade</span><h2>{hasFill ? `${snapshot.fill.side.toUpperCase()} · ${snapshot.fill.price}` : "No fill selected"}</h2></div>
+      <small>{hasFill ? `fill ${snapshot.fill.fillId}` : "Drag the timeline or click a fill"}</small>
+    </div>
+    <div className="trade-detail-grid">
+      <TradeField label="Side" value={snapshot.fill.side} />
+      <TradeField label="Quantity" value={snapshot.fill.qty} />
+      <TradeField label="Fill price" value={snapshot.fill.price} />
+      <TradeField label="Fee" value={snapshot.fill.fee} />
+      <TradeField label="Signal" value={snapshot.strategySignal.signal} />
+      <TradeField label="Threshold" value={snapshot.strategySignal.threshold} />
+      <TradeField label="Observed quote" value={snapshot.strategySignal.observedQuote} wide />
+      <TradeField label="Arrival quote" value={snapshot.orderArrival.arrivalQuote} wide />
+      <TradeField label="Latency" value={snapshot.orderArrival.actualLatencyUs} />
+      <TradeField label="Latency slip" value={snapshot.orderArrival.latencySlippageBps === "—" ? "—" : `${snapshot.orderArrival.latencySlippageBps} bps`} />
+      <TradeField label="Realized Δ" value={snapshot.fill.realizedPnlDelta} />
+      <TradeField label="Execution Δ" value={snapshot.fill.netPnlDelta} />
+      <TradeField label="Position after" value={fmt(account?.position_qty, 3)} />
+      <TradeField label="Avg entry after" value={fmt(account?.avg_entry_price, 8)} />
+      <TradeField label="Equity after" value={fmt(account?.equity, 4)} />
+      <TradeField label="Fees paid after" value={fmt(account?.fees_paid, 4)} />
+    </div>
+    <div className="trade-detail-reason"><span>Strategy context</span><p>{snapshot.strategySignal.reason || snapshot.orderIntent.reason || "—"}</p></div>
+  </section>;
+}
+
+function TradeField({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return <div className={`trade-field ${wide ? "wide" : ""}`}><span>{label}</span><strong>{value || "—"}</strong></div>;
+}
+
 function ReplayToolbar({ speed, snapshot, loading, onCommand, onSeek }: { speed: number; snapshot: Snapshot; loading: boolean; onCommand: (command: string) => void; onSeek: (value: number) => void }) {
-  return <section className="replay-toolbar panel"><button className="control primary-control" disabled={loading} onClick={() => onCommand("play")}><Play size={14} fill="currentColor" /> Play</button><button className="control" onClick={() => onCommand("pause")}><Pause size={14} /> Pause</button><button className="control" onClick={() => onCommand("stepBack")}><StepBack size={14} /> Step back</button><button className="control" onClick={() => onCommand("stepForward")}><StepForward size={14} /> Step</button><button className="control" onClick={() => onCommand("reset")}><RotateCcw size={14} /> Reset</button><span className="toolbar-divider" /><button className="control compact" onClick={() => onCommand("speedDown")}>Speed −</button><span className="speed-readout">{speed}×</span><button className="control compact" onClick={() => onCommand("speedUp")}>Speed +</button><div className="seek-control"><span>Seek</span><input type="range" min="0" max="1" step="0.001" value={snapshot.progress / 100} onChange={(event) => onSeek(Number(event.target.value))} /><span>{snapshot.progress.toFixed(1)}%</span></div><span className="toolbar-state"><span className="status-dot ready" />{snapshot.replayState}</span></section>;
+  return <section className="replay-toolbar panel"><button className="control primary-control" disabled={loading} onClick={() => onCommand("play")}><Play size={14} fill="currentColor" /> Play</button><button className="control" onClick={() => onCommand("pause")}><Pause size={14} /> Pause</button><button className="control" onClick={() => onCommand("stepBack")}><StepBack size={14} /> Back</button><button className="control" onClick={() => onCommand("stepForward")}><StepForward size={14} /> Step</button><span className="toolbar-divider" /><div className="seek-control history-seek"><span>History</span><input aria-label="Historical replay position" type="range" min="0" max="1" step="0.001" value={snapshot.progress / 100} onChange={(event) => onSeek(Number(event.target.value))} /><strong>{snapshot.replayTime}</strong><span>{snapshot.progress.toFixed(1)}%</span></div><button className="control compact" onClick={() => onCommand("speedDown")}>−</button><span className="speed-readout">{speed}×</span><button className="control compact" onClick={() => onCommand("speedUp")}>+</button><button className="control" onClick={() => onCommand("reset")}><RotateCcw size={14} /> Reset</button></section>;
 }
 
 function OrderBook({ snapshot }: { snapshot: Snapshot }) {
