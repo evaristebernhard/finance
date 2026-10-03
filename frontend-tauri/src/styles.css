@@ -307,3 +307,50 @@ code, .metric strong, .book-row, .event-tape, .raw-event pre, .inspector pre { f
 .replay-rows tr.selected { background:#15392f; }
 .replay-rows button, .row-pagination button { color:#80b9ef; background:transparent; border:1px solid #33454b; border-radius:4px; cursor:pointer; padding:4px 8px; }
 .row-pagination { display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:12px; font-size:11px; }
+
+
+/* Product positioning: deterministic replay / explain / compare */
+.product-thesis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.thesis-card {
+  min-height: 138px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(24, 41, 48, .78), rgba(13, 25, 29, .92));
+}
+.thesis-card span {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--amber);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+.thesis-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.thesis-card p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.thesis-card.future {
+  border-style: dashed;
+  background: rgba(16, 28, 32, .72);
+}
+.thesis-card.future span { color: var(--blue); }
+.brand > div:last-child { min-width: 0; }
+.brand strong { white-space: nowrap; }
+.brand span { max-width: 150px; line-height: 1.25; }
+
+@media (max-width: 900px) {
+  .product-thesis { grid-template-columns: 1fr; }
+  .thesis-card { min-height: auto; }
+}
