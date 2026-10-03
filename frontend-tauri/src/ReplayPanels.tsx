@@ -96,7 +96,7 @@ export function HistoricalTradeAnalysis({state,onInspect}:{state:ReplayStateV2;o
     const unique=new Map<string,ReplayRows["rows"][number]>();
     for(const row of [...created.rows,...plain.rows]) unique.set(row.fillId ? `fill:${row.fillId}` : `event:${row.eventId}`,row);
     setRows([...unique.values()].sort((a,b)=>b.eventPos-a.eventPos));
-    setTotal(Math.max(created.total,plain.total,unique.size));
+    setTotal(unique.size);
     setError("");
   }catch(e){if(!cancelled)setError(String(e));}finally{busy.current=false;}};void poll();const timer=window.setInterval(()=>void poll(),250);return()=>{cancelled=true;window.clearInterval(timer);};},[state.sessionId,state.playing]);
 
@@ -107,7 +107,7 @@ export function HistoricalTradeAnalysis({state,onInspect}:{state:ReplayStateV2;o
   const slips=rows.map(r=>r.latencySlippageBps).filter((v):v is number=>v!==null && Number.isFinite(v));
   const avgSlip=slips.length ? slips.reduce((a,b)=>a+b,0)/slips.length : null;
   return <section className="historical-trades panel">
-    <div className="panel-heading"><div><h2>Historical trades</h2><p>Runner-recorded fills up to the current replay cursor</p></div><span className="history-count">{total} fills</span></div>
+    <div className="panel-heading"><div><h2>Historical trades</h2><p>Runner-recorded fills up to the current replay cursor</p></div><span className="history-count">{total} latest fills loaded</span></div>
     <div className="history-metrics">
       <div><span>REALIZED PNL</span><strong className={(realized ?? 0)>=0?"positive-text":"negative-text"}>{fmt(realized,4)}</strong></div>
       <div><span>UNREALIZED PNL</span><strong className={(unrealized ?? 0)>=0?"positive-text":"negative-text"}>{fmt(unrealized,4)}</strong></div>
