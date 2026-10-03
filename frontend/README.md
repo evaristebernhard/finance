@@ -1,41 +1,26 @@
-# Quant Replay Studio native frontend
+# Quant Replay Studio — Slint reference frontend
 
-`frontend-tauri/` is the current React + Tauri product surface for the
-local-first workflow. This directory remains the Slint reference build while
-the new desktop shell is migrated and verified.
+This directory is **not the active product surface**.
 
-Start the current product from `frontend-tauri/` with `npm run tauri:dev`.
-The Rust replay repository in this directory is still the shared data truth
-used by the Tauri commands.
+The active desktop product is the React + Tauri application in
+[`frontend-tauri/`](../frontend-tauri/README.md). This Slint implementation is
+kept as a reference because its Rust replay repository and replay-v2 modules are
+still shared by the Tauri bridge.
 
-`Run Library` is the default page. `Backtest Setup` creates a Runner contract and
-opens `Replay Workbench` when the artifacts are ready.
+Do not add new user-facing product features here unless the work is explicitly
+about migration, regression testing or the shared Rust replay layer.
 
-## Run
+## What remains useful here
 
-From the repository root:
+- `src/replay_repository.rs`: artifact loading and run-library data access.
+- `src/replay_v2.rs`: replay session, cursor/index and causal inspection logic.
+- `replay-check/`: replay verification work.
+- `ui/main.slint`: historical/reference UI.
 
-```bash
-cargo run --manifest-path frontend/Cargo.toml
+The product flow and terminology are defined by `frontend-tauri/`:
+
+```text
+Experiments -> New Experiment -> Replay Debugger
 ```
 
-The `Create Run` action starts the native Rust Runner with 25,000 canonical
-events. The Runner writes `manifest.json`, `summary.json`, `events.ndjson`,
-and `replay_index.json` under
-`systems/quant_replay_engine/runs/<run_id>/`. The Rust repository layer loads
-those artifacts and feeds Slint batched cursor snapshots; the UI does not
-recompute fills or PnL.
-
-Selecting `L2 depth` enables the Runner's L2 path. Snapshot-heavy L2 data is
-shown as a warning in the workbench and never presented as unconditional
-queue-replay readiness. The artifact keeps compact batch metadata plus the
-current top five bid/ask levels and cumulative quantities, while the canonical
-L2 file remains the raw source of truth.
-
-The Run Library reads only `manifest.json` and `summary.json`; it does not scan
-`events.ndjson` until a run is opened. The native path performs a 4,096-row L2 preflight at run start. Full strict
-validation is still available through the CLI `canonical validate` command;
-the hot replay path avoids rescanning the entire compressed file before every
-run and caps same-timestamp L2 batches.
-
-Set `QRS_REPO_ROOT` when launching the binary outside the repository checkout.
+The Runner remains the source of truth for fills and PnL.
