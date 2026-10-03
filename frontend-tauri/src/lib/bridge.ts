@@ -15,5 +15,5 @@ export const selectFill = (fillId: string) => invoke<ReplayStateV2>("select_fill
 export const startRun = (config: RunConfig) => invoke<ReplayStateV2>("start_run", {config});
 export const watchReplay = (onState: (state: ReplayStateV2) => void) => listen<ReplayStateV2>("replay_snapshot_v2", e => onState(e.payload));
 export const getReplayWindow = (s: ReplayStateV2, startTsUs: string | null = null, endTsUs: string | null = null) => invoke<ReplayWindow>("get_replay_window", {sessionId: s.sessionId, cursorUpper: s.cursor, startTsUs, endTsUs, maxPoints: 800});
-export const queryReplayRows = (s: ReplayStateV2, eventType: string | null, offset: number) => invoke<ReplayRows>("query_replay_rows", {sessionId: s.sessionId, cursorUpper: s.cursor, eventType, offset, limit: 30});
+export const queryReplayRows = (s: ReplayStateV2, eventType: string | null, offset: number, limit = 30) => invoke<ReplayRows>("query_replay_rows", {sessionId: s.sessionId, cursorUpper: s.cursor, eventType, offset, limit});
 export const inspectReplayEvent = (s: ReplayStateV2, eventId: string) => invoke<ReplayInspection>("inspect_replay_event", {sessionId: s.sessionId, cursorUpper: s.cursor, eventId});

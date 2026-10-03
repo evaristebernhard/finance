@@ -592,7 +592,12 @@ impl Repository {
         end: usize,
     ) -> Result<Value, String> {
         let end = end.min(self.len() - 1);
-        let typed = kind.and_then(|kind| self.kinds.get(kind));
+        let typed = kind.map(|kind| {
+            self.kinds
+                .get(kind)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+        });
         let total = typed
             .map(|ps| ps.partition_point(|p| *p <= end))
             .unwrap_or(end + 1);
@@ -609,10 +614,32 @@ impl Repository {
                 .and_then(|i| i.get("order"))
                 .or_else(|| p.get("order"));
             let fill = p.get("fill");
+            let arrival = self
+                .related(pos, "order_arrival", end, &["intent_id", "order_id", "client_order_id"], true)
+                .map(|arrival_pos| self.raw(arrival_pos))
+                .transpose()?;
+            let arrival_payload = arrival.as_ref().map(payload);
+            let intent_event = if self.events[pos].kind == "order_intent" {
+                Some(raw.clone())
+            } else {
+                self.related(pos, "order_intent", end, &["intent_id", "client_order_id"], true)
+                    .map(|intent_pos| self.raw(intent_pos))
+                    .transpose()?
+            };
+            let intent_payload = intent_event.as_ref().map(payload);
             rows.push(json!({"eventId":self.events[pos].id,"eventPos":pos,"timestamp":self.events[pos].timestamp.to_string(),"eventType":self.events[pos].kind,"source":raw["source"],
                 "intentId":find(p,"intent_id"),"orderId":find(p,"order_id"),"fillId":find(p,"fill_id").or_else(||fill.and_then(|f|scalar(&f["id"]))),
                 "side":fill.or(order).and_then(|v|v.get("side")),"qty":fill.or(order).and_then(|v|n(v,"qty")),"price":fill.and_then(|v|n(v,"price")),"fee":n(p,"fee").or_else(||fill.and_then(|f|n(f,"fee"))),
-                "status":if self.events[pos].kind=="order_intent" {self.related(pos,"order_arrival",end,&["intent_id","client_order_id"],true).map(|p|self.raw(p)).transpose()?.map(|e|payload(&e)["order"]["status"].clone()).unwrap_or(json!("waiting"))} else {Value::Null}}));
+                "signal":n(p,"signal").or_else(||arrival_payload.and_then(|v|n(v,"signal"))).or_else(||intent_payload.and_then(|v|n(v,"signal"))),
+                "threshold":n(p,"threshold").or_else(||intent_payload.and_then(|v|n(v,"threshold"))),
+                "reason":find(p,"reason").or_else(||arrival_payload.and_then(|v|find(v,"reason"))).or_else(||intent_payload.and_then(|v|find(v,"reason"))),
+                "actualLatencyUs":n(p,"actual_latency_us").or_else(||arrival_payload.and_then(|v|n(v,"actual_latency_us"))),
+                "latencySlippageBps":n(p,"latency_slippage_bps").or_else(||arrival_payload.and_then(|v|n(v,"latency_slippage_bps"))),
+                "realizedPnlDelta":n(p,"realized_pnl_delta"),
+                "netPnlDelta":n(p,"net_pnl_delta").or_else(||p.get("attribution").and_then(|a|n(a,"net_pnl"))),
+                "grossExecutionPnl":p.get("attribution").and_then(|a|n(a,"gross_execution_pnl")),
+                "spreadExecutionCost":p.get("attribution").and_then(|a|n(a,"spread_execution_cost")),
+                "status":if self.events[pos].kind=="order_intent" {arrival_payload.map(|e|e["order"]["status"].clone()).unwrap_or(json!("waiting"))} else {Value::Null}}));
         }
         Ok(json!({"rows":rows,"total":total,"offset":offset,"limit":page_limit,"cursorUpper":end}))
     }
@@ -667,7 +694,22 @@ impl Repository {
                     .partition_point(|p| self.events[*p].clock <= upper_clock)
                     .min(end + 1);
                 for pos in ps[first..last].iter().copied() {
-                    markers.push(json!({"eventId":self.events[pos].id,"eventPos":pos,"timestamp":self.events[pos].timestamp.to_string(),"clockTimestamp":self.events[pos].clock.to_string(),"eventType":kind,"mid":at(&self.quotes,pos).and_then(|q|n(q,"mid"))}));
+                    let raw = self.raw(pos).ok();
+                    let marker_payload = raw.as_ref().map(payload);
+                    let marker_fill = marker_payload.and_then(|p| p.get("fill"));
+                    let marker_order = marker_payload
+                        .and_then(|p| p.get("intent").and_then(|i| i.get("order")).or_else(|| p.get("order")));
+                    markers.push(json!({
+                        "eventId":self.events[pos].id,
+                        "eventPos":pos,
+                        "timestamp":self.events[pos].timestamp.to_string(),
+                        "clockTimestamp":self.events[pos].clock.to_string(),
+                        "eventType":kind,
+                        "mid":at(&self.quotes,pos).and_then(|q|n(q,"mid")),
+                        "price":marker_fill.and_then(|f|n(f,"price")),
+                        "side":marker_fill.or(marker_order).and_then(|v|v.get("side")).and_then(Value::as_str),
+                        "signal":marker_payload.and_then(|p|n(p,"signal"))
+                    }));
                 }
             }
         }
@@ -925,12 +967,12 @@ mod tests {
             (
                 "order_arrival",
                 2_000_000,
-                json!({"intent_id":1,"order_id":7,"order":{"status":"filled"},"arrival_ts_us":2000000}),
+                json!({"intent_id":1,"order_id":7,"order":{"status":"filled"},"arrival_ts_us":2000000,"actual_latency_us":1000000,"latency_slippage_bps":1.25,"signal":0.8,"reason":"historical fixture trigger"}),
             ),
             (
                 "fill_created",
                 2_000_000,
-                json!({"intent_id":1,"order_id":7,"fill_id":8,"fill":{"id":8,"order_id":7,"price":11.0,"qty":2.0,"fee":1.0}}),
+                json!({"intent_id":1,"order_id":7,"fill_id":8,"fill":{"id":8,"order_id":7,"side":"buy","price":11.0,"qty":2.0,"fee":1.0},"realized_pnl_delta":0.0,"net_pnl_delta":-1.0,"latency_slippage_bps":1.25}),
             ),
             (
                 "position_snapshot",
@@ -974,6 +1016,11 @@ mod tests {
             r.rows(Some("order_intent"), 0, 20, 3).unwrap()["rows"][0]["status"],
             "waiting"
         );
+        assert_eq!(r.rows(Some("fill"), 0, 20, 8).unwrap()["total"], 0);
+        let fill_rows = r.rows(Some("fill_created"), 0, 20, 8).unwrap();
+        assert_eq!(fill_rows["rows"][0]["signal"], 0.8);
+        assert_eq!(fill_rows["rows"][0]["latencySlippageBps"], 1.25);
+        assert_eq!(fill_rows["rows"][0]["netPnlDelta"], -1.0);
         assert!(r.inspect("6", 3).is_err());
         let old = r.snapshot(8, Some("6"), false, 1.0).unwrap();
         assert_eq!(old["chain"]["signal"]["eventId"], "3");

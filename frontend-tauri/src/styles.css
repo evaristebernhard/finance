@@ -354,3 +354,108 @@ code, .metric strong, .book-row, .event-tape, .raw-event pre, .inspector pre { f
   .product-thesis { grid-template-columns: 1fr; }
   .thesis-card { min-height: auto; }
 }
+
+
+/* Historical replay analysis — keeps the useful terminal density of the legacy
+   React workbench while all execution/PnL values remain Runner-owned. */
+.market-replay-grid {
+  display: grid;
+  grid-template-columns: minmax(520px, 2fr) minmax(270px, .72fr);
+  gap: 12px;
+  min-height: 410px;
+}
+.market-replay-grid .chart-panel { min-height: 410px; }
+.market-replay-grid .chart-wrap { min-height: 292px; }
+
+.historical-analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.65fr) minmax(320px, .7fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.historical-trades { min-width: 0; padding: 15px; }
+.history-count {
+  color: var(--amber);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .06em;
+}
+.history-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 13px 0 11px;
+}
+.history-metrics > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  background: rgba(12, 23, 26, .76);
+}
+.history-metrics span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+.history-metrics strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line-soft);
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.history-table th,
+.history-table td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.history-table th:first-child,
+.history-table td:first-child,
+.history-table th:nth-child(2),
+.history-table td:nth-child(2) { text-align: left; }
+.history-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-deep);
+  color: var(--dim);
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+.history-table tbody tr { cursor: pointer; }
+.history-table tbody tr:hover { background: rgba(128, 185, 239, .07); }
+.history-note {
+  margin: 9px 0 0;
+  color: var(--dim);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.legend-dot.sell-fill { background: var(--red); }
+
+@media (max-width: 1200px) {
+  .market-replay-grid { grid-template-columns: minmax(430px, 1.5fr) minmax(250px, .75fr); }
+  .historical-analysis-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .market-replay-grid { grid-template-columns: 1fr; }
+  .history-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 580px) {
+  .history-metrics { grid-template-columns: 1fr; }
+}
