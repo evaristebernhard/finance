@@ -592,7 +592,12 @@ impl Repository {
         end: usize,
     ) -> Result<Value, String> {
         let end = end.min(self.len() - 1);
-        let typed = kind.and_then(|kind| self.kinds.get(kind));
+        let typed = kind.map(|kind| {
+            self.kinds
+                .get(kind)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+        });
         let total = typed
             .map(|ps| ps.partition_point(|p| *p <= end))
             .unwrap_or(end + 1);
@@ -962,12 +967,12 @@ mod tests {
             (
                 "order_arrival",
                 2_000_000,
-                json!({"intent_id":1,"order_id":7,"order":{"status":"filled"},"arrival_ts_us":2000000}),
+                json!({"intent_id":1,"order_id":7,"order":{"status":"filled"},"arrival_ts_us":2000000,"actual_latency_us":1000000,"latency_slippage_bps":1.25,"signal":0.8,"reason":"historical fixture trigger"}),
             ),
             (
                 "fill_created",
                 2_000_000,
-                json!({"intent_id":1,"order_id":7,"fill_id":8,"fill":{"id":8,"order_id":7,"price":11.0,"qty":2.0,"fee":1.0}}),
+                json!({"intent_id":1,"order_id":7,"fill_id":8,"fill":{"id":8,"order_id":7,"side":"buy","price":11.0,"qty":2.0,"fee":1.0},"realized_pnl_delta":0.0,"net_pnl_delta":-1.0,"latency_slippage_bps":1.25}),
             ),
             (
                 "position_snapshot",
@@ -1011,6 +1016,11 @@ mod tests {
             r.rows(Some("order_intent"), 0, 20, 3).unwrap()["rows"][0]["status"],
             "waiting"
         );
+        assert_eq!(r.rows(Some("fill"), 0, 20, 8).unwrap()["total"], 0);
+        let fill_rows = r.rows(Some("fill_created"), 0, 20, 8).unwrap();
+        assert_eq!(fill_rows["rows"][0]["signal"], 0.8);
+        assert_eq!(fill_rows["rows"][0]["latencySlippageBps"], 1.25);
+        assert_eq!(fill_rows["rows"][0]["netPnlDelta"], -1.0);
         assert!(r.inspect("6", 3).is_err());
         let old = r.snapshot(8, Some("6"), false, 1.0).unwrap();
         assert_eq!(old["chain"]["signal"]["eventId"], "3");
