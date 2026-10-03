@@ -1,6 +1,6 @@
 # Quant Replay Studio — React + Tauri
 
-Quant Replay Studio is a **deterministic strategy replay & debugger**.
+Quant Replay Studio is a **deterministic strategy replay and historical analysis workstation**.
 
 It is not primarily a charting terminal or a summary-statistics backtester. The
 product goal is to reproduce a strategy's event-time execution story and make it
