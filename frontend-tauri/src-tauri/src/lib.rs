@@ -208,6 +208,20 @@ fn inspect_replay_event(
 }
 
 #[tauri::command]
+fn query_completed_trades(
+    session_id: String,
+    offset: usize,
+    limit: usize,
+    cursor_upper: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Value, String> {
+    with_session(&state, |s| {
+        let end = query_session(s, &session_id, cursor_upper)?;
+        Ok(s.envelope(s.repository.trades(offset, limit, end)?))
+    })
+}
+
+#[tauri::command]
 fn start_run(config: RunConfig, state: tauri::State<'_, AppState>) -> Result<Value, String> {
     let id = invalidate(&state)?;
     let run_id = format!("qrs_{}", timestamp_ms());
@@ -328,7 +342,8 @@ pub fn run() {
             start_run,
             get_replay_window,
             query_replay_rows,
-            inspect_replay_event
+            inspect_replay_event,
+            query_completed_trades
         ])
         .run(tauri::generate_context!())
         .expect("error while running Quant Replay Studio");

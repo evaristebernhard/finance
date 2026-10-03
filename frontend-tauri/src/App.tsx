@@ -35,10 +35,10 @@ import {
   inTauri,
   startRun,
 } from "./lib/bridge";
-import type { RunConfig, RunEntry, Snapshot, ReplayStateV2 } from "./types";
+import type { RunConfig, RunEntry, Snapshot, ReplayStateV2, TradeRecord } from "./types";
 import "./styles.css";
 import { fmt, present } from "./lib/presentation";
-import { PriceChart, EquityChart, HistoricalTradeAnalysis, ReplayTable, RawInspector, useReplayWindow } from "./ReplayPanels";
+import { PriceChart, EquityChart, HistoricalTradeAnalysis, ReplayTable, RawInspector, useReplayWindow, useCompletedTrades } from "./ReplayPanels";
 
 type Page = "library" | "setup" | "workbench";
 type Tab = "Events" | "Signals" | "Orders" | "Fills" | "Position" | "PnL";
@@ -245,12 +245,26 @@ function Workbench({ replay, snapshot, loading, onLibrary, onCommand, onSeek, on
   const [tab, setTab] = useState<Tab>("Events");
   const [rawEventId, setRawEventId] = useState<string | null>(null);
   const [range, setRange] = useState("all");
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const window = useReplayWindow(replay, range);
+  const tradeQuery = useCompletedTrades(replay);
+  const trades = tradeQuery.data?.trades ?? [];
+  const selectedTrade = trades.find((trade) => trade.tradeId === selectedTradeId) ?? trades[0] ?? null;
   const fillAvailable = replay.chain.fill !== null;
   const story = {signal: !!replay.chain.signal, order: !!replay.chain.intent, arrival: !!replay.chain.arrival, fill: fillAvailable};
+  useEffect(() => setSelectedTradeId(null), [replay.sessionId]);
+  function selectTrade(trade: TradeRecord) {
+    setSelectedTradeId(trade.tradeId);
+    setRawEventId(trade.exitEventId);
+    onInspectFill(trade.exitEventId);
+  }
   function inspect(eventId: string, eventType: string) {
     setRawEventId(eventId);
-    if (eventType === "fill_created" || eventType === "fill") onInspectFill(eventId);
+    if (eventType === "fill_created" || eventType === "fill") {
+      onInspectFill(eventId);
+      const trade = trades.find((item) => item.entryEventId === eventId || item.exitEventId === eventId);
+      if (trade) setSelectedTradeId(trade.tradeId);
+    }
   }
 
   return (
@@ -273,11 +287,11 @@ function Workbench({ replay, snapshot, loading, onLibrary, onCommand, onSeek, on
 
       <div className="replay-focus-grid">
         <PriceChart state={replay} window={window} range={range} onRange={setRange} onInspect={inspect} />
-        <SelectedTradeDetail replay={replay} snapshot={snapshot} />
+        <SelectedTradeDetail trade={selectedTrade} symbol={snapshot.symbol} />
       </div>
 
       <div className="historical-analysis-grid">
-        <HistoricalTradeAnalysis state={replay} onInspect={inspect} />
+        <HistoricalTradeAnalysis query={tradeQuery} selectedTradeId={selectedTrade?.tradeId ?? null} onSelect={selectTrade} />
         <EquityChart window={window} />
       </div>
 
@@ -297,33 +311,32 @@ function Workbench({ replay, snapshot, loading, onLibrary, onCommand, onSeek, on
   );
 }
 
-function SelectedTradeDetail({ replay, snapshot }: { replay: ReplayStateV2; snapshot: Snapshot }) {
-  const account = replay.chain.account?.data?.account as Record<string, unknown> | undefined;
-  const hasFill = replay.chain.fill !== null;
+function SelectedTradeDetail({ trade, symbol }: { trade: TradeRecord | null; symbol: string }) {
+  const hold = trade ? (trade.holdUs >= 1_000_000 ? `${fmt(trade.holdUs / 1_000_000, 2)} s` : `${fmt(trade.holdUs / 1000, 1)} ms`) : "—";
   return <section className="trade-detail panel">
     <div className="trade-detail-head">
-      <div><span>Selected trade</span><h2>{hasFill ? `${snapshot.fill.side.toUpperCase()} · ${snapshot.fill.price}` : "No fill selected"}</h2></div>
-      <small>{hasFill ? `fill ${snapshot.fill.fillId}` : "Drag the timeline or click a fill"}</small>
+      <div><span>Completed trade</span><h2>{trade ? `${trade.side.toUpperCase()} · ${symbol}` : "No completed trade"}</h2></div>
+      <small>{trade ? trade.tradeId : "Drag past a full entry → exit round trip"}</small>
     </div>
     <div className="trade-detail-grid">
-      <TradeField label="Side" value={snapshot.fill.side} />
-      <TradeField label="Quantity" value={snapshot.fill.qty} />
-      <TradeField label="Fill price" value={snapshot.fill.price} />
-      <TradeField label="Fee" value={snapshot.fill.fee} />
-      <TradeField label="Signal" value={snapshot.strategySignal.signal} />
-      <TradeField label="Threshold" value={snapshot.strategySignal.threshold} />
-      <TradeField label="Observed quote" value={snapshot.strategySignal.observedQuote} wide />
-      <TradeField label="Arrival quote" value={snapshot.orderArrival.arrivalQuote} wide />
-      <TradeField label="Latency" value={snapshot.orderArrival.actualLatencyUs} />
-      <TradeField label="Latency slip" value={snapshot.orderArrival.latencySlippageBps === "—" ? "—" : `${snapshot.orderArrival.latencySlippageBps} bps`} />
-      <TradeField label="Realized Δ" value={snapshot.fill.realizedPnlDelta} />
-      <TradeField label="Execution Δ" value={snapshot.fill.netPnlDelta} />
-      <TradeField label="Position after" value={fmt(account?.position_qty, 3)} />
-      <TradeField label="Avg entry after" value={fmt(account?.avg_entry_price, 8)} />
-      <TradeField label="Equity after" value={fmt(account?.equity, 4)} />
-      <TradeField label="Fees paid after" value={fmt(account?.fees_paid, 4)} />
+      <TradeField label="Entry" value={fmt(trade?.entryPrice,8)} />
+      <TradeField label="Exit" value={fmt(trade?.exitPrice,8)} />
+      <TradeField label="Quantity" value={fmt(trade?.quantity,3)} />
+      <TradeField label="Hold" value={hold} />
+      <TradeField label="Gross PnL" value={fmt(trade?.grossPnl,4)} />
+      <TradeField label="Fees" value={fmt(trade?.fees,4)} />
+      <TradeField label="Net PnL" value={fmt(trade?.netPnl,4)} />
+      <TradeField label="Return" value={trade?.returnPct==null?"—":`${fmt(trade.returnPct,3)}%`} />
+      <TradeField label="MFE" value={trade?.mfeBps==null?"—":`${fmt(trade.mfeBps,2)} bps`} />
+      <TradeField label="MAE" value={trade?.maeBps==null?"—":`${fmt(trade.maeBps,2)} bps`} />
+      <TradeField label="Fill count" value={fmt(trade?.fillCount,0)} />
+      <TradeField label="Entry signal" value={fmt(trade?.entrySignal,3)} />
+      <TradeField label="Threshold" value={fmt(trade?.entryThreshold,3)} />
+      <TradeField label="Entry latency" value={trade?.entryLatencyUs==null?"—":`${fmt(trade.entryLatencyUs,0)} µs`} />
+      <TradeField label="Entry slip" value={trade?.entryLatencySlippageBps==null?"—":`${fmt(trade.entryLatencySlippageBps,3)} bps`} />
+      <TradeField label="Exit time" value={trade ? new Date(Number(BigInt(trade.exitTimestamp)/1000n)).toISOString().slice(11,23) : "—"} />
     </div>
-    <div className="trade-detail-reason"><span>Strategy context</span><p>{snapshot.strategySignal.reason || snapshot.orderIntent.reason || "—"}</p></div>
+    <div className="trade-detail-reason"><span>Entry context</span><p>{trade?.entryReason || "—"}</p><span>Exit context</span><p>{trade?.exitReason || "—"}</p></div>
   </section>;
 }
 

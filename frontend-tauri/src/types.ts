@@ -156,3 +156,48 @@ export type ReplayWindow = {sessionId: string; version: number; cursorUpper: num
 export type ReplayRow = {eventId: string; eventPos: number; eventType: string; timestamp: string; source: string; intentId: string | null; orderId: string | null; fillId: string | null; side: string | null; qty: number | null; price: number | null; fee: number | null; status: string | null; signal: number | null; threshold: number | null; reason: string | null; actualLatencyUs: number | null; latencySlippageBps: number | null; realizedPnlDelta: number | null; netPnlDelta: number | null; grossExecutionPnl: number | null; spreadExecutionCost: number | null};
 export type ReplayRows = {sessionId: string; version: number; cursorUpper: number; rows: ReplayRow[]; total: number; offset: number; limit: number};
 export type ReplayInspection = {sessionId: string; version: number; rawEvent: Record<string, unknown>; chain: CausalChain};
+
+export type TradeRecord = {
+  tradeId: string;
+  side: "long" | "short";
+  entryEventId: string;
+  exitEventId: string;
+  entryEventPos: number;
+  exitEventPos: number;
+  entryTimestamp: string;
+  exitTimestamp: string;
+  holdUs: number;
+  quantity: number;
+  entryPrice: number;
+  exitPrice: number;
+  grossPnl: number;
+  fees: number;
+  netPnl: number;
+  returnPct: number | null;
+  fillCount: number;
+  mfeBps: number | null;
+  maeBps: number | null;
+  entrySignal: number | null;
+  entryThreshold: number | null;
+  entryReason: string | null;
+  exitReason: string | null;
+  entryLatencyUs: number | null;
+  entryLatencySlippageBps: number | null;
+};
+
+export type TradeQuery = {
+  sessionId: string;
+  version: number;
+  cursorUpper: number;
+  trades: TradeRecord[];
+  total: number;
+  offset: number;
+  limit: number;
+  summary: {
+    totalTrades: number;
+    winRate: number | null;
+    netPnl: number;
+    avgTrade: number | null;
+    profitFactor: number | null;
+  };
+};

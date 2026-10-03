@@ -440,6 +440,8 @@ code, .metric strong, .book-row, .event-tape, .raw-event pre, .inspector pre { f
 }
 .history-table tbody tr { cursor: pointer; }
 .history-table tbody tr:hover { background: rgba(128, 185, 239, .07); }
+.history-table tbody tr.selected { background: rgba(241, 184, 91, .09); }
+.history-table tbody tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--amber); }
 .history-note {
   margin: 9px 0 0;
   color: var(--dim);

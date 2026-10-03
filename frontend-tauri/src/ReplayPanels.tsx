@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { ReplayStateV2, ReplayWindow, ReplayRows, ReplayInspection } from "./types";
-import { getReplayWindow, queryReplayRows, inspectReplayEvent } from "./lib/bridge";
+import type { ReplayStateV2, ReplayWindow, ReplayRows, ReplayInspection, TradeQuery, TradeRecord } from "./types";
+import { getReplayWindow, queryReplayRows, inspectReplayEvent, queryCompletedTrades } from "./lib/bridge";
 import { fmt } from "./lib/presentation";
 
 export function useReplayWindow(state: ReplayStateV2, range: string) {
@@ -80,44 +80,38 @@ export function RawInspector({state,eventId}:{state:ReplayStateV2;eventId:string
   return <section className="raw-event panel"><div className="panel-kicker"><span>RAW EVENT JSON · {eventId ?? "—"}</span><button className="copy-button" disabled={!result} onClick={()=>void navigator.clipboard?.writeText(raw)}>Copy raw JSON</button></div><pre>{error || raw}</pre></section>;
 }
 
-export function HistoricalTradeAnalysis({state,onInspect}:{state:ReplayStateV2;onInspect:(id:string,kind:string)=>void}) {
-  const [rows,setRows]=useState<ReplayRows["rows"]>([]);
-  const [total,setTotal]=useState(0);
+export function useCompletedTrades(state: ReplayStateV2) {
+  const [result,setResult]=useState<TradeQuery|null>(null);
   const [error,setError]=useState("");
   const latest=useRef(state);latest.current=state;
   const busy=useRef(false);
   useEffect(()=>{let cancelled=false;const poll=async()=>{if(busy.current)return;const request=latest.current;busy.current=true;try{
-    const [created,plain]=await Promise.all([
-      queryReplayRows(request,"fill_created",0,100),
-      queryReplayRows(request,"fill",0,100)
-    ]);
+    const value=await queryCompletedTrades(request,0,100);
     const now=latest.current;
-    if(cancelled || created.sessionId!==now.sessionId || plain.sessionId!==now.sessionId || created.cursorUpper!==now.cursor || plain.cursorUpper!==now.cursor)return;
-    const unique=new Map<string,ReplayRows["rows"][number]>();
-    for(const row of [...created.rows,...plain.rows]) unique.set(row.fillId ? `fill:${row.fillId}` : `event:${row.eventId}`,row);
-    setRows([...unique.values()].sort((a,b)=>b.eventPos-a.eventPos));
-    setTotal(unique.size);
-    setError("");
-  }catch(e){if(!cancelled)setError(String(e));}finally{busy.current=false;}};void poll();const timer=window.setInterval(()=>void poll(),250);return()=>{cancelled=true;window.clearInterval(timer);};},[state.sessionId,state.playing]);
+    if(!cancelled && value.sessionId===now.sessionId && value.cursorUpper===now.cursor){setResult(value);setError("");}
+  }catch(e){if(!cancelled)setError(String(e));}finally{busy.current=false;}};
+  void poll();const timer=window.setInterval(()=>void poll(),250);return()=>{cancelled=true;window.clearInterval(timer);};},[state.sessionId,state.playing]);
+  const data=result?.sessionId===state.sessionId && result.cursorUpper===state.cursor ? result : null;
+  return {data,error};
+}
 
-  const account=state.account;
-  const realized=account?.realized_pnl ?? null;
-  const unrealized=account?.unrealized_pnl ?? null;
-  const fees=account?.fees_paid ?? null;
-  const slips=rows.map(r=>r.latencySlippageBps).filter((v):v is number=>v!==null && Number.isFinite(v));
-  const avgSlip=slips.length ? slips.reduce((a,b)=>a+b,0)/slips.length : null;
+export function HistoricalTradeAnalysis({query,selectedTradeId,onSelect}:{query:{data:TradeQuery|null;error:string};selectedTradeId:string|null;onSelect:(trade:TradeRecord)=>void}) {
+  const data=query.data;
+  const trades=data?.trades ?? [];
+  const summary=data?.summary;
+  const hold=(us:number)=>us>=1_000_000?`${fmt(us/1_000_000,2)} s`:`${fmt(us/1000,1)} ms`;
   return <section className="historical-trades panel">
-    <div className="panel-heading"><div><h2>Historical trades</h2><p>Runner-recorded fills up to the current replay cursor</p></div><span className="history-count">{total} latest fills loaded</span></div>
+    <div className="panel-heading"><div><h2>Completed trades</h2><p>Round trips reconstructed from Runner fills up to the replay cursor</p></div><span className="history-count">{data?.total ?? 0} trades</span></div>
     <div className="history-metrics">
-      <div><span>REALIZED PNL</span><strong className={(realized ?? 0)>=0?"positive-text":"negative-text"}>{fmt(realized,4)}</strong></div>
-      <div><span>UNREALIZED PNL</span><strong className={(unrealized ?? 0)>=0?"positive-text":"negative-text"}>{fmt(unrealized,4)}</strong></div>
-      <div><span>AVG LATENCY SLIP</span><strong>{avgSlip===null?"—":`${fmt(avgSlip,3)} bps`}</strong></div>
-      <div><span>FEES PAID</span><strong>{fmt(fees,4)}</strong></div>
+      <div><span>NET PNL</span><strong className={(summary?.netPnl ?? 0)>=0?"positive-text":"negative-text"}>{fmt(summary?.netPnl,4)}</strong></div>
+      <div><span>WIN RATE</span><strong>{summary?.winRate==null?"—":`${fmt(summary.winRate,1)}%`}</strong></div>
+      <div><span>AVG TRADE</span><strong className={(summary?.avgTrade ?? 0)>=0?"positive-text":"negative-text"}>{fmt(summary?.avgTrade,4)}</strong></div>
+      <div><span>PROFIT FACTOR</span><strong>{fmt(summary?.profitFactor,2)}</strong></div>
     </div>
-    <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Time</th><th>Side</th><th>Qty</th><th>Fill</th><th>Signal</th><th>Latency slip</th><th>Realized Δ</th><th>Exec Δ</th></tr></thead><tbody>
-      {rows.slice(0,10).map(r=><tr key={r.eventId} onClick={()=>onInspect(r.eventId,r.eventType)}><td>{time(r.timestamp)}</td><td className={r.side==="buy"?"positive-text":r.side==="sell"?"negative-text":""}>{r.side?.toUpperCase() ?? "—"}</td><td>{fmt(r.qty,3)}</td><td>{fmt(r.price,8)}</td><td title={r.reason ?? ""}>{fmt(r.signal,3)}</td><td>{r.latencySlippageBps===null?"—":`${fmt(r.latencySlippageBps,3)} bps`}</td><td className={(r.realizedPnlDelta ?? 0)>=0?"positive-text":"negative-text"}>{fmt(r.realizedPnlDelta,4)}</td><td className={(r.netPnlDelta ?? 0)>=0?"positive-text":"negative-text"}>{fmt(r.netPnlDelta,4)}</td></tr>)}
-      {!rows.length && <tr><td colSpan={8}>{error || "No fills have occurred at this replay cursor."}</td></tr>}
+    <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Exit</th><th>Side</th><th>Qty</th><th>Entry</th><th>Exit price</th><th>Net PnL</th><th>Return</th><th>Hold</th></tr></thead><tbody>
+      {trades.slice(0,10).map(trade=><tr key={trade.tradeId} className={selectedTradeId===trade.tradeId?"selected":""} onClick={()=>onSelect(trade)}><td>{time(trade.exitTimestamp)}</td><td className={trade.side==="long"?"positive-text":"negative-text"}>{trade.side.toUpperCase()}</td><td>{fmt(trade.quantity,3)}</td><td>{fmt(trade.entryPrice,8)}</td><td>{fmt(trade.exitPrice,8)}</td><td className={trade.netPnl>=0?"positive-text":"negative-text"}>{fmt(trade.netPnl,4)}</td><td className={(trade.returnPct ?? 0)>=0?"positive-text":"negative-text"}>{trade.returnPct==null?"—":`${fmt(trade.returnPct,3)}%`}</td><td>{hold(trade.holdUs)}</td></tr>)}
+      {!trades.length && <tr><td colSpan={8}>{query.error || "No completed trade at this replay cursor."}</td></tr>}
     </tbody></table></div>
-    <p className="history-note">Top metrics come from the Runner account at the current replay cursor. Per-row Realized Δ and Exec Δ are the changes recorded at that fill; the UI does not synthesize trades or outcomes.</p>
+    <p className="history-note">A trade starts when position leaves zero and completes when it returns to zero. Partial fills are grouped into the same round trip.</p>
   </section>;
 }

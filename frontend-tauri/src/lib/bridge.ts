@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { RunConfig, RunEntry, ReplayStateV2, ReplayWindow, ReplayRows, ReplayInspection } from "../types";
+import type { RunConfig, RunEntry, ReplayStateV2, ReplayWindow, ReplayRows, ReplayInspection, TradeQuery } from "../types";
 
 export const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 export async function listRuns(): Promise<RunEntry[]> {
@@ -17,3 +17,4 @@ export const watchReplay = (onState: (state: ReplayStateV2) => void) => listen<R
 export const getReplayWindow = (s: ReplayStateV2, startTsUs: string | null = null, endTsUs: string | null = null) => invoke<ReplayWindow>("get_replay_window", {sessionId: s.sessionId, cursorUpper: s.cursor, startTsUs, endTsUs, maxPoints: 800});
 export const queryReplayRows = (s: ReplayStateV2, eventType: string | null, offset: number, limit = 30) => invoke<ReplayRows>("query_replay_rows", {sessionId: s.sessionId, cursorUpper: s.cursor, eventType, offset, limit});
 export const inspectReplayEvent = (s: ReplayStateV2, eventId: string) => invoke<ReplayInspection>("inspect_replay_event", {sessionId: s.sessionId, cursorUpper: s.cursor, eventId});
+export const queryCompletedTrades = (s: ReplayStateV2, offset = 0, limit = 100) => invoke<TradeQuery>("query_completed_trades", {sessionId: s.sessionId, cursorUpper: s.cursor, offset, limit});

@@ -294,6 +294,75 @@ fn account_mark(account: &Value, q: Option<&Value>) -> Value {
     a
 }
 
+#[derive(Clone, Debug)]
+struct FillFact {
+    event_id: String,
+    event_pos: usize,
+    timestamp: u64,
+    clock: u64,
+    fill_id: String,
+    side: f64,
+    qty: f64,
+    price: f64,
+    fee: f64,
+    signal: Option<f64>,
+    threshold: Option<f64>,
+    reason: Option<String>,
+    actual_latency_us: Option<f64>,
+    latency_slippage_bps: Option<f64>,
+}
+
+#[derive(Clone, Debug)]
+struct OpenTrade {
+    sequence: usize,
+    side: f64,
+    entry_event_id: String,
+    entry_event_pos: usize,
+    entry_timestamp: u64,
+    entry_clock: u64,
+    entry_qty: f64,
+    entry_notional: f64,
+    exit_qty: f64,
+    exit_notional: f64,
+    position_qty: f64,
+    avg_entry_price: f64,
+    gross_pnl: f64,
+    fees: f64,
+    fill_count: usize,
+    entry_signal: Option<f64>,
+    entry_threshold: Option<f64>,
+    entry_reason: Option<String>,
+    entry_latency_us: Option<f64>,
+    entry_latency_slippage_bps: Option<f64>,
+}
+
+impl OpenTrade {
+    fn new(sequence: usize, fill: &FillFact, qty: f64, fee: f64) -> Self {
+        Self {
+            sequence,
+            side: fill.side,
+            entry_event_id: fill.event_id.clone(),
+            entry_event_pos: fill.event_pos,
+            entry_timestamp: fill.timestamp,
+            entry_clock: fill.clock,
+            entry_qty: qty,
+            entry_notional: fill.price * qty,
+            exit_qty: 0.0,
+            exit_notional: 0.0,
+            position_qty: fill.side * qty,
+            avg_entry_price: fill.price,
+            gross_pnl: 0.0,
+            fees: fee,
+            fill_count: 1,
+            entry_signal: fill.signal,
+            entry_threshold: fill.threshold,
+            entry_reason: fill.reason.clone(),
+            entry_latency_us: fill.actual_latency_us,
+            entry_latency_slippage_bps: fill.latency_slippage_bps,
+        }
+    }
+}
+
 impl Repository {
     pub fn open(dir: &Path) -> Result<Self, String> {
         let manifest: Value = serde_json::from_reader(
@@ -584,6 +653,302 @@ impl Repository {
         }
         Ok(json!({"rawEvent":wire(self.raw(pos)?),"chain":self.chain(pos,end)?}))
     }
+
+    fn fill_fact(&self, pos: usize, end: usize) -> Result<Option<FillFact>, String> {
+        if !matches!(self.events[pos].kind.as_str(), "fill_created" | "fill") {
+            return Ok(None);
+        }
+        let raw = self.raw(pos)?;
+        let p = payload(&raw);
+        let Some(fill) = p.get("fill") else {
+            return Ok(None);
+        };
+        let side = match fill.get("side").and_then(Value::as_str) {
+            Some("buy") => 1.0,
+            Some("sell") => -1.0,
+            _ => return Ok(None),
+        };
+        let (Some(qty), Some(price)) = (n(fill, "qty"), n(fill, "price")) else {
+            return Ok(None);
+        };
+        if qty <= 0.0 || price <= 0.0 {
+            return Ok(None);
+        }
+
+        let arrival_pos = self.related(
+            pos,
+            "order_arrival",
+            end,
+            &["intent_id", "order_id", "client_order_id"],
+            true,
+        );
+        let arrival = arrival_pos.map(|p| self.raw(p)).transpose()?;
+        let arrival_payload = arrival.as_ref().map(payload);
+        let intent_pos = self.related(
+            pos,
+            "order_intent",
+            end,
+            &["intent_id", "client_order_id"],
+            true,
+        );
+        let intent = intent_pos.map(|p| self.raw(p)).transpose()?;
+        let intent_payload = intent.as_ref().map(payload);
+        let signal_pos = intent_pos.and_then(|intent_pos| {
+            self.related(
+                intent_pos,
+                "strategy_signal",
+                intent_pos,
+                &["signal_id", "observed_ts_us"],
+                true,
+            )
+        });
+        let signal_event = signal_pos.map(|p| self.raw(p)).transpose()?;
+        let signal_payload = signal_event.as_ref().map(payload);
+
+        Ok(Some(FillFact {
+            event_id: self.events[pos].id.clone(),
+            event_pos: pos,
+            timestamp: self.events[pos].timestamp,
+            clock: self.events[pos].clock,
+            fill_id: find(p, "fill_id")
+                .or_else(|| fill.get("id").and_then(scalar))
+                .unwrap_or_else(|| self.events[pos].id.clone()),
+            side,
+            qty,
+            price,
+            fee: n(p, "fee").or_else(|| n(fill, "fee")).unwrap_or(0.0),
+            signal: n(p, "signal")
+                .or_else(|| arrival_payload.and_then(|v| n(v, "signal")))
+                .or_else(|| intent_payload.and_then(|v| n(v, "signal")))
+                .or_else(|| signal_payload.and_then(|v| n(v, "signal"))),
+            threshold: n(p, "threshold")
+                .or_else(|| intent_payload.and_then(|v| n(v, "threshold")))
+                .or_else(|| signal_payload.and_then(|v| n(v, "threshold"))),
+            reason: find(p, "reason")
+                .or_else(|| arrival_payload.and_then(|v| find(v, "reason")))
+                .or_else(|| intent_payload.and_then(|v| find(v, "reason")))
+                .or_else(|| signal_payload.and_then(|v| find(v, "reason"))),
+            actual_latency_us: n(p, "actual_latency_us")
+                .or_else(|| arrival_payload.and_then(|v| n(v, "actual_latency_us"))),
+            latency_slippage_bps: n(p, "latency_slippage_bps")
+                .or_else(|| arrival_payload.and_then(|v| n(v, "latency_slippage_bps"))),
+        }))
+    }
+
+    fn fill_facts(&self, end: usize) -> Result<Vec<FillFact>, String> {
+        let mut positions = vec![];
+        for kind in ["fill_created", "fill"] {
+            if let Some(ps) = self.kinds.get(kind) {
+                positions.extend(ps.iter().copied().take_while(|p| *p <= end));
+            }
+        }
+        positions.sort_unstable();
+
+        let mut by_fill = HashMap::<String, FillFact>::new();
+        for pos in positions {
+            if let Some(fill) = self.fill_fact(pos, end)? {
+                by_fill.insert(fill.fill_id.clone(), fill);
+            }
+        }
+        let mut fills = by_fill.into_values().collect::<Vec<_>>();
+        fills.sort_by_key(|fill| fill.event_pos);
+        Ok(fills)
+    }
+
+    fn excursion_bps(
+        &self,
+        side: f64,
+        entry_price: f64,
+        start_pos: usize,
+        end_pos: usize,
+    ) -> (Option<f64>, Option<f64>) {
+        if entry_price <= 0.0 {
+            return (None, None);
+        }
+        let first = self.quotes.partition_point(|(p, _)| *p < start_pos);
+        let last = self.quotes.partition_point(|(p, _)| *p <= end_pos);
+        if first >= last {
+            return (None, None);
+        }
+        let mut mfe = 0.0_f64;
+        let mut mae = 0.0_f64;
+        for (_, quote) in &self.quotes[first..last] {
+            if let Some(mid) = n(quote, "mid") {
+                let excursion = side * (mid / entry_price - 1.0) * 10_000.0;
+                mfe = mfe.max(excursion);
+                mae = mae.min(excursion);
+            }
+        }
+        (Some(mfe), Some(mae))
+    }
+
+    fn finish_trade(&self, trade: OpenTrade, exit: &FillFact) -> Value {
+        let entry_price = if trade.entry_qty > 0.0 {
+            trade.entry_notional / trade.entry_qty
+        } else {
+            trade.avg_entry_price
+        };
+        let exit_price = if trade.exit_qty > 0.0 {
+            trade.exit_notional / trade.exit_qty
+        } else {
+            exit.price
+        };
+        let net_pnl = trade.gross_pnl - trade.fees;
+        let return_pct = if trade.entry_notional > 0.0 {
+            Some(net_pnl / trade.entry_notional * 100.0)
+        } else {
+            None
+        };
+        let (mfe_bps, mae_bps) = self.excursion_bps(
+            trade.side,
+            entry_price,
+            trade.entry_event_pos,
+            exit.event_pos,
+        );
+        json!({
+            "tradeId": format!("trade-{}", trade.sequence),
+            "side": if trade.side > 0.0 { "long" } else { "short" },
+            "entryEventId": trade.entry_event_id,
+            "exitEventId": exit.event_id,
+            "entryEventPos": trade.entry_event_pos,
+            "exitEventPos": exit.event_pos,
+            "entryTimestamp": trade.entry_timestamp.to_string(),
+            "exitTimestamp": exit.timestamp.to_string(),
+            "holdUs": exit.clock.saturating_sub(trade.entry_clock),
+            "quantity": trade.exit_qty,
+            "entryPrice": entry_price,
+            "exitPrice": exit_price,
+            "grossPnl": trade.gross_pnl,
+            "fees": trade.fees,
+            "netPnl": net_pnl,
+            "returnPct": return_pct,
+            "fillCount": trade.fill_count,
+            "mfeBps": mfe_bps,
+            "maeBps": mae_bps,
+            "entrySignal": trade.entry_signal,
+            "entryThreshold": trade.entry_threshold,
+            "entryReason": trade.entry_reason,
+            "exitReason": exit.reason,
+            "entryLatencyUs": trade.entry_latency_us,
+            "entryLatencySlippageBps": trade.entry_latency_slippage_bps
+        })
+    }
+
+    pub fn trades(&self, offset: usize, limit: usize, end: usize) -> Result<Value, String> {
+        let end = end.min(self.len() - 1);
+        let fills = self.fill_facts(end)?;
+        let mut completed = vec![];
+        let mut current: Option<OpenTrade> = None;
+        let mut sequence = 1usize;
+        const EPS: f64 = 1e-12;
+
+        for fill in fills {
+            let mut remaining = fill.qty;
+            let mut fee_remaining = fill.fee;
+            while remaining > EPS {
+                if current.is_none() {
+                    current = Some(OpenTrade::new(sequence, &fill, remaining, fee_remaining));
+                    break;
+                }
+
+                let same_side = current
+                    .as_ref()
+                    .is_some_and(|trade| trade.position_qty.signum() == fill.side);
+                if same_side {
+                    let trade = current.as_mut().unwrap();
+                    let old_qty = trade.position_qty.abs();
+                    let new_qty = old_qty + remaining;
+                    trade.avg_entry_price =
+                        (trade.avg_entry_price * old_qty + fill.price * remaining) / new_qty;
+                    trade.position_qty += fill.side * remaining;
+                    trade.entry_qty += remaining;
+                    trade.entry_notional += fill.price * remaining;
+                    trade.fees += fee_remaining;
+                    trade.fill_count += 1;
+                    break;
+                }
+
+                let open_qty = current.as_ref().unwrap().position_qty.abs();
+                let close_qty = open_qty.min(remaining);
+                let fee_part = if fill.qty > EPS {
+                    fill.fee * close_qty / fill.qty
+                } else {
+                    0.0
+                };
+                {
+                    let trade = current.as_mut().unwrap();
+                    trade.exit_qty += close_qty;
+                    trade.exit_notional += fill.price * close_qty;
+                    trade.gross_pnl +=
+                        trade.side * (fill.price - trade.avg_entry_price) * close_qty;
+                    trade.position_qty += fill.side * close_qty;
+                    trade.fees += fee_part;
+                    trade.fill_count += 1;
+                }
+                remaining -= close_qty;
+                fee_remaining = (fee_remaining - fee_part).max(0.0);
+
+                if current
+                    .as_ref()
+                    .is_some_and(|trade| trade.position_qty.abs() <= EPS)
+                {
+                    let closed = current.take().unwrap();
+                    completed.push(self.finish_trade(closed, &fill));
+                    sequence += 1;
+                }
+
+                if remaining > EPS && current.is_none() {
+                    current = Some(OpenTrade::new(sequence, &fill, remaining, fee_remaining));
+                    break;
+                }
+            }
+        }
+
+        let total = completed.len();
+        let wins = completed
+            .iter()
+            .filter(|trade| n(trade, "netPnl").unwrap_or(0.0) > 0.0)
+            .count();
+        let net_pnl: f64 = completed
+            .iter()
+            .filter_map(|trade| n(trade, "netPnl"))
+            .sum();
+        let gross_profit: f64 = completed
+            .iter()
+            .filter_map(|trade| n(trade, "netPnl"))
+            .filter(|pnl| *pnl > 0.0)
+            .sum();
+        let gross_loss: f64 = completed
+            .iter()
+            .filter_map(|trade| n(trade, "netPnl"))
+            .filter(|pnl| *pnl < 0.0)
+            .map(f64::abs)
+            .sum();
+        let page_limit = limit.clamp(1, 200);
+        let trades = completed
+            .iter()
+            .rev()
+            .skip(offset)
+            .take(page_limit)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Ok(json!({
+            "trades": trades,
+            "total": total,
+            "offset": offset,
+            "limit": page_limit,
+            "cursorUpper": end,
+            "summary": {
+                "totalTrades": total,
+                "winRate": if total > 0 { Some(wins as f64 / total as f64 * 100.0) } else { None },
+                "netPnl": net_pnl,
+                "avgTrade": if total > 0 { Some(net_pnl / total as f64) } else { None },
+                "profitFactor": if gross_loss > 0.0 { Some(gross_profit / gross_loss) } else { None }
+            }
+        }))
+    }
+
     pub fn rows(
         &self,
         kind: Option<&str>,
@@ -592,12 +957,7 @@ impl Repository {
         end: usize,
     ) -> Result<Value, String> {
         let end = end.min(self.len() - 1);
-        let typed = kind.map(|kind| {
-            self.kinds
-                .get(kind)
-                .map(Vec::as_slice)
-                .unwrap_or(&[])
-        });
+        let typed = kind.map(|kind| self.kinds.get(kind).map(Vec::as_slice).unwrap_or(&[]));
         let total = typed
             .map(|ps| ps.partition_point(|p| *p <= end))
             .unwrap_or(end + 1);
@@ -615,16 +975,28 @@ impl Repository {
                 .or_else(|| p.get("order"));
             let fill = p.get("fill");
             let arrival = self
-                .related(pos, "order_arrival", end, &["intent_id", "order_id", "client_order_id"], true)
+                .related(
+                    pos,
+                    "order_arrival",
+                    end,
+                    &["intent_id", "order_id", "client_order_id"],
+                    true,
+                )
                 .map(|arrival_pos| self.raw(arrival_pos))
                 .transpose()?;
             let arrival_payload = arrival.as_ref().map(payload);
             let intent_event = if self.events[pos].kind == "order_intent" {
                 Some(raw.clone())
             } else {
-                self.related(pos, "order_intent", end, &["intent_id", "client_order_id"], true)
-                    .map(|intent_pos| self.raw(intent_pos))
-                    .transpose()?
+                self.related(
+                    pos,
+                    "order_intent",
+                    end,
+                    &["intent_id", "client_order_id"],
+                    true,
+                )
+                .map(|intent_pos| self.raw(intent_pos))
+                .transpose()?
             };
             let intent_payload = intent_event.as_ref().map(payload);
             rows.push(json!({"eventId":self.events[pos].id,"eventPos":pos,"timestamp":self.events[pos].timestamp.to_string(),"eventType":self.events[pos].kind,"source":raw["source"],
@@ -697,8 +1069,11 @@ impl Repository {
                     let raw = self.raw(pos).ok();
                     let marker_payload = raw.as_ref().map(payload);
                     let marker_fill = marker_payload.and_then(|p| p.get("fill"));
-                    let marker_order = marker_payload
-                        .and_then(|p| p.get("intent").and_then(|i| i.get("order")).or_else(|| p.get("order")));
+                    let marker_order = marker_payload.and_then(|p| {
+                        p.get("intent")
+                            .and_then(|i| i.get("order"))
+                            .or_else(|| p.get("order"))
+                    });
                     markers.push(json!({
                         "eventId":self.events[pos].id,
                         "eventPos":pos,
@@ -1004,6 +1379,121 @@ mod tests {
         let r = Repository::open(&dir).unwrap();
         (dir, r)
     }
+    fn trade_fixture() -> (PathBuf, Repository) {
+        let dir = std::env::temp_dir().join(format!(
+            "qrs-trade-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("manifest.json"),
+            json!({"run_id":"trade-test","exchange_config":{"starting_cash":1000.0,"symbol":"TEST"}}).to_string(),
+        )
+        .unwrap();
+        std::fs::write(dir.join("summary.json"), "{}").unwrap();
+        let events = vec![
+            ("run_start", 0, json!({})),
+            (
+                "market_quote",
+                1_000_000,
+                json!({"frame":{"bid":9.9,"ask":10.1,"mid":10.0}}),
+            ),
+            (
+                "strategy_signal",
+                1_000_000,
+                json!({"observed_ts_us":1000000,"signal":0.8,"threshold":0.5,"reason":"entry signal"}),
+            ),
+            (
+                "order_intent",
+                1_000_000,
+                json!({"intent_id":1,"observed_ts_us":1000000,"reason":"enter long","intent":{"order":{"side":"buy","qty":2.0}}}),
+            ),
+            (
+                "order_arrival",
+                1_050_000,
+                json!({"intent_id":1,"order_id":11,"actual_latency_us":50000,"latency_slippage_bps":0.2,"order":{"status":"filled"}}),
+            ),
+            (
+                "fill_created",
+                1_100_000,
+                json!({"intent_id":1,"order_id":11,"fill_id":101,"fill":{"id":101,"side":"buy","qty":2.0,"price":10.0,"fee":0.1}}),
+            ),
+            (
+                "market_quote",
+                2_000_000,
+                json!({"frame":{"bid":12.9,"ask":13.1,"mid":13.0}}),
+            ),
+            (
+                "market_quote",
+                3_000_000,
+                json!({"frame":{"bid":8.9,"ask":9.1,"mid":9.0}}),
+            ),
+            (
+                "strategy_signal",
+                4_000_000,
+                json!({"observed_ts_us":4000000,"signal":-0.8,"threshold":0.5,"reason":"exit signal"}),
+            ),
+            (
+                "order_intent",
+                4_000_000,
+                json!({"intent_id":2,"observed_ts_us":4000000,"reason":"exit long","intent":{"order":{"side":"sell","qty":2.0}}}),
+            ),
+            (
+                "order_arrival",
+                4_050_000,
+                json!({"intent_id":2,"order_id":12,"actual_latency_us":50000,"latency_slippage_bps":0.1,"order":{"status":"filled"}}),
+            ),
+            (
+                "fill_created",
+                4_100_000,
+                json!({"intent_id":2,"order_id":12,"fill_id":102,"fill":{"id":102,"side":"sell","qty":2.0,"price":12.0,"fee":0.1}}),
+            ),
+            ("run_end", 5_000_000, json!({})),
+        ];
+        let lines = events
+            .into_iter()
+            .enumerate()
+            .map(|(i, (kind, t, p))| {
+                json!({"event_id":i+1,"event_type":kind,"replay_ts":t.to_string(),"payload":p})
+                    .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(dir.join("events.ndjson"), lines).unwrap();
+        let r = Repository::open(&dir).unwrap();
+        (dir, r)
+    }
+
+    #[test]
+    fn completed_trade_reconstruction_is_cursor_bounded() {
+        let (dir, r) = trade_fixture();
+        assert_eq!(r.trades(0, 20, 10).unwrap()["total"], 0);
+        let result = r.trades(0, 20, 12).unwrap();
+        assert_eq!(result["total"], 1);
+        let trade = &result["trades"][0];
+        assert_eq!(trade["side"], "long");
+        assert_eq!(trade["quantity"], 2.0);
+        assert_eq!(trade["entryPrice"], 10.0);
+        assert_eq!(trade["exitPrice"], 12.0);
+        assert!((trade["grossPnl"].as_f64().unwrap() - 4.0).abs() < 1e-9);
+        assert!((trade["fees"].as_f64().unwrap() - 0.2).abs() < 1e-9);
+        assert!((trade["netPnl"].as_f64().unwrap() - 3.8).abs() < 1e-9);
+        assert!((trade["returnPct"].as_f64().unwrap() - 19.0).abs() < 1e-9);
+        assert_eq!(trade["holdUs"], 3_000_000);
+        assert!((trade["mfeBps"].as_f64().unwrap() - 3000.0).abs() < 1e-9);
+        assert!((trade["maeBps"].as_f64().unwrap() + 1000.0).abs() < 1e-9);
+        assert_eq!(trade["entrySignal"], 0.8);
+        assert_eq!(trade["entryThreshold"], 0.5);
+        assert_eq!(trade["entryReason"], "enter long");
+        assert_eq!(trade["exitReason"], "exit long");
+        assert_eq!(result["summary"]["winRate"], 100.0);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn cursor_visibility_and_explicit_causality() {
         let (dir, r) = fixture(true);
