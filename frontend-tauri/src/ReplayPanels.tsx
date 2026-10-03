@@ -69,7 +69,8 @@ export function ReplayTable({state,kind,onInspect}:{state:ReplayStateV2;kind:str
   const latest=useRef({state,kind,offset});latest.current={state,kind,offset};const busy=useRef(false);
   useEffect(()=>{let cancelled=false;const poll=async()=>{if(busy.current)return;const request=latest.current;busy.current=true;try{const r=await queryReplayRows(request.state,request.kind,request.offset);const now=latest.current;if(!cancelled && r.sessionId===now.state.sessionId && r.cursorUpper===now.state.cursor && r.offset===now.offset){setResult(r);setError("");}}catch(e){if(!cancelled)setError(String(e));}finally{busy.current=false;}};void poll();const timer=window.setInterval(()=>void poll(),120);return()=>{cancelled=true;window.clearInterval(timer);};},[state.sessionId,kind,offset,state.playing]);
   const rows=result?.sessionId===state.sessionId && result.cursorUpper===state.cursor && result.offset===offset ? result.rows : [];
-  return <div className="replay-rows"><table><thead><tr><th>Event</th><th>Time (UTC)</th><th>Type / ID</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th><th>Status</th></tr></thead><tbody>{rows.map(r=><tr key={r.eventId} className={state.selectedFillEventId===r.eventId ? "selected" : ""}><td><button onClick={()=>onInspect(r.eventId,r.eventType)}>#{r.eventId}</button></td><td title={r.timestamp}>{time(r.timestamp)}</td><td>{r.eventType} {r.fillId ?? r.intentId ?? ""}</td><td>{r.side ?? "—"}</td><td>{fmt(r.qty,3)}</td><td>{fmt(r.price,8)}</td><td>{fmt(r.fee,8)}</td><td>{r.status ?? "—"}</td></tr>)}</tbody></table>{error && <p role="alert">{error}</p>}<div className="row-pagination"><button disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-30))}>Previous</button><span>{offset+1}–{offset+rows.length} / {result?.total ?? 0}</span><button disabled={!result || offset+30>=result.total} onClick={()=>setOffset(offset+30)}>Next</button></div></div>;
+  const signals=kind==="strategy_signal";
+  return <div className="replay-rows"><table><thead>{signals ? <tr><th>Event</th><th>Time (UTC)</th><th>Signal</th><th>Threshold</th><th>Historical trigger</th><th>Reason / context</th></tr> : <tr><th>Event</th><th>Time (UTC)</th><th>Type / ID</th><th>Side</th><th>Qty</th><th>Price</th><th>Fee</th><th>Status</th></tr>}</thead><tbody>{rows.map(r=>signals ? <tr key={r.eventId}><td><button onClick={()=>onInspect(r.eventId,r.eventType)}>#{r.eventId}</button></td><td title={r.timestamp}>{time(r.timestamp)}</td><td>{fmt(r.signal,3)}</td><td>{fmt(r.threshold,3)}</td><td>{r.signal!==null && r.threshold!==null && Math.abs(r.signal)>=r.threshold ? "ABOVE THRESHOLD" : "below"}</td><td title={r.reason ?? ""}>{r.reason ?? "signal observation"}</td></tr> : <tr key={r.eventId} className={state.selectedFillEventId===r.eventId ? "selected" : ""}><td><button onClick={()=>onInspect(r.eventId,r.eventType)}>#{r.eventId}</button></td><td title={r.timestamp}>{time(r.timestamp)}</td><td>{r.eventType} {r.fillId ?? r.intentId ?? ""}</td><td>{r.side ?? "—"}</td><td>{fmt(r.qty,3)}</td><td>{fmt(r.price,8)}</td><td>{fmt(r.fee,8)}</td><td>{r.status ?? "—"}</td></tr>)}</tbody></table>{error && <p role="alert">{error}</p>}<div className="row-pagination"><button disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-30))}>Previous</button><span>{offset+1}–{offset+rows.length} / {result?.total ?? 0}</span><button disabled={!result || offset+30>=result.total} onClick={()=>setOffset(offset+30)}>Next</button></div></div>;
 }
 export function RawInspector({state,eventId}:{state:ReplayStateV2;eventId:string|null}) {
   const [result,setResult]=useState<ReplayInspection|null>(null);const [error,setError]=useState("");
@@ -99,23 +100,24 @@ export function HistoricalTradeAnalysis({state,onInspect}:{state:ReplayStateV2;o
     setError("");
   }catch(e){if(!cancelled)setError(String(e));}finally{busy.current=false;}};void poll();const timer=window.setInterval(()=>void poll(),250);return()=>{cancelled=true;window.clearInterval(timer);};},[state.sessionId,state.playing]);
 
-  const realized=rows.filter(r=>r.realizedPnlDelta!==null).reduce((sum,r)=>sum+(r.realizedPnlDelta ?? 0),0);
-  const execution=rows.filter(r=>r.netPnlDelta!==null).reduce((sum,r)=>sum+(r.netPnlDelta ?? 0),0);
+  const account=state.account;
+  const realized=account?.realized_pnl ?? null;
+  const unrealized=account?.unrealized_pnl ?? null;
+  const fees=account?.fees_paid ?? null;
   const slips=rows.map(r=>r.latencySlippageBps).filter((v):v is number=>v!==null && Number.isFinite(v));
   const avgSlip=slips.length ? slips.reduce((a,b)=>a+b,0)/slips.length : null;
-  const completed=rows.filter(r=>Math.abs(r.realizedPnlDelta ?? 0)>1e-12).length;
   return <section className="historical-trades panel">
     <div className="panel-heading"><div><h2>Historical trades</h2><p>Runner-recorded fills up to the current replay cursor</p></div><span className="history-count">{total} fills</span></div>
     <div className="history-metrics">
-      <div><span>REALIZED Δ</span><strong className={realized>=0?"positive-text":"negative-text"}>{fmt(realized,4)}</strong></div>
-      <div><span>EXECUTION Δ</span><strong className={execution>=0?"positive-text":"negative-text"}>{fmt(execution,4)}</strong></div>
+      <div><span>REALIZED PNL</span><strong className={(realized ?? 0)>=0?"positive-text":"negative-text"}>{fmt(realized,4)}</strong></div>
+      <div><span>UNREALIZED PNL</span><strong className={(unrealized ?? 0)>=0?"positive-text":"negative-text"}>{fmt(unrealized,4)}</strong></div>
       <div><span>AVG LATENCY SLIP</span><strong>{avgSlip===null?"—":`${fmt(avgSlip,3)} bps`}</strong></div>
-      <div><span>REALIZING FILLS</span><strong>{completed}</strong></div>
+      <div><span>FEES PAID</span><strong>{fmt(fees,4)}</strong></div>
     </div>
     <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Time</th><th>Side</th><th>Qty</th><th>Fill</th><th>Signal</th><th>Latency slip</th><th>Realized Δ</th><th>Exec Δ</th></tr></thead><tbody>
       {rows.slice(0,10).map(r=><tr key={r.eventId} onClick={()=>onInspect(r.eventId,r.eventType)}><td>{time(r.timestamp)}</td><td className={r.side==="buy"?"positive-text":r.side==="sell"?"negative-text":""}>{r.side?.toUpperCase() ?? "—"}</td><td>{fmt(r.qty,3)}</td><td>{fmt(r.price,8)}</td><td title={r.reason ?? ""}>{fmt(r.signal,3)}</td><td>{r.latencySlippageBps===null?"—":`${fmt(r.latencySlippageBps,3)} bps`}</td><td className={(r.realizedPnlDelta ?? 0)>=0?"positive-text":"negative-text"}>{fmt(r.realizedPnlDelta,4)}</td><td className={(r.netPnlDelta ?? 0)>=0?"positive-text":"negative-text"}>{fmt(r.netPnlDelta,4)}</td></tr>)}
       {!rows.length && <tr><td colSpan={8}>{error || "No fills have occurred at this replay cursor."}</td></tr>}
     </tbody></table></div>
-    <p className="history-note">Realized Δ is the realized-account change recorded at that fill; execution Δ is the immediate equity change at execution. Neither is fabricated by the UI.</p>
+    <p className="history-note">Top metrics come from the Runner account at the current replay cursor. Per-row Realized Δ and Exec Δ are the changes recorded at that fill; the UI does not synthesize trades or outcomes.</p>
   </section>;
 }
