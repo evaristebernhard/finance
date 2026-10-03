@@ -1,7 +1,7 @@
 # Finance / Quant Replay Studio Docs
 
-The primary engineering product in this repository is now **Quant Replay
-Studio**, a local-first deterministic strategy replay & debugger.
+The primary engineering product in this repository is **Quant Replay Studio**,
+a local-first deterministic strategy replay and historical analysis workstation.
 
 Start here:
 
@@ -13,21 +13,17 @@ Start here:
 
 ## Current market pack
 
-CCUSDT remains the current active market-specific implementation used to prove
-the product contract:
+CCUSDT remains the current market-specific implementation used to prove the
+historical replay and execution-analysis contract:
 
 - [CCUSDT start page](markets/ccusdt/START_HERE.md)
 - [CCUSDT docs index](markets/ccusdt/README.md)
 - [CCUSDT replay exchange system](../systems/ccusdt_replay_exchange/README.md)
 - [CCUSDT books and reading map](books/README.md)
 
-CCUSDT should be treated as a product pack, not as the identity of Quant Replay
-Studio. The replay engine and desktop product are intended to remain
-market-neutral.
+CCUSDT is a product pack, not the identity of Quant Replay Studio.
 
 ## Background research lines
-
-These are preserved as historical or research material:
 
 - [CHOG / live collection handoff](handoff/live-collection.md)
 - [CHOG memecoin strategy handoff](handoff/memecoin-strategy.md)
