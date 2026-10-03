@@ -1,6 +1,6 @@
 # Quant Replay Studio
 
-> **Deterministic Strategy Replay & Debugger**
+> **Deterministic Strategy Replay & Historical Analysis**
 
 Quant Replay Studio is a local-first workstation for reproducing and debugging
 the causal path from market data to strategy decision, order arrival, fill,
@@ -35,7 +35,7 @@ active user-facing product.
 ## Product flow
 
 ```text
-Experiments -> New Experiment -> Replay Debugger
+Experiments -> New Experiment -> Replay Analysis
 ```
 
 A Runner execution writes immutable local artifacts. The Replay Debugger reads
