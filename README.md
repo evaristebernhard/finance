@@ -2,35 +2,36 @@
 
 > **Deterministic Strategy Replay & Historical Analysis**
 
-Quant Replay Studio is a local-first workstation for reproducing and debugging
-the causal path from market data to strategy decision, order arrival, fill,
-position and PnL.
+Quant Replay Studio is a local-first workstation for replaying historical market
+sessions and studying how a strategy behaved inside them.
 
-Instead of stopping at an equity curve, the product is designed to answer:
+The product is meant to answer:
 
 ```text
-What did the strategy see?
+What did the market look like?
         ->
-Why did it act?
+Where did the strategy act?
         ->
-What changed during latency?
+What order actually arrived and filled?
         ->
-How was the order filled?
+How did position and PnL evolve?
         ->
-Where did the PnL come from?
+What market / signal / execution context surrounded that trade?
 ```
 
-## Active product
+The event debugger is still important, but it is a drill-down tool. The main
+product surface is historical replay and trade analysis.
 
-The current desktop product is:
+## Active product
 
 - [React + Tauri frontend](frontend-tauri/README.md)
 - [Quant Replay Engine](systems/quant_replay_engine/README.md)
 - [Product direction](docs/product/quant-replay-studio.md)
 - [Engineering docs](docs/engineering/README.md)
 
-The older Slint UI under `frontend/` is a reference implementation, not the
-active user-facing product.
+The older Slint UI under `frontend/` is a reference implementation. The old
+React workbench is also reference material only: its client-side toy fill
+simulation must not be copied into the active product.
 
 ## Product flow
 
@@ -38,8 +39,10 @@ active user-facing product.
 Experiments -> New Experiment -> Replay Analysis
 ```
 
-A Runner execution writes immutable local artifacts. The Replay Debugger reads
-those artifacts and follows the causal chain without recomputing fills or PnL.
+A Runner execution writes immutable local artifacts. Replay Analysis reads those
+artifacts and shows historical price, order-book state, strategy signals, order
+and fill markers, account PnL and causal context. The UI does not invent fills
+or recompute execution outcomes.
 
 ## Run the desktop app
 
@@ -55,11 +58,17 @@ desktop app is launched outside this checkout.
 
 ## Current scope
 
-The replay engine is market-neutral, while the experiment creation UI is still
+The replay engine is market-neutral, while the experiment-creation UI is still
 backed by the current CCUSDT pack and a small set of strategy profiles.
 
-The next product milestones are dataset/plugin generalization and causal A/B
-comparison between experiments. The core Runner does not need to be rewritten.
+The immediate product priorities are:
+
+1. make historical market/trade/PnL review excellent;
+2. expose typed signal and execution context instead of hiding it in raw JSON;
+3. generalize datasets and strategies through stable contracts;
+4. improve attribution and large-run replay.
+
+Automatic experiment comparison is intentionally deferred.
 
 ## Repository safety
 
