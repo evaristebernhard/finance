@@ -1,22 +1,32 @@
 # Quant Replay Studio — React + Tauri
 
-Quant Replay Studio is a **deterministic strategy replay and historical analysis workstation**.
+Quant Replay Studio is a **deterministic strategy replay and historical analysis
+workstation**.
 
-It is not primarily a charting terminal or a summary-statistics backtester. The
-product goal is to reproduce a strategy's event-time execution story and make it
-possible to answer:
+The active UI is designed for studying a completed historical strategy run as a
+market session, not merely reading summary backtest statistics.
 
-- What did the strategy observe?
-- Why did it decide to trade?
-- What happened while the order was in flight?
-- What book/quote did the order arrive into?
-- How was the fill produced?
-- Where did the resulting PnL come from?
+## Main user jobs
 
-The active desktop product surface is this directory: React owns the visual
-workspace and Tauri exposes local Runner artifacts through Rust commands. The
-Runner owns execution outcomes. The UI reads and explains artifacts; it does
-not recompute fills or execution PnL.
+### 1. Replay the historical market
+
+Price, book state, strategy signals, orders and fills share one event-time cursor.
+
+### 2. Review what the strategy actually did
+
+The UI shows Runner-recorded signals, intents, arrivals, fills, position and PnL.
+It never creates toy fills or recomputes execution results in React.
+
+### 3. Study trade context
+
+A selected signal/order/fill can be inspected together with signal strength,
+threshold, quote/book state, latency, slippage, account changes and the raw
+causal event chain.
+
+The older React workbench is useful as a layout reference because it placed the
+price chart, order book, trade state and research context on one screen. Its
+client-side `executablePrice()` / toy portfolio logic is deliberately not part
+of the active product.
 
 ## Product flow
 
@@ -24,17 +34,11 @@ not recompute fills or execution PnL.
 Experiments
   -> New Experiment
   -> deterministic Runner artifact
-  -> Replay Debugger
+  -> Replay Analysis
+      -> historical market + fills + PnL
+      -> signal / order / execution context
+      -> event debugger when needed
 ```
-
-The current UI exposes three product ideas:
-
-1. **Replay** — reproduce the event-time story.
-2. **Explain** — trace observation -> signal -> intent -> arrival -> fill -> PnL.
-3. **Compare** — planned next milestone: explain why two experiments diverge.
-
-"Compare" is intentionally documented as the next milestone rather than exposed
-as a fake working control.
 
 ## Run
 
@@ -56,9 +60,6 @@ The desktop shell discovers the repository from its build location. Set
 
 ## Current replay contract
 
-Setup parameters currently include strategy profile, fill model, `delay_time`
-in microseconds, fee in basis points, and starting cash.
-
 The Runner writes:
 
 ```text
@@ -68,18 +69,19 @@ events.ndjson
 replay_index.json
 ```
 
-Replay v2 reads event offsets, keeps in-memory quote/account checkpoints, and
-serves numeric windows, paged event rows, causal inspection and raw-event
-inspection. Replay controls follow Runner event time: 1x means one replay second
-per wall-clock second, with speeds from 0.25x to 16x.
+Replay v2 provides:
 
-Tauri emits `replay_snapshot_v2` at most every 50 ms.
-`get_replay_window`, `query_replay_rows`, and `inspect_replay_event` carry
-the session ID and cursor bound so stale requests cannot reveal later events.
+- event-time play / pause / seek;
+- bounded price and PnL windows;
+- signal/order/fill markers;
+- paged historical rows;
+- historical fill metrics such as latency slippage and Runner-recorded PnL deltas;
+- causal inspection and raw-event inspection.
 
-## Important current limitation
+The UI is cursor-bounded: it must not expose future events while replaying.
 
-The product shell is now market-neutral in intent, but the experiment creation
-form is still backed by the current CCUSDT pack and a small set of built-in
-strategy profiles. General dataset selection, strategy/plugin discovery and A/B
-experiment comparison are backend/product milestones, not completed features.
+## Current limitation
+
+The product shell is market-neutral in intent, but experiment creation is still
+wired to the current CCUSDT pack and built-in strategy profiles. Dataset and
+strategy registries are future backend/product work.
