@@ -2,7 +2,7 @@
 
 ## Definition
 
-**Quant Replay Studio is a deterministic strategy replay & debugger.**
+**Quant Replay Studio is a deterministic strategy replay and historical analysis workstation.**
 
 The core user problem is not merely "did this strategy make money?" The product
 should answer "why did this exact decision become this exact execution and this
@@ -127,20 +127,7 @@ AnalysisPlugin
 The first useful version can be manifest/process based; it does not need a
 complex dynamic-library ABI.
 
-#### 3. Compare engine
-
-Given run A and run B, align causal timelines and identify:
-
-- same observation, different decision;
-- same intent, different arrival state;
-- fill vs missed fill;
-- different fill price/quantity;
-- first account/PnL divergence;
-- cumulative attribution delta.
-
-This is likely the most important backend feature after single-run replay.
-
-#### 4. Typed attribution
+#### 3. Historical analysis queries\n\nExpose enough typed Runner data for the UI to show historical fills, strategy signal/threshold context, latency slippage, execution attribution and account changes without parsing raw JSON in React.\n\n#### 4. Typed attribution
 
 Promote latency slippage, spread/execution cost, fees, mark movement and later
 adverse selection from presentation strings/optional JSON into a stable schema.
