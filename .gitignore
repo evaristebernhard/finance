@@ -18,6 +18,10 @@ tmp/
 
 # Local research caches and scratch exports.
 /archive/
+!/archive/
+/archive/*
+!/archive/legacy_web_workbench/
+!/archive/legacy_web_workbench/**
 /arxiv/
 /output/
 /CryoBacktester/

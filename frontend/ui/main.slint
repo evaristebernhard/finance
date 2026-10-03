@@ -1,0 +1,156 @@
+export global Palette {
+    out property <color> bg: #0a0f12;
+    out property <color> shell: #10181c;
+    out property <color> panel: #131f24;
+    out property <color> raised: #1a2a30;
+    out property <color> line: #2c4248;
+    out property <color> text: #edf3ee;
+    out property <color> muted: #a4b2b0;
+    out property <color> dim: #6b7d80;
+    out property <color> amber: #f4b860;
+    out property <color> teal: #58d2b2;
+    out property <color> red: #ef817e;
+    out property <color> blue: #89bce7;
+    out property <color> violet: #b69fe9;
+}
+
+component Action inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <bool> quiet: false;
+    callback clicked();
+    width: 96px; height: 29px;
+    background: primary ? Palette.amber : quiet ? transparent : Palette.raised;
+    border-width: quiet ? 0px : 1px;
+    border-color: primary ? Palette.amber : Palette.line;
+    Text { text: root.label; color: primary ? Palette.bg : Palette.muted; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
+    TouchArea { width: parent.width; height: parent.height; clicked => root.clicked(); }
+}
+
+component Nav inherits Rectangle {
+    in property <string> label; in property <string> note; in property <bool> active; callback clicked();
+    height: 51px; background: active ? #2a291f : transparent;
+    Rectangle { width: active ? 3px : 0px; height: 33px; y: 9px; background: Palette.amber; }
+    Text { x: 14px; y: 6px; text: root.label; color: active ? Palette.text : Palette.muted; font-size: 11px; font-weight: 800; }
+    Text { x: 14px; y: 28px; text: root.note; color: active ? Palette.amber : Palette.dim; font-size: 8px; }
+    TouchArea { width: parent.width; height: parent.height; clicked => root.clicked(); }
+}
+
+component Card inherits Rectangle { background: Palette.panel; border-width: 1px; border-color: Palette.line; }
+
+component Copy inherits Rectangle {
+    in property <string> value; height: 22px; background: Palette.raised; border-width: 1px; border-color: Palette.line;
+    TextInput { x: 8px; width: parent.width - 16px; height: parent.height; text: root.value; read-only: true; color: Palette.text; font-size: 9px; selection-foreground-color: Palette.bg; selection-background-color: Palette.amber; }
+}
+
+component SectionLabel inherits Rectangle {
+    in property <string> kicker; in property <string> title; height: 39px;
+    Text { text: root.kicker; color: Palette.amber; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; }
+    Text { y: 14px; text: root.title; color: Palette.text; font-size: 17px; font-weight: 800; }
+}
+
+component Metric inherits Rectangle {
+    in property <string> label; in property <string> value; in property <color> tone: Palette.text;
+    background: Palette.raised; border-width: 1px; border-color: Palette.line;
+    Text { x: 10px; y: 7px; text: root.label; color: Palette.dim; font-size: 8px; letter-spacing: 1px; }
+    Text { x: 10px; y: 24px; text: root.value; color: root.tone; font-size: 14px; font-weight: 800; }
+}
+
+component Stage inherits Rectangle {
+    in property <string> number; in property <string> label; in property <string> value; in property <color> tone: Palette.text;
+    height: 29px; background: Palette.raised; border-width: 1px; border-color: Palette.line;
+    Text { x: 9px; y: 7px; text: root.number; color: Palette.amber; font-size: 8px; font-weight: 900; }
+    Text { x: 33px; y: 7px; text: root.label; color: Palette.dim; font-size: 8px; letter-spacing: 1px; }
+    Text { x: 98px; y: 7px; width: parent.width - 107px; text: root.value; color: root.tone; font-size: 9px; font-weight: 800; horizontal-alignment: right; }
+}
+
+component RunRow inherits Rectangle {
+    in property <string> run-id; in property <string> dataset; in property <string> symbol; in property <string> strategy; in property <string> stats; in property <string> status; callback open();
+    height: 78px; background: Palette.raised; border-width: 1px; border-color: Palette.line;
+    Rectangle { x: 0px; width: 3px; height: parent.height; background: root.status == "COMPLETE" ? Palette.teal : Palette.amber; }
+    VerticalLayout { x: 14px; y: 10px; width: parent.width - 104px; height: parent.height - 20px; spacing: 3px; Text { text: root.run-id; color: Palette.text; font-size: 10px; font-weight: 800; } Text { text: root.symbol + "  ·  " + root.dataset + "  ·  " + root.strategy; color: Palette.muted; font-size: 9px; } Text { text: root.stats; color: Palette.dim; font-size: 8px; } }
+    Text { x: parent.width - 83px; y: 10px; width: 72px; text: root.status; color: root.status == "COMPLETE" ? Palette.teal : Palette.amber; font-size: 8px; font-weight: 800; horizontal-alignment: right; }
+    Action { x: parent.width - 83px; y: 35px; label: "OPEN"; width: 72px; height: 25px; primary: true; clicked => root.open(); }
+}
+
+component SetupPage inherits Rectangle {
+    in property <string> dataset-status; in property <string> l2-quality; in property <string> raw-size; in property <string> fill-model; in property <string> strategy-profile; in property <string> run-state; in property <string> run-phase; in property <string> run-detail;
+    callback run-backtest(); callback choose-fill-model(string); callback choose-strategy(string); background: Palette.bg;
+    VerticalLayout {
+        padding: 24px; spacing: 12px;
+        SectionLabel { kicker: "BACKTEST SETUP"; title: "Create a replay contract"; }
+        Text { text: "Choose the dataset, policy, and execution model. The Runner writes the artifacts; Workbench explains them."; color: Palette.muted; font-size: 10px; }
+        HorizontalLayout { spacing: 10px;
+            Card { horizontal-stretch: 1; height: 330px; VerticalLayout { padding: 16px; spacing: 10px; Text { text: "DATASET"; color: Palette.text; font-size: 11px; font-weight: 800; } Text { text: "Canonical CCUSDT market truth"; color: Palette.muted; font-size: 10px; } Rectangle { height: 104px; background: Palette.raised; border-width: 1px; border-color: Palette.line; Text { x: 12px; y: 12px; text: root.dataset-status; color: Palette.teal; font-size: 12px; font-weight: 800; } Text { x: 12px; y: 40px; text: "CCUSDT  /  2026-10-01"; color: Palette.text; font-size: 10px; } Text { x: 12px; y: 68px; text: root.raw-size + " raw L2  ·  " + root.l2-quality; color: Palette.dim; font-size: 9px; } } Text { text: "MAX EVENTS     25,000"; color: Palette.muted; font-size: 9px; } Text { text: "ARTIFACTS       manifest · summary · events · index"; color: Palette.dim; font-size: 9px; } Rectangle { vertical-stretch: 1; } Text { text: "L2 quality stays visible in the Workbench."; color: Palette.dim; font-size: 8px; } } }
+            Card { width: 390px; height: 330px; VerticalLayout { padding: 16px; spacing: 10px; Text { text: "STRATEGY + EXECUTION"; color: Palette.text; font-size: 11px; font-weight: 800; } Text { text: "Use the current Runner contract and fill semantics."; color: Palette.muted; font-size: 10px; } Text { text: "STRATEGY PROFILE"; color: Palette.dim; font-size: 8px; letter-spacing: 1px; } HorizontalLayout { spacing: 5px; Action { label: "TFI"; primary: root.strategy-profile == "tfi"; clicked => root.choose-strategy("tfi"); } Action { label: "QUOTE IMB."; primary: root.strategy-profile == "quote_imbalance"; clicked => root.choose-strategy("quote_imbalance"); } } Action { label: "TRADE FLOW"; primary: root.strategy-profile == "trade_flow_momentum"; width: parent.width; clicked => root.choose-strategy("trade_flow_momentum"); } Text { text: "EXECUTION MODEL"; color: Palette.dim; font-size: 8px; letter-spacing: 1px; } HorizontalLayout { spacing: 5px; Action { label: "TOP OF BOOK"; primary: root.fill-model == "top-of-book"; clicked => root.choose-fill-model("top-of-book"); } Action { label: "L2 DEPTH"; primary: root.fill-model == "l2-depth"; clicked => root.choose-fill-model("l2-depth"); } } Text { text: "LATENCY       50 ms"; color: Palette.muted; font-size: 9px; } Text { text: "INITIAL CASH  $10,000"; color: Palette.muted; font-size: 9px; } Rectangle { vertical-stretch: 1; } Action { label: root.run-state == "running" ? "RUNNING…" : "CREATE RUN"; primary: true; width: parent.width; height: 35px; clicked => root.run-backtest(); } } }
+        }
+        Card { height: 102px; VerticalLayout { padding: 15px; spacing: 6px; Text { text: root.run-phase; color: root.run-state == "error" ? Palette.red : Palette.amber; font-size: 10px; font-weight: 800; } Text { text: root.run-detail; color: Palette.muted; font-size: 9px; } Text { text: "Runner progress is polled from progress.json; the UI stays responsive while artifacts are written."; color: Palette.dim; font-size: 8px; } } }
+        Rectangle { vertical-stretch: 1; }
+    }
+}
+
+component RunLibraryPage inherits Rectangle {
+    in property <string> run-count; in property <string> run-root;
+    in property <string> run-1-id; in property <string> run-1-dataset; in property <string> run-1-symbol; in property <string> run-1-strategy; in property <string> run-1-stats; in property <string> run-1-status;
+    in property <string> run-2-id; in property <string> run-2-dataset; in property <string> run-2-symbol; in property <string> run-2-strategy; in property <string> run-2-stats; in property <string> run-2-status;
+    in property <string> run-3-id; in property <string> run-3-dataset; in property <string> run-3-symbol; in property <string> run-3-strategy; in property <string> run-3-stats; in property <string> run-3-status;
+    in property <string> run-4-id; in property <string> run-4-dataset; in property <string> run-4-symbol; in property <string> run-4-strategy; in property <string> run-4-stats; in property <string> run-4-status;
+    in property <string> run-5-id; in property <string> run-5-dataset; in property <string> run-5-symbol; in property <string> run-5-strategy; in property <string> run-5-stats; in property <string> run-5-status;
+    in property <string> run-6-id; in property <string> run-6-dataset; in property <string> run-6-symbol; in property <string> run-6-strategy; in property <string> run-6-stats; in property <string> run-6-status;
+    callback open-run(string); callback create-run(); callback select-run(string); background: Palette.bg;
+    VerticalLayout {
+        padding: 24px; spacing: 12px;
+        HorizontalLayout { height: 40px; SectionLabel { kicker: "RUN LIBRARY"; title: "Replay stories, ready to inspect"; horizontal-stretch: 1; } Action { label: "NEW RUN"; primary: true; width: 120px; clicked => root.create-run(); } }
+        Text { text: "Each row is metadata from manifest.json + summary.json. Open a run to load its causal event stream."; color: Palette.muted; font-size: 10px; }
+        HorizontalLayout { height: 27px; Text { text: root.run-count; color: Palette.amber; font-size: 9px; font-weight: 800; vertical-alignment: center; } Rectangle { horizontal-stretch: 1; } Text { text: "RUN ROOT"; color: Palette.dim; font-size: 8px; vertical-alignment: center; } Copy { value: root.run-root; width: 370px; } }
+        HorizontalLayout { spacing: 10px;
+            VerticalLayout { horizontal-stretch: 1; spacing: 8px; if root.run-1-id != "—": RunRow { run-id: root.run-1-id; dataset: root.run-1-dataset; symbol: root.run-1-symbol; strategy: root.run-1-strategy; stats: root.run-1-stats; status: root.run-1-status; open => { root.select-run(root.run-1-id); root.open-run(root.run-1-id); } } if root.run-2-id != "—": RunRow { run-id: root.run-2-id; dataset: root.run-2-dataset; symbol: root.run-2-symbol; strategy: root.run-2-strategy; stats: root.run-2-stats; status: root.run-2-status; open => { root.select-run(root.run-2-id); root.open-run(root.run-2-id); } } if root.run-3-id != "—": RunRow { run-id: root.run-3-id; dataset: root.run-3-dataset; symbol: root.run-3-symbol; strategy: root.run-3-strategy; stats: root.run-3-stats; status: root.run-3-status; open => { root.select-run(root.run-3-id); root.open-run(root.run-3-id); } } }
+            VerticalLayout { horizontal-stretch: 1; spacing: 8px; if root.run-4-id != "—": RunRow { run-id: root.run-4-id; dataset: root.run-4-dataset; symbol: root.run-4-symbol; strategy: root.run-4-strategy; stats: root.run-4-stats; status: root.run-4-status; open => { root.select-run(root.run-4-id); root.open-run(root.run-4-id); } } if root.run-5-id != "—": RunRow { run-id: root.run-5-id; dataset: root.run-5-dataset; symbol: root.run-5-symbol; strategy: root.run-5-strategy; stats: root.run-5-stats; status: root.run-5-status; open => { root.select-run(root.run-5-id); root.open-run(root.run-5-id); } } if root.run-6-id != "—": RunRow { run-id: root.run-6-id; dataset: root.run-6-dataset; symbol: root.run-6-symbol; strategy: root.run-6-strategy; stats: root.run-6-stats; status: root.run-6-status; open => { root.select-run(root.run-6-id); root.open-run(root.run-6-id); } } }
+        }
+        Card { height: 92px; VerticalLayout { padding: 15px; spacing: 5px; Text { text: "READ-ONLY ARTIFACT BOUNDARY"; color: Palette.amber; font-size: 9px; font-weight: 800; } Text { text: "Run Library reads metadata only. Full events.ndjson is loaded after Open Run, then replayed at the cursor."; color: Palette.muted; font-size: 9px; } Text { text: "Signal → Order → Arrival → Fill → Position / PnL"; color: Palette.teal; font-size: 10px; font-weight: 800; } } }
+        Rectangle { vertical-stretch: 1; }
+    }
+}
+
+component WorkbenchPage inherits Rectangle {
+    in property <string> run-id; in property <string> symbol; in property <string> dataset-date; in property <string> strategy-name; in property <string> execution-model; in property <string> replay-time; in property <string> event-cursor; in property <string> replay-state; in property <int> replay-progress;
+    in property <string> mid; in property <string> best-bid; in property <string> best-ask; in property <string> spread; in property <string> microprice; in property <string> signal; in property <string> chart; in property <string> order-book; in property <string> event-tape; in property <string> orders-text; in property <string> fills-text; in property <string> position-text; in property <string> pnl-text; in property <string> causal-text; in property <string> l2-warning; in property <string> raw-event; in property <string> selected-fill; in property <string> trade-summary; in property <string> trade-detail; in property <string> signal-story; in property <string> arrival-story; in property <string> execution-story; in property <string> account-story;
+    callback open-library(); callback open-setup(); callback replay-command(string); callback seek(float); callback select-fill(string); callback select-tab(string); background: Palette.bg;
+    VerticalLayout {
+        padding: 12px; spacing: 7px;
+        Card { height: 82px; HorizontalLayout { padding: 12px; spacing: 18px; VerticalLayout { width: 190px; spacing: 3px; Text { text: root.symbol; color: Palette.text; font-size: 18px; font-weight: 900; } Text { text: root.dataset-date + "  ·  " + root.strategy-name; color: Palette.muted; font-size: 10px; } Text { text: root.run-id; color: Palette.dim; font-size: 8px; } } VerticalLayout { horizontal-stretch: 1; spacing: 3px; Text { text: "WHAT HAPPENED AT THIS CURSOR"; color: Palette.amber; font-size: 8px; font-weight: 800; letter-spacing: 1px; } Text { text: root.trade-summary; color: Palette.text; font-size: 20px; font-weight: 900; } Text { text: root.trade-detail; color: Palette.muted; font-size: 10px; } } VerticalLayout { width: 156px; spacing: 3px; Text { text: "MARK"; color: Palette.dim; font-size: 8px; } Text { text: root.mid; color: Palette.teal; font-size: 16px; font-weight: 800; } Text { text: root.replay-state + "  ·  " + root.replay-progress + "%"; color: Palette.amber; font-size: 9px; font-weight: 800; } } Action { label: "LIBRARY"; quiet: true; width: 68px; clicked => root.open-library(); } } }
+        Card { height: 40px; HorizontalLayout { padding: 5px; spacing: 5px; Action { label: "▶ PLAY"; primary: true; clicked => root.replay-command("play"); } Action { label: "Ⅱ PAUSE"; clicked => root.replay-command("pause"); } Action { label: "‹ STEP"; clicked => root.replay-command("step_back"); } Action { label: "STEP ›"; clicked => root.replay-command("step_forward"); } Action { label: "RESET"; clicked => root.replay-command("reset"); } Action { label: "SPEED −"; clicked => root.replay-command("speed_down"); } Action { label: "SPEED +"; clicked => root.replay-command("speed_up"); } Rectangle { horizontal-stretch: 1; } Text { text: root.replay-time + "  ·  cursor " + root.event-cursor; color: Palette.muted; font-size: 9px; vertical-alignment: center; } }
+        }
+        HorizontalLayout { height: 54px; spacing: 5px; Metric { horizontal-stretch: 1; label: "BEST BID"; value: root.best-bid; tone: Palette.teal; } Metric { horizontal-stretch: 1; label: "BEST ASK"; value: root.best-ask; tone: Palette.red; } Metric { horizontal-stretch: 1; label: "SPREAD"; value: root.spread; tone: Palette.amber; } Metric { horizontal-stretch: 1; label: "MICROPRICE"; value: root.microprice; tone: Palette.blue; } Metric { horizontal-stretch: 1; label: "L2 QUALITY"; value: root.l2-warning; tone: Palette.amber; } }
+        Card { height: 30px; HorizontalLayout { padding: 6px; spacing: 10px; Text { text: "SOURCE"; color: Palette.dim; font-size: 8px; font-weight: 800; } Text { text: root.dataset-date + "  ·  " + root.symbol + "  ·  " + root.execution-model; color: Palette.muted; font-size: 9px; } Rectangle { horizontal-stretch: 1; } Text { text: "Price/book and execution values come from Runner artifacts"; color: Palette.dim; font-size: 8px; } } }
+        HorizontalLayout { height: 226px; spacing: 7px;
+            Card { horizontal-stretch: 1; VerticalLayout { padding: 12px; spacing: 6px; HorizontalLayout { height: 22px; Text { text: "PRICE PATH"; color: Palette.text; font-size: 11px; font-weight: 800; } Rectangle { horizontal-stretch: 1; } Text { text: "cursor at right"; color: Palette.dim; font-size: 8px; } } Rectangle { vertical-stretch: 1; background: #0c1518; border-width: 1px; border-color: Palette.line; Text { x: 16px; y: 34px; text: root.chart; color: Palette.teal; font-size: 26px; letter-spacing: 1px; } Text { x: 16px; y: 93px; text: "Mid price over the replay window"; color: Palette.muted; font-size: 10px; } Text { x: 16px; y: 116px; text: "quote events  ○   order intent  ◆   arrival  △   fill  ●"; color: Palette.dim; font-size: 9px; } } Text { text: "MID " + root.mid + "     SIGNAL " + root.signal; color: Palette.muted; font-size: 10px; } } }
+            Card { width: 290px; VerticalLayout { padding: 12px; spacing: 6px; Text { text: "ORDER BOOK"; color: Palette.text; font-size: 11px; font-weight: 800; } Text { text: root.order-book; color: Palette.muted; font-size: 10px; vertical-stretch: 1; } Text { text: "Current cursor book / last known quote"; color: Palette.dim; font-size: 8px; } } }
+            Card { width: 288px; VerticalLayout { padding: 12px; spacing: 6px; Text { text: "TRADE STORY"; color: Palette.amber; font-size: 11px; font-weight: 800; } Stage { number: "01"; label: "SIGNAL"; value: root.signal; tone: Palette.amber; } Stage { number: "02"; label: "ORDER"; value: root.selected-fill; tone: Palette.blue; } Stage { number: "03"; label: "ARRIVAL"; value: root.arrival-story; tone: Palette.violet; } Stage { number: "04"; label: "FILL"; value: root.replay-state; tone: Palette.teal; } Text { text: "Each step is sourced from the causal event chain."; color: Palette.dim; font-size: 8px; vertical-stretch: 1; } } }
+        }
+        HorizontalLayout { height: 142px; spacing: 7px;
+            Card { width: 300px; VerticalLayout { padding: 12px; spacing: 5px; Text { text: "WHY DID IT TRIGGER?"; color: Palette.amber; font-size: 10px; font-weight: 800; } Text { text: root.signal-story; color: Palette.text; font-size: 11px; vertical-stretch: 1; } Text { text: root.orders-text; color: Palette.muted; font-size: 9px; } } }
+            Card { horizontal-stretch: 1; VerticalLayout { padding: 12px; spacing: 5px; Text { text: "WHAT DID THE ORDER SEE?"; color: Palette.blue; font-size: 10px; font-weight: 800; } Text { text: root.arrival-story; color: Palette.text; font-size: 11px; vertical-stretch: 1; } Text { text: root.execution-story; color: Palette.muted; font-size: 9px; } } }
+            Card { width: 300px; VerticalLayout { padding: 12px; spacing: 5px; Text { text: "POSITION / PNL"; color: Palette.teal; font-size: 10px; font-weight: 800; } Text { text: root.account-story; color: Palette.text; font-size: 11px; vertical-stretch: 1; } Text { text: root.pnl-text; color: Palette.teal; font-size: 9px; } } }
+        }
+        Card { height: 156px; VerticalLayout { padding: 9px; spacing: 6px; HorizontalLayout { height: 27px; Action { label: "EVENTS"; primary: true; clicked => root.select-tab("Event Tape"); } Action { label: "ORDERS"; clicked => root.select-tab("Orders"); } Action { label: "FILLS"; clicked => root.select-tab("Fills"); } Action { label: "POSITION"; clicked => root.select-tab("Position"); } Action { label: "PNL"; clicked => root.select-tab("PnL Attribution"); } Rectangle { horizontal-stretch: 1; } Action { label: "INSPECT FILL"; clicked => root.select-fill(root.selected-fill); } } Rectangle { vertical-stretch: 1; background: #0d171b; border-width: 1px; border-color: Palette.line; Text { x: 10px; y: 8px; text: root.event-tape; color: Palette.muted; font-size: 9px; } } } }
+        HorizontalLayout { height: 134px; spacing: 7px; Card { horizontal-stretch: 1; VerticalLayout { padding: 11px; spacing: 5px; Text { text: "CAUSAL INSPECTOR  /  " + root.selected-fill; color: Palette.amber; font-size: 10px; font-weight: 800; } Text { text: root.causal-text; color: Palette.text; font-size: 9px; vertical-stretch: 1; } } } Card { width: 340px; VerticalLayout { padding: 11px; spacing: 5px; Text { text: "RAW EVENT"; color: Palette.dim; font-size: 9px; font-weight: 800; } Copy { value: root.raw-event; horizontal-stretch: 1; } Text { text: "Select the field to copy the full JSON"; color: Palette.dim; font-size: 8px; } } } }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: "Quant Replay Studio"; width: 1280px; height: 980px; background: Palette.bg;
+    in-out property <string> current-page: "library"; in-out property <string> dataset-status: "CHECKING"; in-out property <string> l2-quality: "checking local files"; in-out property <string> raw-size: "—"; in-out property <string> dataset-date: "2026-10-01"; in-out property <string> strategy-profile: "tfi"; in-out property <string> fill-model: "top-of-book"; in-out property <string> run-state: "ready"; in-out property <string> run-phase: "READY"; in-out property <string> run-detail: "No Runner process is active."; in-out property <string> status-message: "Local replay workspace ready."; in-out property <string> current-run: "—"; in-out property <string> run-dir: "—"; in-out property <string> selected-run-id: "—"; in-out property <string> run-root: "—"; in-out property <string> run-count: "0 RUNS";
+    in-out property <string> run-1-id: "—"; in-out property <string> run-1-dataset: "—"; in-out property <string> run-1-symbol: "—"; in-out property <string> run-1-strategy: "—"; in-out property <string> run-1-stats: "—"; in-out property <string> run-1-status: "—";
+    in-out property <string> run-2-id: "—"; in-out property <string> run-2-dataset: "—"; in-out property <string> run-2-symbol: "—"; in-out property <string> run-2-strategy: "—"; in-out property <string> run-2-stats: "—"; in-out property <string> run-2-status: "—";
+    in-out property <string> run-3-id: "—"; in-out property <string> run-3-dataset: "—"; in-out property <string> run-3-symbol: "—"; in-out property <string> run-3-strategy: "—"; in-out property <string> run-3-stats: "—"; in-out property <string> run-3-status: "—";
+    in-out property <string> run-4-id: "—"; in-out property <string> run-4-dataset: "—"; in-out property <string> run-4-symbol: "—"; in-out property <string> run-4-strategy: "—"; in-out property <string> run-4-stats: "—"; in-out property <string> run-4-status: "—";
+    in-out property <string> run-5-id: "—"; in-out property <string> run-5-dataset: "—"; in-out property <string> run-5-symbol: "—"; in-out property <string> run-5-strategy: "—"; in-out property <string> run-5-stats: "—"; in-out property <string> run-5-status: "—";
+    in-out property <string> run-6-id: "—"; in-out property <string> run-6-dataset: "—"; in-out property <string> run-6-symbol: "—"; in-out property <string> run-6-strategy: "—"; in-out property <string> run-6-stats: "—"; in-out property <string> run-6-status: "—";
+    in-out property <float> starting-cash: 10000; in-out property <int> latency-us: 50000; in-out property <string> run-id: "—"; in-out property <string> symbol: "CCUSDT"; in-out property <string> strategy-name: "TFI"; in-out property <string> execution-model: "top_of_book_taker_ioc_v1"; in-out property <string> replay-time: "—"; in-out property <string> event-cursor: "0 / 0"; in-out property <string> replay-state: "PAUSED"; in-out property <int> replay-progress: 0; in-out property <string> mid: "—"; in-out property <string> best-bid: "—"; in-out property <string> best-ask: "—"; in-out property <string> spread: "—"; in-out property <string> microprice: "—"; in-out property <string> signal: "—"; in-out property <string> chart: "Open a Run to load real quote events."; in-out property <string> order-book: "Open a Run to load the current book."; in-out property <string> event-tape: "No run loaded."; in-out property <string> orders-text: "No orders."; in-out property <string> fills-text: "No fills."; in-out property <string> position-text: "No position snapshot."; in-out property <string> pnl-text: "No PnL snapshot."; in-out property <string> causal-text: "Select a fill to inspect the complete causal chain."; in-out property <string> l2-warning: "L2 semantics pending"; in-out property <string> raw-event: "{}"; in-out property <string> selected-fill: "—"; in-out property <string> trade-summary: "No run loaded."; in-out property <string> trade-detail: "Open a Runner artifact to inspect the story."; in-out property <string> signal-story: "No signal at this cursor."; in-out property <string> arrival-story: "No arrival at this cursor."; in-out property <string> execution-story: "No fill at this cursor."; in-out property <string> account-story: "No account snapshot.";
+    callback navigate(string); callback create-run(); callback open-run(string); callback select-run(string); callback run-backtest(); callback choose-fill-model(string); callback choose-strategy(string); callback replay-command(string); callback seek(float); callback select-fill(string); callback select-tab(string);
+    HorizontalLayout {
+        Rectangle { width: 214px; background: Palette.shell; VerticalLayout { padding: 17px; spacing: 7px; Text { text: "QRS"; color: Palette.amber; font-size: 22px; font-weight: 900; } Text { text: "QUANT REPLAY STUDIO"; color: Palette.text; font-size: 10px; font-weight: 800; letter-spacing: 1px; } Text { text: "RUNNER ARTIFACT MONITOR"; color: Palette.dim; font-size: 8px; letter-spacing: 1px; } Rectangle { height: 22px; } Nav { label: "Run Library"; note: "recent runs · open story"; active: root.current-page == "library"; clicked => root.navigate("library"); } Nav { label: "Backtest Setup"; note: "dataset · strategy · execution"; active: root.current-page == "setup"; clicked => root.navigate("setup"); } Nav { label: "Replay Workbench"; note: "signal · fill · PnL"; active: root.current-page == "workbench"; clicked => root.navigate("workbench"); } Rectangle { vertical-stretch: 1; } Text { text: root.status-message; color: Palette.dim; font-size: 8px; } Text { text: "SELECTED RUN"; color: Palette.dim; font-size: 7px; letter-spacing: 1px; } Copy { value: root.selected-run-id; } } }
+        Rectangle { horizontal-stretch: 1; if root.current-page == "library": RunLibraryPage { run-count: root.run-count; run-root: root.run-root; run-1-id: root.run-1-id; run-1-dataset: root.run-1-dataset; run-1-symbol: root.run-1-symbol; run-1-strategy: root.run-1-strategy; run-1-stats: root.run-1-stats; run-1-status: root.run-1-status; run-2-id: root.run-2-id; run-2-dataset: root.run-2-dataset; run-2-symbol: root.run-2-symbol; run-2-strategy: root.run-2-strategy; run-2-stats: root.run-2-stats; run-2-status: root.run-2-status; run-3-id: root.run-3-id; run-3-dataset: root.run-3-dataset; run-3-symbol: root.run-3-symbol; run-3-strategy: root.run-3-strategy; run-3-stats: root.run-3-stats; run-3-status: root.run-3-status; run-4-id: root.run-4-id; run-4-dataset: root.run-4-dataset; run-4-symbol: root.run-4-symbol; run-4-strategy: root.run-4-strategy; run-4-stats: root.run-4-stats; run-4-status: root.run-4-status; run-5-id: root.run-5-id; run-5-dataset: root.run-5-dataset; run-5-symbol: root.run-5-symbol; run-5-strategy: root.run-5-strategy; run-5-stats: root.run-5-stats; run-5-status: root.run-5-status; run-6-id: root.run-6-id; run-6-dataset: root.run-6-dataset; run-6-symbol: root.run-6-symbol; run-6-strategy: root.run-6-strategy; run-6-stats: root.run-6-stats; run-6-status: root.run-6-status; open-run(value) => root.open-run(value); create-run => root.create-run(); select-run(value) => root.select-run(value); } if root.current-page == "setup": SetupPage { dataset-status: root.dataset-status; l2-quality: root.l2-quality; raw-size: root.raw-size; fill-model: root.fill-model; strategy-profile: root.strategy-profile; run-state: root.run-state; run-phase: root.run-phase; run-detail: root.run-detail; run-backtest => root.run-backtest(); choose-fill-model(value) => root.choose-fill-model(value); choose-strategy(value) => root.choose-strategy(value); } if root.current-page == "workbench": WorkbenchPage { run-id: root.run-id; symbol: root.symbol; dataset-date: root.dataset-date; strategy-name: root.strategy-name; execution-model: root.execution-model; replay-time: root.replay-time; event-cursor: root.event-cursor; replay-state: root.replay-state; replay-progress: root.replay-progress; mid: root.mid; best-bid: root.best-bid; best-ask: root.best-ask; spread: root.spread; microprice: root.microprice; signal: root.signal; chart: root.chart; order-book: root.order-book; event-tape: root.event-tape; orders-text: root.orders-text; fills-text: root.fills-text; position-text: root.position-text; pnl-text: root.pnl-text; causal-text: root.causal-text; l2-warning: root.l2-warning; raw-event: root.raw-event; selected-fill: root.selected-fill; trade-summary: root.trade-summary; trade-detail: root.trade-detail; signal-story: root.signal-story; arrival-story: root.arrival-story; execution-story: root.execution-story; account-story: root.account-story; open-library => root.navigate("library"); open-setup => root.navigate("setup"); replay-command(value) => root.replay-command(value); seek(value) => root.seek(value); select-fill(value) => root.select-fill(value); select-tab(value) => root.select-tab(value); } }
+    }
+}

@@ -108,7 +108,7 @@ def windows_working_set_bytes(pid: int) -> int | None:
 
 def exe_path(repo_root: Path) -> Path:
     suffix = ".exe" if sys.platform == "win32" else ""
-    return repo_root / "systems" / "ccusdt_replay_exchange" / "engine" / "target" / "debug" / f"ccusdt_replay_cli{suffix}"
+    return repo_root / "systems" / "quant_replay_engine" / "target" / "debug" / f"quant_replay_cli{suffix}"
 
 
 def run_command(
@@ -217,9 +217,9 @@ def main() -> int:
         "cargo",
         "build",
         "--manifest-path",
-        "systems/ccusdt_replay_exchange/engine/Cargo.toml",
+        "systems/quant_replay_engine/Cargo.toml",
         "-p",
-        "ccusdt_replay_cli",
+        "quant_replay_cli",
     ]
     build = run_command(build_cmd, repo_root)
 

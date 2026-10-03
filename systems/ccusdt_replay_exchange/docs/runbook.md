@@ -9,57 +9,57 @@ systems/ccusdt_replay_exchange/docs/next-stage-three-process-design.md
 Scan catalog:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
 ```
 
 Build 2026-05-18 canonical datasets:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset trade_event_v1 --from 2026-05-18 --to 2026-05-18
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset l2_level_update_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset trade_event_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset l2_level_update_v1 --from 2026-05-18 --to 2026-05-18
 ```
 
 Validate canonical:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical validate --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical validate --from 2026-05-18 --to 2026-05-18
 ```
 
 Serve from canonical quotes:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --canonical-date 2026-05-18 --addr 127.0.0.1:8797
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- serve --canonical-date 2026-05-18 --addr 127.0.0.1:8797
 ```
 
 Run the deterministic toy runner:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1 --qty 10 --hold-frames 20
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1 --qty 10 --hold-frames 20
 ```
 
 Run the sparse exchange-style Python stream runner:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
 ```
 
 Run a short L2 batch with the L2 depth fill model:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --latency-us 0 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --latency-us 0 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
 ```
 
 Run accelerated async pressure mode:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000 --clock-mode accelerated-async --wall-latency-speedup 25
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000 --clock-mode accelerated-async --wall-latency-speedup 25
 ```
 
 Run the independent Runner Server:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --order-addr 127.0.0.1:8803 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --order-addr 127.0.0.1:8803 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
 ```
 
 Run the independent Python bot in another terminal:
@@ -175,7 +175,7 @@ python systems/ccusdt_replay_exchange/diagnostics/fast_strategy_backtest.py --re
 Run the sim-live strict gate for the same policy/capacity profile:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --run-id sim_live_core_idle01_g1_fixed60 --strategy-arg=--sparse-output --strategy-arg=--window-us --strategy-arg=2000000 --strategy-arg=--decision-clock --strategy-arg=panel --strategy-arg=--decision-trade-window-us --strategy-arg=2000000 --strategy-arg=--max-orders --strategy-arg=0 --strategy-arg=--heartbeat-interval-us --strategy-arg=999999999999 --strategy-arg=--shadow-four-cell --strategy-arg=--shadow-frames-threshold --strategy-arg=31 --strategy-arg=--shadow-overlay-threshold --strategy-arg=59.80000000000018 --strategy-arg=--shadow-fixed-exit-us --strategy-arg=60000000 --strategy-arg=--shadow-gamma-preset --strategy-arg=core_q70 --strategy-arg=--shadow-gamma01-override --strategy-arg=1 --strategy-arg=--shadow-state-in --strategy-arg=systems/ccusdt_replay_exchange/runs/state/ccusdt_tfi_core_idle01/state_after_dt=2026-05-17.json --strategy-arg=--shadow-trade-entries --strategy-arg=--shadow-trade-exits --strategy-arg=--shadow-entry-notional --strategy-arg=1.0 --strategy-arg=--shadow-leverage-cap --strategy-arg=3.0 --strategy-arg=--shadow-capacity-profile --strategy-arg=core_idle01 --strategy-arg=--shadow-idle01-gamma --strategy-arg=1 --strategy-arg=--shadow-idle01-reserve --strategy-arg=0
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --run-id sim_live_core_idle01_g1_fixed60 --strategy-arg=--sparse-output --strategy-arg=--window-us --strategy-arg=2000000 --strategy-arg=--decision-clock --strategy-arg=panel --strategy-arg=--decision-trade-window-us --strategy-arg=2000000 --strategy-arg=--max-orders --strategy-arg=0 --strategy-arg=--heartbeat-interval-us --strategy-arg=999999999999 --strategy-arg=--shadow-four-cell --strategy-arg=--shadow-frames-threshold --strategy-arg=31 --strategy-arg=--shadow-overlay-threshold --strategy-arg=59.80000000000018 --strategy-arg=--shadow-fixed-exit-us --strategy-arg=60000000 --strategy-arg=--shadow-gamma-preset --strategy-arg=core_q70 --strategy-arg=--shadow-gamma01-override --strategy-arg=1 --strategy-arg=--shadow-state-in --strategy-arg=systems/ccusdt_replay_exchange/runs/state/ccusdt_tfi_core_idle01/state_after_dt=2026-05-17.json --strategy-arg=--shadow-trade-entries --strategy-arg=--shadow-trade-exits --strategy-arg=--shadow-entry-notional --strategy-arg=1.0 --strategy-arg=--shadow-leverage-cap --strategy-arg=3.0 --strategy-arg=--shadow-capacity-profile --strategy-arg=core_idle01 --strategy-arg=--shadow-idle01-gamma --strategy-arg=1 --strategy-arg=--shadow-idle01-reserve --strategy-arg=0
 ```
 
 Then compare:
@@ -268,7 +268,7 @@ hit a wider or less friendly top-of-book than entry.
 market events but does not change the deterministic arrival/fill rule:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --public-stream-mode batched-public-v1 --public-batch-size 512 --public-batch-max-span-us 5000000 --run-id det_batch_full_span5s_20260521 <same strategy args as strict_event>
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --public-stream-mode batched-public-v1 --public-batch-size 512 --public-batch-max-span-us 5000000 --run-id det_batch_full_span5s_20260521 <same strategy args as strict_event>
 ```
 
 Acceptance gate:
@@ -292,7 +292,7 @@ remain deterministic. This is exactly why `strict_event` remains the truth gate.
 `batched_public_barrier_v1` is the causal-barrier replacement for larger spans:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --public-stream-mode batched-public-barrier-v1 --public-batch-size 512 --public-batch-max-span-us 60000000 --run-id det_barrier_full_span60s_20260521 <same strategy args as strict_event>
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --public-stream-mode batched-public-barrier-v1 --public-batch-size 512 --public-batch-max-span-us 60000000 --run-id det_barrier_full_span60s_20260521 <same strategy args as strict_event>
 ```
 
 Known 2026-05-18 barrier results:
@@ -320,7 +320,7 @@ truth gates.
 Example full-day command:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --public-stream-mode panel-sparse-v1 --public-batch-size 512 --public-batch-max-span-us 60000000 --run-id det_panel_sparse_full_span60s_20260521 <same strategy args as strict_event>
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --include-l2 --compact-l2 --public-stream-mode panel-sparse-v1 --public-batch-size 512 --public-batch-max-span-us 60000000 --run-id det_panel_sparse_full_span60s_20260521 <same strategy args as strict_event>
 ```
 
 Acceptance gates:
@@ -359,7 +359,7 @@ research, or online feature-reconstruction validation.
 Example full-day command:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --public-stream-mode panel-sparse-fast-clock-v1 --public-batch-size 512 --public-batch-max-span-us 60000000 --run-id det_panel_sparse_fast_clock_full_20260521_seqfix <same strategy args as strict_event>
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500000 --latency-us 0 --arrival-mode timer --clock-mode deterministic-step --log-mode compact --fill-model top-of-book --public-stream-mode panel-sparse-fast-clock-v1 --public-batch-size 512 --public-batch-max-span-us 60000000 --run-id det_panel_sparse_fast_clock_full_20260521_seqfix <same strategy args as strict_event>
 ```
 
 Known 2026-05-18 result:
@@ -434,8 +434,8 @@ console monitor intentionally has no `--order-addr` option.
 Validation commands used for this layer:
 
 ```powershell
-cargo fmt --all --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml
-cargo test --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml --offline
+cargo fmt --all --manifest-path systems/quant_replay_engine/Cargo.toml
+cargo test --manifest-path systems/quant_replay_engine/Cargo.toml --offline
 python -m py_compile systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/strategy.py systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/tcp_bot.py
 node --check systems/ccusdt_replay_exchange/monitor/src/console_monitor.mjs
 ```

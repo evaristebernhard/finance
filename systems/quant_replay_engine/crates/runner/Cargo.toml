@@ -1,0 +1,11 @@
+[package]
+name = "quant_replay_runner"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+quant_exchange_sim = { path = "../exchange_sim" }
+quant_replay_core = { path = "../replay_core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

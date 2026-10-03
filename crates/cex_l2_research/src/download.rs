@@ -946,25 +946,44 @@ fn load_tardis_key(config: &BullishDownloadConfig) -> Result<String> {
             config.env_file.display()
         )
     })?;
-    for line in text.lines() {
+    let lines: Vec<&str> = text.lines().collect();
+    for (index, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         if trimmed.starts_with('#') {
             continue;
         }
-        if let Some(rest) = trimmed.strip_prefix("TARDIS_API_KEY") {
-            let Some(value) = rest.trim_start().strip_prefix('=') else {
-                continue;
-            };
-            let key = value
-                .trim()
-                .trim_matches('"')
-                .trim_matches('\'')
-                .to_string();
-            if key.len() < 20 {
-                bail!("TARDIS_API_KEY exists but is too short");
+        let Some(rest) = trimmed.strip_prefix("TARDIS_API_KEY") else {
+            continue;
+        };
+        let Some(value) = rest.trim_start().strip_prefix('=') else {
+            continue;
+        };
+
+        // Accept both the ordinary dotenv form and the multiline shell form
+        // used by the local config template: TARDIS_API_KEY=("part" "part").
+        let mut key = value.trim().to_string();
+        if key.starts_with('(') {
+            let mut fragments = vec![key];
+            for continuation in lines.iter().skip(index + 1) {
+                fragments.push(continuation.trim().to_string());
+                if continuation.contains(')') {
+                    break;
+                }
             }
-            return Ok(key);
+            key = fragments.join(" ");
         }
+        let key = key
+            .trim()
+            .trim_matches('(')
+            .trim_matches(')')
+            .replace('"', "")
+            .replace('\'', "")
+            .split_whitespace()
+            .collect::<String>();
+        if key.len() < 20 {
+            bail!("TARDIS_API_KEY exists but is too short");
+        }
+        return Ok(key);
     }
     bail!("TARDIS_API_KEY not found in {}", config.env_file.display())
 }

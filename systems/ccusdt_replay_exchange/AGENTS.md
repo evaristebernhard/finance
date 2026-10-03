@@ -12,15 +12,15 @@ Hard boundaries:
   source directories.
 - All strategy/exchange interactions must flow through event contracts.
 
-Current implementation:
+Market-pack implementation:
 
-- `engine/` is the Rust workspace.
-- `engine/crates/replay_core` owns catalog, canonical data, and replay loading.
-- `engine/crates/exchange_sim` owns order/fill/account simulation.
-- `engine/crates/runner` owns deterministic replay loops, stdin/stdout Python
+- `../quant_replay_engine/` is the generic Rust workspace.
+- `../quant_replay_engine/crates/replay_core` owns catalog, canonical data, and replay loading.
+- `../quant_replay_engine/crates/exchange_sim` owns order/fill/account simulation.
+- `../quant_replay_engine/crates/runner` owns deterministic replay loops, stdin/stdout Python
   strategy streams, sparse intent handling, timestamp latency queues, optional
   L2 depth fills, accelerated async pressure diagnostics, and run event logs.
-- `engine/crates/cli` owns REST serving and data CLI commands.
+- `../quant_replay_engine/crates/cli` owns local data and Runner CLI commands.
 - `strategies/python/ccusdt_tfi_core_idle01/online_features.py` is the
   runtime-safe feature module shared by stdin and TCP bots. It reads only
   exchange-visible events and owns TFI, rolling trade imbalance, quote
@@ -60,14 +60,14 @@ Current next-stage design:
 Useful commands:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
 python systems/ccusdt_replay_exchange/strategies/python/ccusdt_tfi_core_idle01/tcp_bot.py
 npm --prefix systems/ccusdt_replay_exchange/monitor run monitor -- --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --state-url http://127.0.0.1:8804/api/state
 python systems/ccusdt_replay_exchange/diagnostics/hardening_suite.py --repo-root . --date 2026-05-18
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --canonical-date 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- serve --canonical-date 2026-05-18
 ```

@@ -1,0 +1,8 @@
+[package]
+name = "quant_exchange_sim"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+quant_replay_core = { path = "../replay_core" }

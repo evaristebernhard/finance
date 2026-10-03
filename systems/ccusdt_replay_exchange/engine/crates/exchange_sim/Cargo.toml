@@ -1,9 +1,0 @@
-[package]
-name = "ccusdt_exchange_sim"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-anyhow = { workspace = true }
-ccusdt_replay_core = { path = "../replay_core" }
-

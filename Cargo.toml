@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "backend",
     "crate",
     "crates/cex_l2_research",
     "crates/btc_research",

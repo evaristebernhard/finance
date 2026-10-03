@@ -2,7 +2,10 @@
 
 Status: catalog + canonical + sparse taker-first stream runner MVP, 2026-05-19.
 
-This is a standalone local replay + paper exchange system. It is intentionally
+This is the CCUSDT market pack for the standalone local replay + paper exchange
+system. The generic Rust kernel now lives in
+`systems/quant_replay_engine/`; this directory owns CCUSDT strategies,
+diagnostics, monitor wiring, fixtures, and market-specific run history. It is intentionally
 separate from root-level research scripts, the older replay workbench backend,
 and the legacy `date/` research-output directory.
 
@@ -18,7 +21,7 @@ old raw/research files -> catalog -> canonical events -> replay exchange -> runs
 docs/       architecture, contracts, execution model, runbook
 configs/    local roots and runtime configs
 schemas/    event/order/fill/portfolio contracts
-engine/     Rust workspace
+../quant_replay_engine/ generic Rust workspace
 strategies/ external strategy clients
 monitor/    future UI
 runs/       local run outputs
@@ -48,21 +51,21 @@ as a deterministic regression harness.
 Scan local source coverage:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- catalog scan --repo-root . --symbol CCUSDT
 ```
 
 Build 2026-05-18 canonical market truth:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset trade_event_v1 --from 2026-05-18 --to 2026-05-18
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical build --dataset l2_level_update_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset quote_frame_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset trade_event_v1 --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical build --dataset l2_level_update_v1 --from 2026-05-18 --to 2026-05-18
 ```
 
 Validate:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- canonical validate --from 2026-05-18 --to 2026-05-18
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- canonical validate --from 2026-05-18 --to 2026-05-18
 ```
 
 Generated outputs live under repo-level `data/catalog` and `data/canonical`.
@@ -73,7 +76,7 @@ Those directories are local generated data and remain git-ignored.
 Run the sparse exchange-style Python bot from canonical quote/trade streams:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 500 --latency-us 50000
 ```
 
 Python receives stdin NDJSON `session_start`, `market_quote`, `market_trade`,
@@ -100,7 +103,7 @@ spread, latency, wall-latency diagnostics, and latency slippage. Optional L2
 depth fill can be enabled as the execution model:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run sparse-python --canonical-date 2026-05-18 --max-events 550 --include-l2 --l2-max-rows 1000 --l2-batch-size 200 --fill-model l2-depth
 ```
 
 For pressure testing only, `--clock-mode accelerated-async` maps Python wall
@@ -116,7 +119,7 @@ should prefer `run sparse-python`.
 Run the independent Runner Server:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --order-addr 127.0.0.1:8803 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run server --canonical-date 2026-05-18 --max-events 900 --latency-us 50000 --public-addr 127.0.0.1:8801 --private-addr 127.0.0.1:8802 --order-addr 127.0.0.1:8803 --state-addr 127.0.0.1:8804 --startup-wait-ms 1500 --event-sleep-us 2000
 ```
 
 Run the independent Python bot in a second terminal:
@@ -185,7 +188,7 @@ async pressure mode remains explicit through `--clock-mode accelerated-async`.
 Run a deterministic toy strategy from canonical quote frames:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1 --qty 10 --hold-frames 20
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- run toy --canonical-date 2026-05-18 --max-frames 200 --latency-frames 1 --qty 10 --hold-frames 20
 ```
 
 The runner owns the replay clock. Strategy decisions create order intents, the
@@ -203,13 +206,13 @@ systems/ccusdt_replay_exchange/runs/<run_id>/summary.json
 Serve from canonical quote frames:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --canonical-date 2026-05-18 --addr 127.0.0.1:8797
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- serve --canonical-date 2026-05-18 --addr 127.0.0.1:8797
 ```
 
 Serve from a small fixture:
 
 ```powershell
-cargo run --manifest-path systems/ccusdt_replay_exchange/engine/Cargo.toml -p ccusdt_replay_cli -- serve --csv systems/ccusdt_replay_exchange/tests/fixtures/frames.csv
+cargo run --manifest-path systems/quant_replay_engine/Cargo.toml -p quant_replay_cli -- serve --csv systems/ccusdt_replay_exchange/tests/fixtures/frames.csv
 ```
 
 API:
