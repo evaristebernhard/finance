@@ -39,15 +39,17 @@ export function PriceChart({state, window, range, onRange, onInspect}: {state: R
   const [hover, setHover] = useState<number | null>(null);
   const data = window.data;
   const prices = data?.prices.filter(p=>p.mid !== null) ?? [];
+  const markers = data?.markers ?? [];
   const start = prices[0]?.clockTimestamp ?? state.clockTimestamp;
   const stop = prices.at(-1)?.clockTimestamp ?? state.clockTimestamp;
-  const min = prices.length ? Math.min(...prices.map(p=>p.mid!)) : 0;
-  const max = prices.length ? Math.max(...prices.map(p=>p.mid!)) : 0;
+  const plotted = [...prices.map(p=>p.mid!).filter(Number.isFinite), ...markers.map(m=>m.price ?? m.mid).filter((v): v is number=>v !== null && Number.isFinite(v))];
+  const min = plotted.length ? Math.min(...plotted) : 0;
+  const max = plotted.length ? Math.max(...plotted) : 0;
   const span = max-min || Math.max(Math.abs(max)*0.0001,1e-8);
   const y = (p:number) => 125-(p-min)/span*110;
   const points = prices.map(p=>`${xTime(p.clockTimestamp,start,stop)},${y(p.mid!)}`).join(" ");
   const nearest = hover === null ? null : prices.reduce<typeof prices[number] | null>((best,p)=>!best || Math.abs(xTime(p.clockTimestamp,start,stop)-hover)<Math.abs(xTime(best.clockTimestamp,start,stop)-hover) ? p : best,null);
-  return <section className="chart-panel panel"><div className="panel-heading"><div><h2>Price path</h2><p>Mid price · event time</p></div><select aria-label="Price time window" value={range} onChange={e=>onRange(e.target.value)}><option value="all">All visible</option><option value="60">Last 60s</option><option value="10">Last 10s</option></select></div><div className="chart-wrap" onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();setHover((e.clientX-r.left)/r.width*100);}} onMouseLeave={()=>setHover(null)}><svg viewBox="0 0 100 140" preserveAspectRatio="none" role="img" aria-label="Mid price in event time"><polyline points={points} fill="none" stroke="#58d2b2" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />{data?.markers.filter(m=>m.mid!==null).map(m=><circle key={m.eventId} cx={xTime(m.clockTimestamp,start,stop)} cy={y(m.mid!)} r={m.eventType === "fill_created" || m.eventType === "fill" ? 1.7 : 0.7} fill={m.eventType.includes("fill") ? "#58d2b2" : m.eventType === "order_arrival" ? "#b796e9" : m.eventType === "order_intent" ? "#80b9ef" : "#f1b85b"} className="event-marker" onClick={()=>onInspect(m.eventId,m.eventType)}><title>{m.eventType} · {time(m.timestamp)} · event {m.eventId}</title></circle>)}</svg><div className="chart-readout"><span>{nearest ? time(nearest.timestamp) : "mid"}</span><strong>{fmt(nearest?.mid ?? state.quote?.mid,8)}</strong><span>{nearest ? `bid ${fmt(nearest.bid,8)} · ask ${fmt(nearest.ask,8)}` : window.error || (!data ? "Loading window…" : `${prices.length} points`)}</span></div></div><div className="chart-axis"><span>{time(start)}</span><span>{fmt(min,8)} – {fmt(max,8)}</span><span>{time(stop)}</span></div><div className="chart-legend"><span><i className="legend-dot quote" /> quote / signal</span><span><i className="legend-dot intent" /> intent</span><span><i className="legend-dot arrival" /> arrival</span><span><i className="legend-dot fill" /> fill</span></div>{data && data.markerCount > data.markers.length && <small>{data.markers.length} of {data.markerCount} markers; use a shorter window for detail.</small>}</section>;
+  return <section className="chart-panel panel"><div className="panel-heading"><div><h2>Historical price & execution</h2><p>Mid price with strategy, order and actual fill markers</p></div><select aria-label="Price time window" value={range} onChange={e=>onRange(e.target.value)}><option value="all">All visible</option><option value="60">Last 60s</option><option value="10">Last 10s</option></select></div><div className="chart-wrap" onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();setHover((e.clientX-r.left)/r.width*100);}} onMouseLeave={()=>setHover(null)}><svg viewBox="0 0 100 140" preserveAspectRatio="none" role="img" aria-label="Historical price with strategy and execution markers"><polyline points={points} fill="none" stroke="#58d2b2" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />{markers.filter(m=>(m.price ?? m.mid)!==null).map(m=>{const markerPrice=m.price ?? m.mid!;const isFill=m.eventType === "fill_created" || m.eventType === "fill";const fillTone=m.side === "sell" ? "#ef7f7f" : "#58d2b2";return <circle key={m.eventId} cx={xTime(m.clockTimestamp,start,stop)} cy={y(markerPrice)} r={isFill ? 1.9 : 0.75} fill={isFill ? fillTone : m.eventType === "order_arrival" ? "#b796e9" : m.eventType === "order_intent" ? "#80b9ef" : "#f1b85b"} className="event-marker" onClick={()=>onInspect(m.eventId,m.eventType)}><title>{[m.side?.toUpperCase(),m.eventType,time(m.timestamp),`price ${fmt(markerPrice,8)}`,m.signal==null?null:`signal ${fmt(m.signal,3)}`,`event ${m.eventId}`].filter(Boolean).join(" · ")}</title></circle>})}</svg><div className="chart-readout"><span>{nearest ? time(nearest.timestamp) : "mid"}</span><strong>{fmt(nearest?.mid ?? state.quote?.mid,8)}</strong><span>{nearest ? `bid ${fmt(nearest.bid,8)} · ask ${fmt(nearest.ask,8)}` : window.error || (!data ? "Loading window…" : `${prices.length} price points · ${markers.length} markers`)}</span></div></div><div className="chart-axis"><span>{time(start)}</span><span>{fmt(min,8)} – {fmt(max,8)}</span><span>{time(stop)}</span></div><div className="chart-legend"><span><i className="legend-dot quote" /> signal</span><span><i className="legend-dot intent" /> intent</span><span><i className="legend-dot arrival" /> arrival</span><span><i className="legend-dot fill" /> buy fill</span><span><i className="legend-dot sell-fill" /> sell fill</span></div>{data && data.markerCount > data.markers.length && <small>{data.markers.length} of {data.markerCount} markers; use a shorter window for detail.</small>}</section>;
 }
 export function EquityChart({window}: {window:WindowResult}) {
   const values=window.data?.pnl ?? [];
@@ -75,4 +77,45 @@ export function RawInspector({state,eventId}:{state:ReplayStateV2;eventId:string
   useEffect(()=>{setResult(null);setError("");if(!eventId)return;let cancelled=false;const s=current.current;inspectReplayEvent(s,eventId).then(r=>{if(!cancelled)setResult(r);}).catch(e=>{if(!cancelled)setError(String(e));});return()=>{cancelled=true;};},[eventId,state.sessionId]);
   const raw=result?.sessionId===state.sessionId ? JSON.stringify(result.rawEvent,null,2) : "Select an event row or chart marker to read its JSON.";
   return <section className="raw-event panel"><div className="panel-kicker"><span>RAW EVENT JSON · {eventId ?? "—"}</span><button className="copy-button" disabled={!result} onClick={()=>void navigator.clipboard?.writeText(raw)}>Copy raw JSON</button></div><pre>{error || raw}</pre></section>;
+}
+
+export function HistoricalTradeAnalysis({state,onInspect}:{state:ReplayStateV2;onInspect:(id:string,kind:string)=>void}) {
+  const [rows,setRows]=useState<ReplayRows["rows"]>([]);
+  const [total,setTotal]=useState(0);
+  const [error,setError]=useState("");
+  const latest=useRef(state);latest.current=state;
+  const busy=useRef(false);
+  useEffect(()=>{let cancelled=false;const poll=async()=>{if(busy.current)return;const request=latest.current;busy.current=true;try{
+    const [created,plain]=await Promise.all([
+      queryReplayRows(request,"fill_created",0,100),
+      queryReplayRows(request,"fill",0,100)
+    ]);
+    const now=latest.current;
+    if(cancelled || created.sessionId!==now.sessionId || plain.sessionId!==now.sessionId || created.cursorUpper!==now.cursor || plain.cursorUpper!==now.cursor)return;
+    const unique=new Map<string,ReplayRows["rows"][number]>();
+    for(const row of [...created.rows,...plain.rows]) unique.set(row.fillId ? `fill:${row.fillId}` : `event:${row.eventId}`,row);
+    setRows([...unique.values()].sort((a,b)=>b.eventPos-a.eventPos));
+    setTotal(Math.max(created.total,plain.total,unique.size));
+    setError("");
+  }catch(e){if(!cancelled)setError(String(e));}finally{busy.current=false;}};void poll();const timer=window.setInterval(()=>void poll(),250);return()=>{cancelled=true;window.clearInterval(timer);};},[state.sessionId,state.playing]);
+
+  const realized=rows.filter(r=>r.realizedPnlDelta!==null).reduce((sum,r)=>sum+(r.realizedPnlDelta ?? 0),0);
+  const execution=rows.filter(r=>r.netPnlDelta!==null).reduce((sum,r)=>sum+(r.netPnlDelta ?? 0),0);
+  const slips=rows.map(r=>r.latencySlippageBps).filter((v):v is number=>v!==null && Number.isFinite(v));
+  const avgSlip=slips.length ? slips.reduce((a,b)=>a+b,0)/slips.length : null;
+  const completed=rows.filter(r=>Math.abs(r.realizedPnlDelta ?? 0)>1e-12).length;
+  return <section className="historical-trades panel">
+    <div className="panel-heading"><div><h2>Historical trades</h2><p>Runner-recorded fills up to the current replay cursor</p></div><span className="history-count">{total} fills</span></div>
+    <div className="history-metrics">
+      <div><span>REALIZED Δ</span><strong className={realized>=0?"positive-text":"negative-text"}>{fmt(realized,4)}</strong></div>
+      <div><span>EXECUTION Δ</span><strong className={execution>=0?"positive-text":"negative-text"}>{fmt(execution,4)}</strong></div>
+      <div><span>AVG LATENCY SLIP</span><strong>{avgSlip===null?"—":`${fmt(avgSlip,3)} bps`}</strong></div>
+      <div><span>REALIZING FILLS</span><strong>{completed}</strong></div>
+    </div>
+    <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Time</th><th>Side</th><th>Qty</th><th>Fill</th><th>Signal</th><th>Latency slip</th><th>Realized Δ</th><th>Exec Δ</th></tr></thead><tbody>
+      {rows.slice(0,10).map(r=><tr key={r.eventId} onClick={()=>onInspect(r.eventId,r.eventType)}><td>{time(r.timestamp)}</td><td className={r.side==="buy"?"positive-text":r.side==="sell"?"negative-text":""}>{r.side?.toUpperCase() ?? "—"}</td><td>{fmt(r.qty,3)}</td><td>{fmt(r.price,8)}</td><td title={r.reason ?? ""}>{fmt(r.signal,3)}</td><td>{r.latencySlippageBps===null?"—":`${fmt(r.latencySlippageBps,3)} bps`}</td><td className={(r.realizedPnlDelta ?? 0)>=0?"positive-text":"negative-text"}>{fmt(r.realizedPnlDelta,4)}</td><td className={(r.netPnlDelta ?? 0)>=0?"positive-text":"negative-text"}>{fmt(r.netPnlDelta,4)}</td></tr>)}
+      {!rows.length && <tr><td colSpan={8}>{error || "No fills have occurred at this replay cursor."}</td></tr>}
+    </tbody></table></div>
+    <p className="history-note">Realized Δ is the realized-account change recorded at that fill; execution Δ is the immediate equity change at execution. Neither is fabricated by the UI.</p>
+  </section>;
 }
